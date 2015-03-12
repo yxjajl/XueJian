@@ -1,0 +1,221 @@
+package com.dh.service;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.apache.log4j.Logger;
+import org.springframework.stereotype.Component;
+
+import com.dh.constants.ArenaConstants;
+import com.dh.dao.PlayerHeroDefMapper;
+import com.dh.dao.PlayerYuanZhenMapper;
+import com.dh.game.constant.CSCommandConstant;
+import com.dh.game.vo.base.BaseExpeditionVO;
+import com.dh.game.vo.base.Reward;
+import com.dh.game.vo.raid.YuanZhenProto.StatisticsResponse;
+import com.dh.game.vo.user.PlayerHeroDefVO;
+import com.dh.game.vo.user.PlayerYuanZhenVO;
+import com.dh.handler.arena.ArenaRedisTool;
+import com.dh.netty.NettyMessageVO;
+import com.dh.resconfig.ExpeditionRes;
+import com.dh.resconfig.ExpeditionRewardRes;
+import com.dh.sqlexe.SqlSaveThread;
+import com.dh.util.CommandUtil;
+import com.dh.util.SqlBuild;
+import com.dh.vo.user.UserCached;
+
+@Component
+public class YuanZhenService {
+	private final static Logger LOGGER = Logger.getLogger(YuanZhenService.class);
+	public final static int MAXNORMALYUANZHEN = 30; // 最大普通关卡id
+	public final static int MAXELILYUANZHEN = 60; // 最大精英副本关卡id
+
+	public final static int YUANZHEN_TONGREWARD1 = 301;
+	public final static int YUANZHEN_TONGREWARD2 = 401;
+
+	@Resource
+	private SqlBuild sqlBuild;
+	@Resource
+	private SqlSaveThread sqlSaveThread;
+	@Resource
+	private PlayerYuanZhenMapper playerYuanZhenMapper;
+	@Resource
+	private PlayerHeroDefMapper playerHeroDefMapper;
+	@Resource
+	private RewardService rewardService;
+
+	public void loadYuanZhen(UserCached userCached) throws Exception {
+		if (userCached.getUserYuanZhen().getYzList().size() == 0) {
+			List<PlayerYuanZhenVO> list = playerYuanZhenMapper.getPlayerYuanZhenVO(userCached.getPlayerId());
+			if (list == null || list.size() == 0) {
+				list = new ArrayList<PlayerYuanZhenVO>();
+				PlayerYuanZhenVO playerYuanZhenVO = null;
+				for (BaseExpeditionVO baseExpeditionVO : ExpeditionRes.getInstance().getDataList()) {
+					playerYuanZhenVO = new PlayerYuanZhenVO();
+					playerYuanZhenVO.setIndex(baseExpeditionVO.getId());
+					playerYuanZhenVO.setPlayerId(userCached.getPlayerId());
+					playerYuanZhenVO.setOtherId(0);
+					playerYuanZhenVO.setStatus((byte) 0);
+					list.add(playerYuanZhenVO);
+					insertPlayerYuanZhenVO(playerYuanZhenVO);
+				}
+
+			}
+
+			userCached.getUserYuanZhen().getYzList().addAll(list);
+
+		}
+
+		int n = 1;
+		for (PlayerYuanZhenVO playerYuanZhenVO : userCached.getUserYuanZhen().getYzList()) {
+			userCached.getUserYuanZhen().setLastIndex(n);
+			if (playerYuanZhenVO.getStatus() == 0) {
+				break;
+			}
+			n++;
+		}
+		if (n > MAXELILYUANZHEN) {
+			n = MAXELILYUANZHEN;
+		}
+		userCached.getUserYuanZhen().setLastIndex(n);
+
+		PlayerYuanZhenVO playerYuanZhenVO = userCached.getUserYuanZhen().findPlayerYuanZhenVO(userCached.getUserYuanZhen().getLastIndex());
+
+		if (playerYuanZhenVO.getOtherId() <= 0) {
+			List<Integer> oldList = new ArrayList<Integer>(); // 例外playerId
+			oldList.add(userCached.getPlayerId());
+			for (PlayerYuanZhenVO temp : userCached.getUserYuanZhen().getYzList()) {
+				if (temp.getStatus() == 1) {
+					oldList.add(temp.getOtherId());
+				} else {
+					break;
+				}
+			}
+
+			int otherId = ArenaConstants.findPlayerId(playerYuanZhenVO.getIndex(), userCached.getUserHero().getCombat(), oldList);
+			playerYuanZhenVO.setOtherId(otherId);
+			updatePlayerYuanZhenVO(playerYuanZhenVO);
+			loadEnemy(userCached, otherId);
+		} else {
+			if (userCached.getUserYuanZhen().getPlayerHeroDefList().size() == 0) {
+				List<PlayerHeroDefVO> hlist = playerHeroDefMapper.getYuanZhenHeroDefList(userCached.getPlayerId());
+				userCached.getUserYuanZhen().getPlayerHeroDefList().clear();
+				for (PlayerHeroDefVO playerHeroDefVO : hlist) {
+					userCached.getUserYuanZhen().getPlayerHeroDefList().add(playerHeroDefVO);
+				}
+			}
+		}
+	}
+
+	// 加载对手英雄信息
+	public void loadEnemy(UserCached userCached, int otherPlayerId) {
+		List<PlayerHeroDefVO> hlist = ArenaRedisTool.getPlayerHeroDefList(otherPlayerId);
+		if (hlist != null && hlist.size() > 0) {
+			userCached.getUserYuanZhen().getPlayerHeroDefList().clear();
+			deleYuanZhenHeroDef(userCached.getPlayerId());
+			for (PlayerHeroDefVO playerHeroDefVO : hlist) {
+				playerHeroDefVO.setYzhp(playerHeroDefVO.getHp());
+				playerHeroDefVO.setPlayerId(userCached.getPlayerId());
+				playerHeroDefVO.setYzanger(0);
+				insertYuanZhenHeroDef(playerHeroDefVO);
+				userCached.getUserYuanZhen().getPlayerHeroDefList().add(playerHeroDefVO);
+			}
+		}
+	}
+
+	// 重置
+	public void refreshYuZhen(UserCached userCached) throws Exception {
+		int n = 0;
+		for (PlayerYuanZhenVO playerYuanZhenVO : userCached.getUserYuanZhen().getYzList()) {
+			playerYuanZhenVO.setOtherId(0);
+			playerYuanZhenVO.setStatus((byte) 0);
+			if (n == 0) {
+				List<Integer> oldList = new ArrayList<Integer>(1);
+				oldList.add(userCached.getPlayerId());
+				int otherId = ArenaConstants.findPlayerId(playerYuanZhenVO.getIndex(), userCached.getUserHero().getCombat(), oldList);
+				playerYuanZhenVO.setOtherId(otherId);
+				loadEnemy(userCached, otherId);
+			}
+			updatePlayerYuanZhenVO(playerYuanZhenVO);
+			n++;
+		}
+
+		userCached.getUserYuanZhen().setLastIndex(1);
+	}
+
+	// 远征结算统计
+	public void statistics(UserCached userCached, int layer, List<NettyMessageVO> commandList) throws Exception {
+
+		try {
+			StatisticsResponse.Builder statisticsResponse = StatisticsResponse.newBuilder();
+
+			// ExpeditionRewardRes.getInstance().getMap();
+			// int start = 1;
+			// int end = MAXNORMALYUANZHEN;
+			int rewardGroupId = YUANZHEN_TONGREWARD1;
+			if (layer == 1) {
+				// start = MAXNORMALYUANZHEN + 1;
+				// end = MAXELILYUANZHEN;
+				rewardGroupId = YUANZHEN_TONGREWARD2;
+			}
+
+			// for (BaseExpeditionVO baseExpeditionVO : ExpeditionRes.getInstance().getDataList()) {
+			// if (baseExpeditionVO.getId() < start || baseExpeditionVO.getId() > end) {
+			// continue;
+			// }
+			// List<Reward> list = ExpeditionRewardRes.getInstance().getRewardRateGroup(baseExpeditionVO.getReward());
+			// for (Reward reward : list) {
+			// statisticsResponse.addRaidRewardinfo(reward.getRaidRewardinfo());
+			// }
+			// }
+
+			List<Reward> list = ExpeditionRewardRes.getInstance().getRewardRateGroup(rewardGroupId);
+
+			rewardService.rewardAndMail(userCached, list, commandList, "远征统计");
+			for (Reward reward : list) {
+				statisticsResponse.addRaidRewardinfo(reward.getRaidRewardinfo());
+			}
+			CommandUtil.packageNettyMessage(CSCommandConstant.YUANZHEN_STATISTICS, statisticsResponse.build().toByteArray(), commandList);
+
+			if (layer == 0) {// 普通
+				ChatService.sendSysMsg(ChatService.sendYuanZhen(userCached.getPlayerVO().getName()), ChatService.TAGS[0]);
+			} else if (layer == 1) {
+				ChatService.sendSysMsg(ChatService.sendYuanZhenJingying(userCached.getPlayerVO().getName()), ChatService.TAGS[0]);
+			}
+		} catch (Exception e) {
+			LOGGER.error("statistics" + e.getMessage(), e);
+		}
+
+	}
+
+	public void insertPlayerYuanZhenVO(PlayerYuanZhenVO playerYuanZhenVO) {
+		sqlSaveThread.putSql(playerYuanZhenVO.getPlayerId(),sqlBuild.getSql("com.dh.dao.PlayerYuanZhenMapper.insertPlayerYuanZhenVO", playerYuanZhenVO));
+	}
+
+	public void updatePlayerYuanZhenVO(PlayerYuanZhenVO playerYuanZhenVO) {
+		sqlSaveThread.putSql(playerYuanZhenVO.getPlayerId(),sqlBuild.getSql("com.dh.dao.PlayerYuanZhenMapper.updatePlayerYuanZhenVO", playerYuanZhenVO));
+	}
+
+	public void delPlayerYuanZhenVO(int playerId) {
+		sqlSaveThread.putSql(playerId,sqlBuild.getSql("com.dh.dao.PlayerYuanZhenMapper.delPlayerYuanZhenVO", playerId));
+	}
+
+	// public void updateYuanZhenHeroDef(PlayerHeroDefVO playerHeroDefVO);
+	// public void deleYuanZhenHeroDef(int playerId);
+	// public void insertYuanZhenHeroDef(PlayerHeroDefVO playerHeroDefVO);
+
+	public void updateYuanZhenHeroDef(PlayerHeroDefVO playerHeroDefVO) {
+		sqlSaveThread.putSql(playerHeroDefVO.getPlayerId(),sqlBuild.getSql("com.dh.dao.PlayerHeroDefMapper.updateYuanZhenHeroDef", playerHeroDefVO));
+	}
+
+	public void insertYuanZhenHeroDef(PlayerHeroDefVO playerHeroDefVO) {
+		sqlSaveThread.putSql(playerHeroDefVO.getPlayerId(),sqlBuild.getSql("com.dh.dao.PlayerHeroDefMapper.insertYuanZhenHeroDef", playerHeroDefVO));
+	}
+
+	public void deleYuanZhenHeroDef(int playerId) {
+		sqlSaveThread.putSql(playerId,sqlBuild.getSql("com.dh.dao.PlayerHeroDefMapper.deleYuanZhenHeroDef", playerId));
+	}
+
+}

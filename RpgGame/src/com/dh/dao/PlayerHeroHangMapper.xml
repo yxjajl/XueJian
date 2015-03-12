@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dh.dao.PlayerHeroHangMapper">
+	
+	
+	
+	<select id = "getPlayerHang" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.PlayerHeroHangVO">
+		SELECT `heroHangId`, `playerId`, `heroId`, `isHang`, `beginTime`, `endTime` FROM `t_player_herohang`
+		WHERE `playerId` = #{playerId}
+	</select>
+	
+	<update id="updatePlayerHang" parameterType="com.dh.game.vo.user.PlayerHeroHangVO">
+		UPDATE `t_player_herohang` SET 
+		`heroId` = #{heroId}, 
+		`isHang` = #{isHang}, 
+		`beginTime` = #{beginTime}, 
+		`endTime` = #{endTime} 
+		WHERE `heroHangId` = #{heroHangId} 
+		AND `playerId` = #{playerId}
+	</update>
+	
+	
+	<insert id ="addPlayerHang" parameterType="com.dh.game.vo.user.PlayerHeroHangVO" >
+		INSERT INTO `t_player_herohang`
+            (`heroHangId`,
+             `playerId`,
+             `heroId`,
+             `isHang`,
+             `beginTime`,
+             `endTime`)
+		VALUES (#{heroHangId},
+		        #{playerId},
+		        #{heroId},
+		        #{isHang},
+		        NULL,
+		        NULL)
+	</insert>
+	
+</mapper>

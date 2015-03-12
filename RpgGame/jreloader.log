@@ -1,0 +1,687 @@
+2015-01-26 16:33:14.486 INFO  [Transformer] - Added class dir 'D:\workspace\RpgGame\bin'
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/Cache/JedisTool
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/Cache/RedisList
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/Cache/RedisMap
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/Cache/RedisSortSet
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/Cache/ServerHandler
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/ActivityConstant
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/ArenaConstants
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/BaseInfoConstants
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/BattleConstants
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/CommonCommand
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/CommonConstants
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/CostConstant
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/DataConstants
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/FriendConstant
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/GameRecordConstants
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/GMConstants
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/HeroConstants
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/ItemConstants
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/LegionConstant
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/LoginConstants
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/MailConstants
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/ManyPeopleRaidConstants
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/Mycomparator
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/OpenActConstants
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/ParameterConstants
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/PlatformConstant
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/RaidConstant
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/RegisterRoleConstant
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/RMBConstants
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/RoleLevelRank
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/SkillConstants
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/StreetConstants
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/TechConstants
+2015-01-26 16:33:14.496 DEBUG [Transformer] -  found class com/dh/constants/TXConstants
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/BaseInfoMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/BattleRecordMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/CDKeyMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/GMMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/LegionMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/PlayerAccountMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/PlayerActyMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/PlayerArenaMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/PlayerBossMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/PlayerCityMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/PlayerFriendMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/PlayerGMMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/PlayerHeroDefMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/PlayerHeroHangMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/PlayerHeroMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/PlayerKnapsackMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/PlayerMailMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/PlayerMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/PlayerRaidMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/PlayerShopMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/PlayerTaskMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/PlayerTimerMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/PlayerYuanZhenMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/StreetMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/TechMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/WelfareMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/dao/YunZhiFuMapper
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/enums/GMIOEnum
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/exception/GameException
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/fx/ProtocolParseForm
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/handler/AbstractCommandHandler
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/handler/activity/ActivityHandler
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/handler/area/AreaOperationHandler
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/handler/arena/ArenaHandler
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/handler/arena/ArenaRedisTool
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/handler/battle/BattleHandler
+2015-01-26 16:33:14.507 DEBUG [Transformer] -  found class com/dh/handler/battle/BossBattle
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/battle/DuoBaoBattle
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/battle/EliRaidBattle
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/battle/IBattle
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/battle/JingjiBattle
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/battle/LegionBossBattle
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/battle/MEBattle
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/battle/MonsterBattle
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/battle/RaidBattle
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/battle/StreetBattle
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/battle/YuanZhenBattle
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/build/BuildHandler
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/cdkey/CDKeyHandler
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/chat/ChatHandler
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/common/CommonHandler
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/friend/FriendHandler
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/GMHandler
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/grab/GrabHandler
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/HandlerProcessor
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/HandlerRegister
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/hero/HeroHandler
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/hero/HeroHungryHandler
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/hero/HeroSkillHandler
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/ICommandHandler$ParseCheck
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/ICommandHandler
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/item/GemHandler
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/item/ItemEquipHandler
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/legion/LegionHandler
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/login/LoginHandler
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/mail/MailHandler
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/property/PropertyHandler
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/raid/CleanOutHandler
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/raid/ManyPeopleHandler
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/raid/ManyPeopleTeam
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/raid/ManyPeopleTeamHandler
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/raid/RaidHandler
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/raid/YuanZhenHandler
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/recharge/RechargeHandler
+2015-01-26 16:33:14.517 DEBUG [Transformer] -  found class com/dh/handler/shop/ShopHandler
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/handler/soldier/SoldierHandler
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/handler/street/StreetHandler
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/handler/task/TaskCheck
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/handler/task/TaskHandler
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/handler/timer/TimerHandler
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/handler/welfare/WelfareHandler
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/main/GateWayMain
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/main/GateWayMain1
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/main/GateWayMain2
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/main/InitLoad
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/main/test/ArenaComparator
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/main/test/LoadHeroRes
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/main/test/LoadHeroVO
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/main/test/MyLoad
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/manypeople/AutoSendList
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/netty/LanjieTool
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/netty/LanjieVO
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/netty/MyMessageDecoder
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/netty/MyMessageEncoder
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/netty/NettyHttpServer
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/netty/NettyMessageVO
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/netty/NettyServer
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/netty/NettyServerHandler
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/netty/NettyServerInitializer
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/processor/ActivityProcessor
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/processor/ArenaProcessor
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/processor/BuildProcessor
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/processor/CdKeyProcessor
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/processor/ChatProcessor
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/processor/CleanOutProcessor
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/processor/CommonProcess
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/processor/ComposeProcessor
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/processor/ExceptionProcessor
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/processor/FriendProcessor
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/processor/GemProcessor
+2015-01-26 16:33:14.527 DEBUG [Transformer] -  found class com/dh/processor/GMProcessor
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/processor/GrabProcesso
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/processor/HeroHangProcessor
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/processor/HeroProcessor
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/processor/HeroSkillProcessor
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/processor/ItemEquipProcessor
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/processor/LegionProcessor
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/processor/LoginProcessor
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/processor/MailProcessor
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/processor/ManyPeopleTeamProcessor
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/processor/PropertyProcessor
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/processor/RaidProcessor
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/processor/RechargeProcessor
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/processor/ShopProcessor
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/processor/SoldierProcessor
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/processor/StreetProcessor
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/processor/TaskProcessor
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/processor/TechProcessor
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/processor/TimerProcessor
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/processor/WelfareProcessor
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/processor/YuanZhenProcessor
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/queue/ArrayCommandQueue
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/queue/ChatCommandQueue
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/queue/ClientCommandQueue
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/queue/GMCommandQueue
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/queue/LocalCommandQueue
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/queue/LocalCommandRunnable
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/queue/LoginCommandQueue
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/queue/MoveCommandQueue
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/resconfig/AnsRes
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/resconfig/BaseRes
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/resconfig/BossRewardRes
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/resconfig/BoxRewardRes
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/resconfig/BuffRes
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/resconfig/BuildLevelRes
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/resconfig/CdKeyRes
+2015-01-26 16:33:14.537 DEBUG [Transformer] -  found class com/dh/resconfig/CityRes
+2015-01-26 16:33:14.547 DEBUG [Transformer] -  found class com/dh/resconfig/ComposeRes
+2015-01-26 16:33:14.547 DEBUG [Transformer] -  found class com/dh/resconfig/DayChangeRewardRes
+2015-01-26 16:33:14.547 DEBUG [Transformer] -  found class com/dh/resconfig/DayDoneRes
+2015-01-26 16:33:14.547 DEBUG [Transformer] -  found class com/dh/resconfig/DayDoneRewardRes
+2015-01-26 16:33:14.547 DEBUG [Transformer] -  found class com/dh/resconfig/DaySignRes
+2015-01-26 16:33:14.547 DEBUG [Transformer] -  found class com/dh/resconfig/EnhanceRes
+2015-01-26 16:33:14.547 DEBUG [Transformer] -  found class com/dh/resconfig/EquipmentEnhanceCostRes
+2015-01-26 16:33:14.547 DEBUG [Transformer] -  found class com/dh/resconfig/EquipmentStarRes
+2015-01-26 16:33:14.547 DEBUG [Transformer] -  found class com/dh/resconfig/ExpeditionRes
+2015-01-26 16:33:14.547 DEBUG [Transformer] -  found class com/dh/resconfig/ExpeditionRewardRes
+2015-01-26 16:33:14.547 DEBUG [Transformer] -  found class com/dh/resconfig/ExpeditionShopRes
+2015-01-26 16:33:14.547 DEBUG [Transformer] -  found class com/dh/resconfig/FaZhenRes
+2015-01-26 16:33:14.547 DEBUG [Transformer] -  found class com/dh/resconfig/GridRes
+2015-01-26 16:33:14.547 DEBUG [Transformer] -  found class com/dh/resconfig/HeroGrowthRes
+2015-01-26 16:33:14.547 DEBUG [Transformer] -  found class com/dh/resconfig/HeroPreNameRes
+2015-01-26 16:33:14.547 DEBUG [Transformer] -  found class com/dh/resconfig/HeroRecruitRes
+2015-01-26 16:33:14.547 DEBUG [Transformer] -  found class com/dh/resconfig/HeroRes
+2015-01-26 16:33:14.547 DEBUG [Transformer] -  found class com/dh/resconfig/HeroStarRes
+2015-01-26 16:33:14.547 DEBUG [Transformer] -  found class com/dh/resconfig/HoleRes
+2015-01-26 16:33:14.547 DEBUG [Transformer] -  found class com/dh/resconfig/ItemRes
+2015-01-26 16:33:14.547 DEBUG [Transformer] -  found class com/dh/resconfig/JJCRankCompare
+2015-01-26 16:33:14.547 DEBUG [Transformer] -  found class com/dh/resconfig/JJCRankRes
+2015-01-26 16:33:14.547 DEBUG [Transformer] -  found class com/dh/resconfig/JJCShopRes
+2015-01-26 16:33:14.547 DEBUG [Transformer] -  found class com/dh/resconfig/JJCSuccRes
+2015-01-26 16:33:14.557 DEBUG [Transformer] -  found class com/dh/resconfig/LegionBossRes
+2015-01-26 16:33:14.557 DEBUG [Transformer] -  found class com/dh/resconfig/LegionMemRes
+2015-01-26 16:33:14.557 DEBUG [Transformer] -  found class com/dh/resconfig/LegionRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/LegionRewardRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/LegionShopRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/LevelRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/MachineRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/ManyPeopleRaidRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/MonsterGroupRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/MonsterRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/NameRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/OneRechargeRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/OnlineRewardRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/OpenActRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/PassivesSkillRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/PlayerLevelRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/ProtectionRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/RaidRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/ResourceRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/RewardRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/RobRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/SalaryRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/ScoreShopRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/ShopDisCountRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/ShopRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/SkillLevelCostRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/SkillRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/SoldierRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/TaskRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/TaskRewardRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/TeamLevelRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/TechRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/TipsRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/TotalStarRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/VipLevelRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/VipRewardRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/WelfareRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/WelfareRewardRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/resconfig/YellowRewardRes
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/rmi/PlayerRmi
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/rmi/TxRecharge
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/rmi/TxRechargeInterface
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/s2s/queue/AbstractCommandRunnable
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/s2s/queue/BaseQueue
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/s2s/queue/CommandProcessThread
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/s2s/queue/CommandQueue
+2015-01-26 16:33:14.558 DEBUG [Transformer] -  found class com/dh/s2s/queue/CommandRunnable
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/s2s/socket/S2sClient
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/s2s/socket/S2sMessageDecoder
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/s2s/socket/S2sMessageEncoder
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/s2s/socket/S2sServerHandler
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/s2s/thread/CommandSender
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/s2s/vo/CommandServerSettingVO
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/s2s/vo/LogicServerSettingVO
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/s2s/vo/ServerVO
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/ActivityService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/AreaGroupService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/ArenaService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/BaseInfoService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/BuildService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/ChatService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/CommonService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/FriendService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/GMService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/GrabService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/HeroEquipService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/HeroHangService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/HeroService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/HeroSkillService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/KnapsackService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/LegionService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/MailService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/NettyXMLServer$1
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/NettyXMLServer
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/OpenActiveService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/OptCountService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/PlayerAccountService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/PlayerService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/PlayerTimerService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/RaidService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/RankService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/RechargeService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/RestoreService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/RewardService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/SecurityXMLServer
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/ServerXMLHandler
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/ShopService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/SoldierService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/StreetService
+2015-01-26 16:33:14.568 DEBUG [Transformer] -  found class com/dh/service/TasksService
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/service/WelfareService
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/service/YuanZhenService
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/sqlexe/JdbcDAO
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/sqlexe/SqldirectExeThread
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/sqlexe/SqlExeThread
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/sqlexe/SqlSaveThread
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/sqlexe/SqlVO
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/sync/LockConstant
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/sync/SyncLock
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/sync/SyncUtil$1
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/sync/SyncUtil
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/EchoClient
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/EchoClient_vincent
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/EveryObj
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/EveryObject
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/EveryThing
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/GMClient
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/MyChannelInitializer
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/MyChannelInitializer_GM
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/MyChannelInitializer_vincent
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/MyComparator
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/MyCompator
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/NettyClient$1
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/NettyClient
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/NettyClientInHander
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/NettyClientOutHander
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/ParseData
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/RankVO
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/SecSocket
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/SpringTest
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/TestConcurrent$Task
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/TestConcurrent
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/TestData
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/TestServerHandler
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/TestServerHandler_GM
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/TestServerHandler_vincent
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/TestTreeSet$MyComparator
+2015-01-26 16:33:14.578 DEBUG [Transformer] -  found class com/dh/test/TestTreeSet$RankVO
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/test/TestTreeSet
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/timer/ActyTimer
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/timer/ArenaRankTimer
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/timer/BossTimer
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/timer/EveryDayTimer
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/timer/GMTimer
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/timer/HeroHangTimer
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/timer/OnlineTimer
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/timer/PlayerLogoutThread
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/timer/PowerTimer
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/timer/RechargeTimer
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/timer/SystemNoticeTimer
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/timer/SystemParameterTimer
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/timer/SysTipsTimer
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/timer/ThreadMonitor
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/timer/TXOpenkeyContinueTimer
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/util/BadWordsFilter
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/util/classloader/DynamicClassLoader
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/util/classloader/ManageClassLoader
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/util/CombatUtil
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/util/CommandUtil
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/util/CommonUtils
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/util/CsvAble
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/util/GameUtil
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/util/GroovyUtil
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/util/MsgUtil
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/util/MyClassLoaderUtil
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/util/MyHttpUtil
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/util/MYSQLEncoder
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/util/ProperytiesUtil
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/util/ProtoertyAndValue
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/util/ReflectUtil
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/util/RewardUtil
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/util/SocketUtil
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/util/SqlBuild
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/util/VOUtil
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/vo/gm/GMIOVO
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/vo/gm/GMOnlineVO
+2015-01-26 16:33:14.588 DEBUG [Transformer] -  found class com/dh/vo/user/IClear
+2015-01-26 16:33:14.598 DEBUG [Transformer] -  found class com/dh/vo/user/RoleLv
+2015-01-26 16:33:14.598 DEBUG [Transformer] -  found class com/dh/vo/user/UserActivity
+2015-01-26 16:33:14.598 DEBUG [Transformer] -  found class com/dh/vo/user/UserCached
+2015-01-26 16:33:14.598 DEBUG [Transformer] -  found class com/dh/vo/user/UserFriend
+2015-01-26 16:33:14.598 DEBUG [Transformer] -  found class com/dh/vo/user/UserGM
+2015-01-26 16:33:14.598 DEBUG [Transformer] -  found class com/dh/vo/user/UserHero
+2015-01-26 16:33:14.598 DEBUG [Transformer] -  found class com/dh/vo/user/UserKnapsack
+2015-01-26 16:33:14.598 DEBUG [Transformer] -  found class com/dh/vo/user/UserLegion
+2015-01-26 16:33:14.598 DEBUG [Transformer] -  found class com/dh/vo/user/UserMail
+2015-01-26 16:33:14.598 DEBUG [Transformer] -  found class com/dh/vo/user/UserPartCache
+2015-01-26 16:33:14.598 DEBUG [Transformer] -  found class com/dh/vo/user/UserRaid
+2015-01-26 16:33:14.598 DEBUG [Transformer] -  found class com/dh/vo/user/UserReward
+2015-01-26 16:33:14.598 DEBUG [Transformer] -  found class com/dh/vo/user/UserShop
+2015-01-26 16:33:14.598 DEBUG [Transformer] -  found class com/dh/vo/user/UserStreet
+2015-01-26 16:33:14.598 DEBUG [Transformer] -  found class com/dh/vo/user/UserTeam
+2015-01-26 16:33:14.598 DEBUG [Transformer] -  found class com/dh/vo/user/UserTimer
+2015-01-26 16:33:14.598 DEBUG [Transformer] -  found class com/dh/vo/user/UserYuanZhen
+2015-01-26 16:33:14.598 DEBUG [Transformer] -  found class com/dh/vo/WorldBossVO
+2015-01-26 16:33:14.700 DEBUG [Transformer] -  found class taskscript/TaskCheckImp
+2015-01-26 16:33:14.700 INFO  [Transformer] -  \-- Found 391 classes
+2015-01-26 16:33:14.711 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/main/GateWayMain1
+2015-01-26 16:33:14.721 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/main/GateWayMain
+2015-01-26 16:33:14.813 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/util/SocketUtil
+2015-01-26 16:33:15.967 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/activity/ActivityHandler
+2015-01-26 16:33:15.968 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/ICommandHandler
+2015-01-26 16:33:15.969 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/area/AreaOperationHandler
+2015-01-26 16:33:15.969 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/arena/ArenaHandler
+2015-01-26 16:33:15.970 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/battle/BattleHandler
+2015-01-26 16:33:15.971 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/battle/BossBattle
+2015-01-26 16:33:15.972 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/battle/IBattle
+2015-01-26 16:33:15.972 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/battle/DuoBaoBattle
+2015-01-26 16:33:15.973 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/battle/EliRaidBattle
+2015-01-26 16:33:15.974 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/battle/JingjiBattle
+2015-01-26 16:33:15.976 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/battle/LegionBossBattle
+2015-01-26 16:33:15.977 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/battle/MEBattle
+2015-01-26 16:33:15.978 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/battle/MonsterBattle
+2015-01-26 16:33:15.979 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/battle/RaidBattle
+2015-01-26 16:33:15.980 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/battle/StreetBattle
+2015-01-26 16:33:15.981 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/battle/YuanZhenBattle
+2015-01-26 16:33:15.981 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/build/BuildHandler
+2015-01-26 16:33:15.982 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/cdkey/CDKeyHandler
+2015-01-26 16:33:15.983 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/chat/ChatHandler
+2015-01-26 16:33:15.984 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/common/CommonHandler
+2015-01-26 16:33:15.985 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/friend/FriendHandler
+2015-01-26 16:33:15.985 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/GMHandler
+2015-01-26 16:33:15.986 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/grab/GrabHandler
+2015-01-26 16:33:15.987 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/HandlerRegister
+2015-01-26 16:33:15.988 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/hero/HeroHandler
+2015-01-26 16:33:15.989 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/AbstractCommandHandler
+2015-01-26 16:33:15.990 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/hero/HeroHungryHandler
+2015-01-26 16:33:15.994 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/hero/HeroSkillHandler
+2015-01-26 16:33:15.995 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/item/GemHandler
+2015-01-26 16:33:15.997 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/item/ItemEquipHandler
+2015-01-26 16:33:15.998 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/legion/LegionHandler
+2015-01-26 16:33:15.998 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/login/LoginHandler
+2015-01-26 16:33:15.998 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/mail/MailHandler
+2015-01-26 16:33:15.998 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/property/PropertyHandler
+2015-01-26 16:33:15.998 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/raid/CleanOutHandler
+2015-01-26 16:33:15.998 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/raid/ManyPeopleHandler
+2015-01-26 16:33:15.998 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/raid/ManyPeopleTeamHandler
+2015-01-26 16:33:15.998 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/raid/RaidHandler
+2015-01-26 16:33:15.998 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/raid/YuanZhenHandler
+2015-01-26 16:33:15.998 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/recharge/RechargeHandler
+2015-01-26 16:33:15.998 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/shop/ShopHandler
+2015-01-26 16:33:15.998 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/soldier/SoldierHandler
+2015-01-26 16:33:15.998 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/street/StreetHandler
+2015-01-26 16:33:15.998 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/task/TaskHandler
+2015-01-26 16:33:15.998 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/timer/TimerHandler
+2015-01-26 16:33:15.998 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/welfare/WelfareHandler
+2015-01-26 16:33:15.998 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/main/InitLoad
+2015-01-26 16:33:15.998 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/main/test/MyLoad
+2015-01-26 16:33:15.998 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/netty/NettyServer
+2015-01-26 16:33:15.998 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/netty/NettyServerHandler
+2015-01-26 16:33:16.014 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/netty/NettyServerInitializer
+2015-01-26 16:33:16.014 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/ActivityProcessor
+2015-01-26 16:33:16.014 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/ArenaProcessor
+2015-01-26 16:33:16.014 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/BuildProcessor
+2015-01-26 16:33:16.014 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/CdKeyProcessor
+2015-01-26 16:33:16.014 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/ChatProcessor
+2015-01-26 16:33:16.014 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/CleanOutProcessor
+2015-01-26 16:33:16.014 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/CommonProcess
+2015-01-26 16:33:16.014 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/ComposeProcessor
+2015-01-26 16:33:16.014 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/ExceptionProcessor
+2015-01-26 16:33:16.014 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/FriendProcessor
+2015-01-26 16:33:16.014 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/GemProcessor
+2015-01-26 16:33:16.014 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/GMProcessor
+2015-01-26 16:33:16.014 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/GrabProcesso
+2015-01-26 16:33:16.014 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/HeroHangProcessor
+2015-01-26 16:33:16.014 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/HeroProcessor
+2015-01-26 16:33:16.014 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/HeroSkillProcessor
+2015-01-26 16:33:16.029 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/ItemEquipProcessor
+2015-01-26 16:33:16.029 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/LegionProcessor
+2015-01-26 16:33:16.029 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/LoginProcessor
+2015-01-26 16:33:16.029 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/MailProcessor
+2015-01-26 16:33:16.029 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/ManyPeopleTeamProcessor
+2015-01-26 16:33:16.029 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/PropertyProcessor
+2015-01-26 16:33:16.029 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/RaidProcessor
+2015-01-26 16:33:16.029 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/RechargeProcessor
+2015-01-26 16:33:16.029 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/ShopProcessor
+2015-01-26 16:33:16.029 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/SoldierProcessor
+2015-01-26 16:33:16.029 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/StreetProcessor
+2015-01-26 16:33:16.029 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/TaskProcessor
+2015-01-26 16:33:16.029 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/TechProcessor
+2015-01-26 16:33:16.029 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/TimerProcessor
+2015-01-26 16:33:16.029 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/WelfareProcessor
+2015-01-26 16:33:16.029 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/processor/YuanZhenProcessor
+2015-01-26 16:33:16.029 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/rmi/TxRecharge
+2015-01-26 16:33:16.029 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/rmi/TxRechargeInterface
+2015-01-26 16:33:16.029 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/s2s/queue/CommandProcessThread
+2015-01-26 16:33:16.029 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/s2s/thread/CommandSender
+2015-01-26 16:33:16.045 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/ActivityService
+2015-01-26 16:33:16.045 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/AreaGroupService
+2015-01-26 16:33:16.045 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/ArenaService
+2015-01-26 16:33:16.045 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/BaseInfoService
+2015-01-26 16:33:16.045 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/BuildService
+2015-01-26 16:33:16.045 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/CommonService
+2015-01-26 16:33:16.045 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/FriendService
+2015-01-26 16:33:16.045 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/GMService
+2015-01-26 16:33:16.045 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/GrabService
+2015-01-26 16:33:16.045 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/HeroEquipService
+2015-01-26 16:33:16.045 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/HeroHangService
+2015-01-26 16:33:16.045 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/HeroService
+2015-01-26 16:33:16.045 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/KnapsackService
+2015-01-26 16:33:16.045 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/LegionService
+2015-01-26 16:33:16.045 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/MailService
+2015-01-26 16:33:16.045 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/NettyXMLServer
+2015-01-26 16:33:16.060 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/PlayerAccountService
+2015-01-26 16:33:16.060 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/PlayerService
+2015-01-26 16:33:16.060 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/PlayerTimerService
+2015-01-26 16:33:16.060 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/RaidService
+2015-01-26 16:33:16.060 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/RankService
+2015-01-26 16:33:16.060 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/RechargeService
+2015-01-26 16:33:16.060 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/RestoreService
+2015-01-26 16:33:16.060 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/RewardService
+2015-01-26 16:33:16.060 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/ServerXMLHandler
+2015-01-26 16:33:16.060 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/ShopService
+2015-01-26 16:33:16.060 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/SoldierService
+2015-01-26 16:33:16.060 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/StreetService
+2015-01-26 16:33:16.060 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/TasksService
+2015-01-26 16:33:16.060 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/WelfareService
+2015-01-26 16:33:16.077 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/YuanZhenService
+2015-01-26 16:33:16.077 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/sqlexe/JdbcDAO
+2015-01-26 16:33:16.077 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/sqlexe/SqldirectExeThread
+2015-01-26 16:33:16.077 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/sqlexe/SqlExeThread
+2015-01-26 16:33:16.077 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/sqlexe/SqlSaveThread
+2015-01-26 16:33:16.077 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/timer/ActyTimer
+2015-01-26 16:33:16.077 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/timer/ArenaRankTimer
+2015-01-26 16:33:16.077 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/timer/BossTimer
+2015-01-26 16:33:16.077 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/timer/EveryDayTimer
+2015-01-26 16:33:16.077 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/timer/GMTimer
+2015-01-26 16:33:16.077 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/timer/HeroHangTimer
+2015-01-26 16:33:16.077 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/timer/PlayerLogoutThread
+2015-01-26 16:33:16.077 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/timer/PowerTimer
+2015-01-26 16:33:16.077 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/timer/RechargeTimer
+2015-01-26 16:33:16.077 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/timer/SystemNoticeTimer
+2015-01-26 16:33:16.077 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/timer/SysTipsTimer
+2015-01-26 16:33:16.077 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/timer/ThreadMonitor
+2015-01-26 16:33:16.077 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/timer/TXOpenkeyContinueTimer
+2015-01-26 16:33:16.093 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/util/SqlBuild
+2015-01-26 16:33:18.210 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/PlayerAccountMapper
+2015-01-26 16:33:18.210 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/netty/NettyMessageVO
+2015-01-26 16:33:18.210 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/vo/user/UserCached
+2015-01-26 16:33:18.226 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/PlayerTimerMapper
+2015-01-26 16:33:18.226 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/exception/GameException
+2015-01-26 16:33:18.290 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/YunZhiFuMapper
+2015-01-26 16:33:18.354 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/WelfareMapper
+2015-01-26 16:33:18.371 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/TechMapper
+2015-01-26 16:33:18.387 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/StreetMapper
+2015-01-26 16:33:18.402 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/vo/user/UserStreet
+2015-01-26 16:33:18.402 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/vo/user/IClear
+2015-01-26 16:33:18.418 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/PlayerYuanZhenMapper
+2015-01-26 16:33:18.466 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/PlayerTaskMapper
+2015-01-26 16:33:18.466 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/PlayerShopMapper
+2015-01-26 16:33:18.497 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/PlayerRaidMapper
+2015-01-26 16:33:18.497 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/PlayerMapper
+2015-01-26 16:33:18.512 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/PlayerMailMapper
+2015-01-26 16:33:18.528 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/PlayerKnapsackMapper
+2015-01-26 16:33:18.544 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/PlayerHeroMapper
+2015-01-26 16:33:18.544 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/PlayerHeroHangMapper
+2015-01-26 16:33:18.560 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/PlayerHeroDefMapper
+2015-01-26 16:33:18.576 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/PlayerGMMapper
+2015-01-26 16:33:18.576 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/PlayerFriendMapper
+2015-01-26 16:33:18.591 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/PlayerCityMapper
+2015-01-26 16:33:18.591 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/PlayerBossMapper
+2015-01-26 16:33:18.607 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/PlayerArenaMapper
+2015-01-26 16:33:18.607 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/PlayerActyMapper
+2015-01-26 16:33:18.624 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/LegionMapper
+2015-01-26 16:33:18.639 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/GMMapper
+2015-01-26 16:33:18.670 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/vo/gm/GMOnlineVO
+2015-01-26 16:33:18.670 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/vo/gm/GMIOVO
+2015-01-26 16:33:18.670 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/CDKeyMapper
+2015-01-26 16:33:18.670 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/BattleRecordMapper
+2015-01-26 16:33:18.687 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/dao/BaseInfoMapper
+2015-01-26 16:33:18.734 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/s2s/queue/BaseQueue
+2015-01-26 16:33:19.027 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/vo/WorldBossVO
+2015-01-26 16:33:19.327 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/vo/user/UserFriend
+2015-01-26 16:33:19.824 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/main/test/LoadHeroVO
+2015-01-26 16:33:19.872 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/s2s/queue/CommandRunnable
+2015-01-26 16:33:19.872 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/s2s/queue/AbstractCommandRunnable
+2015-01-26 16:33:19.872 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/s2s/queue/CommandQueue
+2015-01-26 16:33:19.888 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/s2s/vo/ServerVO
+2015-01-26 16:33:19.989 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/util/ProperytiesUtil
+2015-01-26 16:33:20.004 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/Cache/JedisTool
+2015-01-26 16:33:20.020 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/constants/TXConstants
+2015-01-26 16:33:20.020 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/util/MyClassLoaderUtil
+2015-01-26 16:33:20.020 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/queue/ArrayCommandQueue
+2015-01-26 16:33:20.020 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/Cache/ServerHandler
+2015-01-26 16:33:20.140 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/queue/LocalCommandRunnable
+2015-01-26 16:33:20.140 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/queue/LocalCommandQueue
+2015-01-26 16:33:20.140 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/queue/ChatCommandQueue
+2015-01-26 16:33:20.140 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/queue/GMCommandQueue
+2015-01-26 16:33:20.394 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/service/NettyXMLServer$1
+2015-01-26 16:33:21.770 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/Cache/RedisMap
+2015-01-26 16:33:22.709 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/constants/RoleLevelRank
+2015-01-26 16:33:22.709 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/vo/user/RoleLv
+2015-01-26 16:33:22.719 DEBUG [Transformer] - Checking changes...
+2015-01-26 16:33:25.734 DEBUG [Transformer] - Checking changes...
+2015-01-26 16:33:28.751 DEBUG [Transformer] - Checking changes...
+2015-01-26 16:33:31.788 DEBUG [Transformer] - Checking changes...
+2015-01-26 16:33:34.811 DEBUG [Transformer] - Checking changes...
+2015-01-26 16:33:37.740 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/PlayerLevelRes
+2015-01-26 16:33:37.740 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/BaseRes
+2015-01-26 16:33:37.740 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/util/CsvAble
+2015-01-26 16:33:37.771 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/util/ReflectUtil
+2015-01-26 16:33:37.771 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/NameRes
+2015-01-26 16:33:37.781 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/LevelRes
+2015-01-26 16:33:37.823 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/ItemRes
+2015-01-26 16:33:37.833 DEBUG [Transformer] - Checking changes...
+2015-01-26 16:33:37.962 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/HeroRes
+2015-01-26 16:33:37.984 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/HeroGrowthRes
+2015-01-26 16:33:37.994 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/HeroStarRes
+2015-01-26 16:33:38.014 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/EnhanceRes
+2015-01-26 16:33:38.024 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/EquipmentStarRes
+2015-01-26 16:33:38.024 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/EquipmentEnhanceCostRes
+2015-01-26 16:33:38.034 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/RewardRes
+2015-01-26 16:33:38.066 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/TaskRewardRes
+2015-01-26 16:33:38.076 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/RaidRes
+2015-01-26 16:33:38.096 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/SalaryRes
+2015-01-26 16:33:38.107 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/BuildLevelRes
+2015-01-26 16:33:38.117 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/ShopRes
+2015-01-26 16:33:38.127 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/ShopDisCountRes
+2015-01-26 16:33:38.127 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/JJCShopRes
+2015-01-26 16:33:38.127 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/JJCSuccRes
+2015-01-26 16:33:38.127 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/JJCRankRes
+2015-01-26 16:33:38.137 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/JJCRankCompare
+2015-01-26 16:33:38.137 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/ComposeRes
+2015-01-26 16:33:38.165 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/RobRes
+2015-01-26 16:33:38.169 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/CdKeyRes
+2015-01-26 16:33:38.171 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/ScoreShopRes
+2015-01-26 16:33:38.172 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/SkillRes
+2015-01-26 16:33:38.181 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/PassivesSkillRes
+2015-01-26 16:33:38.214 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/HoleRes
+2015-01-26 16:33:38.214 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/ProtectionRes
+2015-01-26 16:33:38.224 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/SkillLevelCostRes
+2015-01-26 16:33:38.234 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/MonsterRes
+2015-01-26 16:33:38.271 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/util/VOUtil
+2015-01-26 16:33:38.281 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/TaskRes
+2015-01-26 16:33:38.301 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/GridRes
+2015-01-26 16:33:38.311 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/ResourceRes
+2015-01-26 16:33:38.322 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/util/RewardUtil
+2015-01-26 16:33:38.322 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/MonsterGroupRes
+2015-01-26 16:33:38.332 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/MachineRes
+2015-01-26 16:33:38.342 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/BoxRewardRes
+2015-01-26 16:33:38.342 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/FaZhenRes
+2015-01-26 16:33:38.362 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/WelfareRes
+2015-01-26 16:33:38.372 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/WelfareRewardRes
+2015-01-26 16:33:38.372 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/VipLevelRes
+2015-01-26 16:33:38.372 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/VipRewardRes
+2015-01-26 16:33:38.372 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/TotalStarRes
+2015-01-26 16:33:38.372 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/HeroPreNameRes
+2015-01-26 16:33:38.384 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/OnlineRewardRes
+2015-01-26 16:33:38.384 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/DaySignRes
+2015-01-26 16:33:38.384 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/ExpeditionRes
+2015-01-26 16:33:38.394 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/ExpeditionRewardRes
+2015-01-26 16:33:38.404 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/ExpeditionShopRes
+2015-01-26 16:33:38.404 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/BossRewardRes
+2015-01-26 16:33:38.414 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/DayChangeRewardRes
+2015-01-26 16:33:38.414 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/YellowRewardRes
+2015-01-26 16:33:38.424 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/TipsRes
+2015-01-26 16:33:38.435 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/DayDoneRewardRes
+2015-01-26 16:33:38.437 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/DayDoneRes
+2015-01-26 16:33:38.439 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/LegionRewardRes
+2015-01-26 16:33:38.445 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/LegionRes
+2015-01-26 16:33:38.445 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/LegionMemRes
+2015-01-26 16:33:38.445 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/LegionShopRes
+2015-01-26 16:33:38.445 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/LegionBossRes
+2015-01-26 16:33:38.455 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/AnsRes
+2015-01-26 16:33:38.475 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/ManyPeopleRaidRes
+2015-01-26 16:33:38.475 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/OneRechargeRes
+2015-01-26 16:33:38.485 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/resconfig/OpenActRes
+2015-01-26 16:33:38.526 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/constants/GameRecordConstants
+2015-01-26 16:33:38.579 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/constants/OpenActConstants
+2015-01-26 16:33:38.579 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/util/GameUtil
+2015-01-26 16:33:38.702 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/constants/ArenaConstants
+2015-01-26 16:33:38.712 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/Cache/RedisSortSet
+2015-01-26 16:33:38.773 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/arena/ArenaRedisTool
+2015-01-26 16:33:40.847 DEBUG [Transformer] - Checking changes...
+2015-01-26 16:33:43.216 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/Cache/RedisList
+2015-01-26 16:33:43.246 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/handler/HandlerProcessor
+2015-01-26 16:33:43.246 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/vo/user/UserHero
+2015-01-26 16:33:43.246 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/vo/user/UserRaid
+2015-01-26 16:33:43.246 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/vo/user/UserYuanZhen
+2015-01-26 16:33:43.246 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/vo/user/UserMail
+2015-01-26 16:33:43.246 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/vo/user/UserTimer
+2015-01-26 16:33:43.246 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/vo/user/UserKnapsack
+2015-01-26 16:33:43.246 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/vo/user/UserShop
+2015-01-26 16:33:43.246 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/vo/user/UserReward
+2015-01-26 16:33:43.246 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/vo/user/UserActivity
+2015-01-26 16:33:43.246 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/vo/user/UserGM
+2015-01-26 16:33:43.246 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/vo/user/UserLegion
+2015-01-26 16:33:43.871 DEBUG [Transformer] - Checking changes...
+2015-01-26 16:33:44.321 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/constants/RegisterRoleConstant
+2015-01-26 16:33:45.167 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/util/MYSQLEncoder
+2015-01-26 16:33:45.198 DEBUG [Transformer] - sun.misc.Launcher$AppClassLoader@58644d46 is loading com/dh/sqlexe/SqlVO

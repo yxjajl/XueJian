@@ -1,0 +1,175 @@
+package com.dh.game.constant;
+
+public enum AlertEnum {
+	GM_FORBIN_LOGIN, // 禁止登录
+	ISMINGAN, // 铭感词
+	DATA_PARSE_ERROR, // 数据解析异常
+	CD_NOT_FINISH, //
+	LEVEL_NOT_MORE_THAN_ROLE, // 不能超过角色等级
+	LEVEL_NOT_MORE_THAN_MAINBUILD, // 不能超过主键筑等级
+	CD_HAD_FINISHED, // 冷却已经结束,无需加速
+	REQ_COUNT, // 次数已经用完
+	PLAYER_NOT_EXIST, // 玩家不存在
+
+	// role
+	ROLE_LEVEL_NO, // 角色等级不足
+	ROLE_IS_OFFLINE, // 用户已离线
+	ACCOUNT_RE_REG, // 帐号重复
+	NICK_ALREADY_USE, // 昵称重复
+
+	// hero
+	HERO_LEVEL_LIMIT, // 英雄等级达上
+	HERO_NOT_FOUND, HERO_STAR_FULL, HERO_LEVEL_NO, // 英雄等级不足
+	HERO_BUSYING, // 英雄等级不足
+	HERO_LEVEL_YZHP_NOT_ENOUGH, // 英雄血量不足或者等级不足20级
+
+	// skill
+	HERO_NUM_LIMIT, // 英雄总数达上限
+
+	SKILL_LEVEL_LIMIT, // 英雄技能等级达上限
+
+	TASK_NO_HAVE_EXITS, // 玩家无此任务
+	TASK_NO_COMPLET_NOREWARD, // 任务未完成不能领奖　
+
+	// herohang
+	HERO_HANG_NOTEN, // 英雄挂机位不足
+	HERO_NOT_REQUEST_RESET, // 此英雄不需要休息
+	HERO_ALERDAY_RESET, // 英雄已经在挂机中，不能重复挂机
+	HERO_NOT_FREE, // 英雄非空闲或在住守
+
+	MAIL_ATTACHMENT_CANT_DEL, // 存在附件不能删除
+	ITEM_NOT_FOUND, // 物品不存在
+	ITEM_NUM_NOT, // 物品数量不足
+	ITEM_NOT_USE,//物品不可使用
+
+	// EQUIPMENT
+	EQUIP_NOT_FOUND, // 装备不存在
+	ENHANCE_LIMIT, // 强化达上限
+	RACE_NOT_MATCH, // 职业不匹配
+	NOT_POS_GEM, // 没有空孔　
+	NOT_FOUND_GEM, // 此空还没有镶嵌宝石
+	ALREADY_OPENHOLE, // 此孔已开
+	EQUIPMENT_STAR_ENOUGH, // 装备星际不满足要求
+	NOT_SET_GEMTYPE, // 不能镶嵌此类型的宝石
+	NOT_PROECT_SIPING, // 饰品不能护佑
+	PROCTION_LIMIT, // 护佑到顶
+	ENHANCE_CANT_GRANT_ROLELEVEL, // 强化等级不能超过角色等级
+
+	// account
+	MONEY_NOT_ENG, RMB_NOT_ENG, EXPLOIT_NOT_ENG, POWER_NOT_ENG, // 体力不足
+	PVP_NOT_ENG, SCORE_NOT_ENG, GIFTGOLD_NOT_ENG, ACCOUNTVO_NOT_EXIST, EXPC_FULL,
+
+	// knaspack
+	KNAPSACK_FULL, // 背包满
+	KNAPSACK_LIMIT, // 背包开启已达上限
+
+	// reward
+	REWARD_NOT_FOUND, // 找不到奖励id
+	REWARD_ALREADY_GET, // 奖励已被领取
+
+	// raid
+	RAID_NOT_FOUND, // 不存在的副本
+	HERO_HUNGRY_OVER_LIMIT, // 英雄太疲劳了，不能战斗
+	NORAID_CANT_REWARD, // 没有此副本的信息不能领奖
+	RAID_SCORE_NOT_FIVE, // 没有完美过关不能领奖
+	FIVE_REWARD_ALEARDY_GET, // 奖励已领取
+	ELIRAIDTIMES_NOT_ENOUGH, // 精英副本次数不够
+	ELIRAID_BUY_TIMES_ENOUGH, // 精英副本购买次数不足
+
+	// sell
+	SELL_ITEM_FAIL, // 出售物品失败
+	SELL_ITEM_TIMEOUT, // 物品过期
+	SELL_ITEM_FINISH, // 物品售完(请明天再来)
+
+	// build
+	UNABLE_TO_ACCOMMODATE_MORE_HEROES, // 养心殿无法容易更多的英雄
+
+	// JJC
+	JJCDEFANCETEAM_NOT_NULL, // 防守阵容不能为空,至少放一个英雄
+	PLAYERLEVELNOENOUGH_CANTUSEJJC, PVP_BUYTIMES_LIMIT,
+
+	// openbox
+	NOT_FOUND_OPENBOX, // 没有对应的奖励信息不能翻牌
+
+	/**
+	 * Register Server busy , no usercache
+	 */
+	REG_SERVER_BUSY, REGISTER_FAIL,
+
+	// street
+	STREET_GRID_OPENED, // 云雾已经开启
+	STREET_GRID_UNREACHABLE, // 格子无法达到
+	STREET_GRID_LEVEL_LOW, // 等级过低无法开启云朵
+	STREET_RES_NOT_EXIST, //
+	STREET_RES_PRODUCING, // 资源点正在生产中
+	STREET_RES_NOT_PRODUCING, // 该资源未进行生产,撤回失败
+	STREET_MUST_ATK, // 资源点正在生产中
+
+	STREET_RES_DEFEND_ERR, // 资源点防守队伍异常
+	STREET_CENTER_CONFIG_FAIL, STREET_CONFIG_NOT_NULL, //
+	STREET_GRID_ERROR, STREET_BATTLE_BOX_NULL, // 找不到宝箱
+	STREET_BATTLE_MONSTER_NULL, // 找不到怪物
+	STREET_BATTLE_CENTER_BUSYING, // 对方正被攻打,君子报仇,十年不晚
+	STREET_CENTER_CANT_GIVEUP,//门派不能放弃驻守
+
+	// 军器坊
+	STREET_FACTORY_UPDATE_M, //
+	STREET_FACTORY_UPDATE_FZ, //
+	STREET_FACTORY_MAX_LEVEL, // 已经到达顶级不能在升级了
+	STREET_FACTORY_MAKE_M, // 找不到对应等级的器械
+	STREET_FACTORY_MAKE_FZ, // 找病毒奥对应等级的法阵
+
+	// 资源点防守队伍异常
+	STREET_RES_MISSING, // 防守队伍异常
+	RES_WHOSYOUDADDY, //
+	RES_DADDY_USER_FAIL,
+	/** can't set the team as battling */
+	RES_BATTLING, //
+	STREET_HAD_REVENG, //
+	STREET_LOG_REWARD_FAIL, //
+
+	ONLINE_REWARD_NOFOUND, // 找不到在线奖励
+	ONLINE_REWARD_COLD, // 在线奖励冷却时间未到
+	// every day sign
+	SIGN_COUNTS_NOT_EXIT, // 不能领取奖励的连续签到时间
+	RESIGN_COUNT_REQ, // 补签次数用完
+	SIGN_DONE, // 已经签到过,无需再签到
+	SIGN_NOT_RESIGN, // 不能再补签
+	SIGN_HAD_REWARD, // 已经领取过奖励
+
+	ME_RAID_NOT_COUNT, // 挑战次数 已经用完
+	ME_RAID_ERROR, // 不是银两和经验副本
+	ME_RAID_BUYCOUNT_OUT, // 一天只能购买5次
+
+	// 好友
+	FRIEND_IN_BLACK, // "无法添加黑名单中玩家为好友"
+	FRIEND_FULL, // 数量达到上限,不能再添加
+	CHAT_TOO_MANY, // 发言太频繁
+
+	// 远征
+	YZTIME_ENOUGH, //
+	YZ_MONEY_NOT_ENOUGH, // 远征刷新次数不足
+	LOGIN_ON_OTHER, // 其它地方登陆
+	LOGIN_EXCEPTION, // 登陆异常
+	ROLE_NOT_FOUND, //
+	NICK_SHORT, //
+	NICK_LONG, //
+	REWARD_EXCEPTION, //
+	CD_OVER_NO_S, //
+
+	ACTIVITY_BOSS_NOT_OPEN, // boss战未开启
+	ACTIVITY_BOSS_HAD_END, // boss战已经结束
+	ACTIVITY_BOSS_ADDTION_FULL, // 号令值已满
+
+	TEAM_NOT_EXIST, // 队伍不存在
+	TEAM_PASS_ERR, // 密码错误
+	TEAM_COND_ERR, // 条件不满足
+	TEAM_FULL, // 队伍已满员
+
+	// 支付
+	RECHAGE_FAIL_EXCEPTION, // 购买异常
+	YELLOWVIP_EXCEPTION, // 黄钻每日礼包异常　
+	YELLOW_DAY_YILING, // 已领取过黄钻每日礼包
+	YELLOW_LEVEL_YILING, // 黄钻成长礼包已领
+
+}

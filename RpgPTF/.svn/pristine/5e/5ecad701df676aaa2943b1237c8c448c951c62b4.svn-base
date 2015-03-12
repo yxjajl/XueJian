@@ -1,0 +1,82 @@
+package com.dh.game.vo.user;
+
+import java.util.Date;
+
+//军团成员
+public class LegionMemVO implements Comparable<LegionMemVO> {
+	private int id;
+	private int playerId;
+	private int type; // 职位
+	private Date joinTime;
+	private int donate; // 贡献分
+	private int dayReward;
+	private int donateReward;
+
+	@Override
+	public int compareTo(LegionMemVO arg0) {
+		if (this.getType() != arg0.getType()) {
+			return this.getType() > arg0.getType() ? -1 : 1;
+		}
+		if (this.getDonate() != arg0.getDonate()) {
+			return this.getDonate() > arg0.getDonate() ? -1 : 1;
+		}
+		return joinTime.compareTo(arg0.getJoinTime());
+	}
+
+	public int getId() {
+		return id;
+	}
+
+	public void setId(int id) {
+		this.id = id;
+	}
+
+	public int getPlayerId() {
+		return playerId;
+	}
+
+	public void setPlayerId(int playerId) {
+		this.playerId = playerId;
+	}
+
+	public int getType() {
+		return type;
+	}
+
+	public void setType(int type) {
+		this.type = type;
+	}
+
+	public Date getJoinTime() {
+		return joinTime;
+	}
+
+	public void setJoinTime(Date joinTime) {
+		this.joinTime = joinTime;
+	}
+
+	public int getDonate() {
+		return donate;
+	}
+
+	public void setDonate(int donate) {
+		this.donate = donate;
+	}
+
+	public int getDayReward() {
+		return dayReward;
+	}
+
+	public void setDayReward(int dayReward) {
+		this.dayReward = dayReward;
+	}
+
+	public int getDonateReward() {
+		return donateReward;
+	}
+
+	public void setDonateReward(int donateReward) {
+		this.donateReward = donateReward;
+	}
+
+}

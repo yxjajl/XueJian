@@ -1,0 +1,558 @@
+package com.dh.util;
+
+import java.util.Date;
+import java.util.List;
+
+import com.dh.constants.ActivityConstant;
+import com.dh.game.constant.AlertEnum;
+import com.dh.game.constant.CSCommandConstant;
+import com.dh.game.vo.BaseProto.YellowGiftInfo;
+import com.dh.game.vo.BaseProto.YellowLevelGift;
+import com.dh.game.vo.activity.ActivityProto.ActyStatusNotice;
+import com.dh.game.vo.activity.ActivityProto.DayShareResponse;
+import com.dh.game.vo.activity.ActivityProto.PushScoreResp;
+import com.dh.game.vo.activity.WorldBossProto.BossInfo;
+import com.dh.game.vo.activity.WorldBossProto.WorldBossDetailResp;
+import com.dh.game.vo.common.CommonProto.ClientAlert;
+import com.dh.game.vo.common.CommonProto.CountType;
+import com.dh.game.vo.common.CommonProto.CountUpdateResp;
+import com.dh.game.vo.common.CommonProto.CountUpdateResp.Builder;
+import com.dh.game.vo.legion.LegionProto.BaseLegionInfo;
+import com.dh.game.vo.legion.LegionProto.LegionReqNoticeResp;
+import com.dh.game.vo.legion.LegionProto.MEM_TYPE;
+import com.dh.game.vo.login.PlayerLoginProto.PLAYER_PROPERTY;
+import com.dh.game.vo.login.PlayerLoginProto.PLAYER_UNIT_TYPE;
+import com.dh.game.vo.login.PlayerLoginProto.UnitAnyProperty;
+import com.dh.game.vo.login.PlayerLoginProto.UpdateHeroResponse;
+import com.dh.game.vo.login.PlayerLoginProto.UpdatePlayerResponse;
+import com.dh.game.vo.login.PlayerLoginProto.UpdatePropertyResponse;
+import com.dh.game.vo.street.StreetProto.GRID_FRESH_TYPE;
+import com.dh.game.vo.street.StreetProto.GridAtkFreshResp;
+import com.dh.game.vo.task.PlayerTask.TaskInfoResponse;
+import com.dh.game.vo.user.LegionVO;
+import com.dh.game.vo.user.PlayerAccountVO;
+import com.dh.game.vo.user.PlayerActyVO;
+import com.dh.game.vo.user.PlayerHeroVO;
+import com.dh.game.vo.user.PlayerTaskVO;
+import com.dh.game.vo.user.PlayerTimerVO;
+import com.dh.game.vo.user.PlayerVO;
+import com.dh.netty.NettyMessageVO;
+import com.dh.resconfig.AnsRes;
+import com.dh.resconfig.YellowRewardRes;
+import com.dh.vo.WorldBossVO;
+import com.dh.vo.user.UserCached;
+
+public class CommandUtil {
+
+	/**
+	 * 更新角色属性(经验，货币，vip)
+	 * 
+	 * @param player
+	 */
+	public static UpdatePropertyResponse.Builder updatePlayerProperties(UserCached userCached, PLAYER_PROPERTY... arrProperty) {
+		UpdatePropertyResponse.Builder builder = UpdatePropertyResponse.newBuilder();
+
+		builder.setId(userCached.getPlayerId());
+		builder.setUnitType(PLAYER_UNIT_TYPE.UNIT_PLAYER); // 角色
+
+		UnitAnyProperty.Builder unitAnyProperty = null;
+		for (PLAYER_PROPERTY pro : arrProperty) {
+			unitAnyProperty = UnitAnyProperty.newBuilder();
+			unitAnyProperty.setFieldProperty(pro);
+			if (pro.getNumber() == PLAYER_PROPERTY.PROPERTY_EXP.getNumber()) { // 经验
+				unitAnyProperty.setValue(userCached.getPlayerVO().getExp());
+			} else if (pro.getNumber() == PLAYER_PROPERTY.PROPERTY_RMB.getNumber()) { // RMB
+				unitAnyProperty.setValue(userCached.getPlayerAccountVO().getGmRmb());
+			} else if (pro.getNumber() == PLAYER_PROPERTY.PROPERTY_MONEY.getNumber()) { // 游戏币
+				unitAnyProperty.setValue(userCached.getPlayerAccountVO().getGmMoney());
+			} else if (pro.getNumber() == PLAYER_PROPERTY.PROPERTY_EXPLOIT.getNumber()) {// 功勋
+				unitAnyProperty.setValue(userCached.getPlayerAccountVO().getExploit());
+			} else if (pro.getNumber() == PLAYER_PROPERTY.PROPERTY_PVP.getNumber()) {// pvp
+				unitAnyProperty.setValue(userCached.getPlayerAccountVO().getPvp());
+			} else if (pro.getNumber() == PLAYER_PROPERTY.PROPERTY_EXPC.getNumber()) {// 经验池
+				unitAnyProperty.setValue(userCached.getPlayerAccountVO().getExpc());
+			} else if (pro.getNumber() == PLAYER_PROPERTY.PROPERTY_VIP.getNumber()) {
+				unitAnyProperty.setValue(userCached.getPlayerVO().getVip());
+			} else if (pro.getNumber() == PLAYER_PROPERTY.PROPERTY_COMBAT.getNumber()) { // 战斗力
+				unitAnyProperty.setValue(userCached.getPlayerVO().getCombat());
+			}
+			builder.addUnitAnyProperty(unitAnyProperty);
+		}
+
+		return builder;
+
+	}
+
+	public static void reComputerPlayerCombat(UserCached userCached, List<NettyMessageVO> commandList) {
+		NettyMessageVO nmv = CommandUtil.packageAnyProperties(PLAYER_UNIT_TYPE.UNIT_PLAYER, userCached.getPlayerId(), PLAYER_PROPERTY.PROPERTY_COMBAT, userCached.getPlayerVO().getCombat());
+		commandList.add(nmv);
+	}
+
+	/**
+	 * 更新英雄属性(经验)
+	 * 
+	 * @param player
+	 */
+	// public static UpdatePropertyResponse.Builder
+	// updateHeroProperties(PlayerHeroVO playerHeroVO, PLAYER_PROPERTY...
+	// arrProperty) {
+	// UpdatePropertyResponse.Builder builder =
+	// UpdatePropertyResponse.newBuilder();
+	//
+	// builder.setId(playerHeroVO.getCfgId());
+	// builder.setUnitType(PLAYER_UNIT_TYPE.UNIT_HERO); // 角色
+	//
+	// UnitAnyProperty.Builder unitAnyProperty = null;
+	// for (PLAYER_PROPERTY pro : arrProperty) {
+	// unitAnyProperty = UnitAnyProperty.newBuilder();
+	// unitAnyProperty.setFieldProperty(pro);
+	// if (pro.getNumber() == PLAYER_PROPERTY.PROPERTY_LEVEL.getNumber()) {
+	// unitAnyProperty.setValue(playerHeroVO.getLevel());
+	// } else if (pro.getNumber() == PLAYER_PROPERTY.PROPERTY_HP.getNumber()) {
+	// unitAnyProperty.setValue(playerHeroVO.getFinal_hp());
+	// } else if (pro.getNumber() == PLAYER_PROPERTY.PROPERTY_ATK.getNumber()) {
+	// unitAnyProperty.setValue(playerHeroVO.getFinal_atk());
+	// } else if (pro.getNumber() == PLAYER_PROPERTY.PROPERTY_DEF.getNumber()) {
+	// unitAnyProperty.setValue(playerHeroVO.getFinal_def());
+	// }
+	//
+	// builder.addUnitAnyProperty(unitAnyProperty);
+	// }
+	// return builder;
+	// }
+
+	public static NettyMessageVO packagePlayerVO(UserCached userCached) {
+		UpdatePlayerResponse.Builder builder = UpdatePlayerResponse.newBuilder();
+		builder.setMyPlayer(VOUtil.getPlayerInfo(userCached));
+
+		NettyMessageVO nettyMessageVO = new NettyMessageVO();
+		nettyMessageVO.setCommandCode(CSCommandConstant.CMD_UPDATE_PLAYER);
+		nettyMessageVO.setData(builder.build().toByteArray());
+		return nettyMessageVO;
+	}
+
+	/**
+	 * 更新英雄数据
+	 * 
+	 * @param playerHeroVO
+	 * @return
+	 */
+	public static NettyMessageVO packageHeroInfo(PlayerHeroVO playerHeroVO) {
+		UpdateHeroResponse.Builder updateHeroResponse = UpdateHeroResponse.newBuilder();
+		updateHeroResponse.addMyHero(VOUtil.getHeroInfo(playerHeroVO));
+		NettyMessageVO nettyMessageVO = new NettyMessageVO();
+		nettyMessageVO.setCommandCode(CSCommandConstant.HERO_UPDATE_HERO);
+		nettyMessageVO.setData(updateHeroResponse.build().toByteArray());
+		return nettyMessageVO;
+	}
+
+	/**
+	 * 打包若干数据
+	 * 
+	 * @param unit_Type
+	 * @param id
+	 * @param player_property
+	 * @param value
+	 * @return
+	 */
+	public static NettyMessageVO packageSomeProperties(PLAYER_UNIT_TYPE unit_Type, int id, PLAYER_PROPERTY[] player_property, int[] value) {
+		UpdatePropertyResponse.Builder builder = UpdatePropertyResponse.newBuilder();
+		builder.setId(id);
+		builder.setUnitType(unit_Type);
+		UnitAnyProperty.Builder unitAnyProperty = null;
+
+		for (int i = 0; i < player_property.length; i++) {
+			unitAnyProperty = UnitAnyProperty.newBuilder();
+			unitAnyProperty.setFieldProperty(player_property[i]);
+			unitAnyProperty.setValue(value[i]);
+			builder.addUnitAnyProperty(unitAnyProperty);
+		}
+
+		NettyMessageVO nettyMessageVO = new NettyMessageVO();
+		nettyMessageVO.setCommandCode(CSCommandConstant.CMD_UPDATE_PROPERTY);
+		nettyMessageVO.setData(builder.build().toByteArray());
+
+		return nettyMessageVO;
+	}
+
+	public static void packageSomeProperties(PLAYER_UNIT_TYPE unit_Type, int id, List<ProtoertyAndValue> propertyList, List<NettyMessageVO> commandList) {
+		UpdatePropertyResponse.Builder builder = UpdatePropertyResponse.newBuilder();
+		builder.setId(id);
+		builder.setUnitType(unit_Type);
+		UnitAnyProperty.Builder unitAnyProperty = null;
+
+		for (ProtoertyAndValue protoertyAndValue : propertyList) {
+			unitAnyProperty = UnitAnyProperty.newBuilder();
+			unitAnyProperty.setFieldProperty(protoertyAndValue.type);
+			unitAnyProperty.setValue(protoertyAndValue.value);
+			builder.addUnitAnyProperty(unitAnyProperty);
+		}
+
+		NettyMessageVO nettyMessageVO = new NettyMessageVO();
+		nettyMessageVO.setCommandCode(CSCommandConstant.CMD_UPDATE_PROPERTY);
+		nettyMessageVO.setData(builder.build().toByteArray());
+		commandList.add(nettyMessageVO);
+	}
+
+	/**
+	 * 打包玩家体力
+	 */
+	public static void packPlayerPower(UserCached userCached, List<NettyMessageVO> commandList) {
+		PlayerAccountVO playerAccountVO = userCached.getPlayerAccountVO();
+		PLAYER_PROPERTY[] type = { PLAYER_PROPERTY.PROPERTY_POWER };
+		int[] value = { playerAccountVO.getPower(), playerAccountVO.getLifeTime() };
+		commandList.add(CommandUtil.packageSomeProperties(PLAYER_UNIT_TYPE.UNIT_PLAYER, userCached.getPlayerId(), type, value));
+	}
+
+	/**
+	 * 打包玩家体力
+	 */
+	public static void packPlayerVIP(UserCached userCached, List<NettyMessageVO> commandList) {
+		if (userCached == null) {
+			return;
+		}
+		// PlayerAccountVO playerAccountVO = userCached.getPlayerAccountVO();
+		PLAYER_PROPERTY[] type = { PLAYER_PROPERTY.PROPERTY_VIP };
+		int[] value = { userCached.getPlayerVO().getVip() };
+		commandList.add(CommandUtil.packageSomeProperties(PLAYER_UNIT_TYPE.UNIT_PLAYER, userCached.getPlayerId(), type, value));
+	}
+
+	/**
+	 * 打包角色战斗力
+	 * 
+	 * @param userCached
+	 * @param commandList
+	 */
+	public static void packPlayerCombat(UserCached userCached, List<NettyMessageVO> commandList) {
+		PLAYER_PROPERTY[] type = { PLAYER_PROPERTY.PROPERTY_COMBAT };
+		int[] value = { userCached.getPlayerVO().getCombat() };
+		commandList.add(CommandUtil.packageSomeProperties(PLAYER_UNIT_TYPE.UNIT_PLAYER, userCached.getPlayerId(), type, value));
+	}
+
+	/**
+	 * 打包个别属性的时候用
+	 * 
+	 * @param unit_Type
+	 * @param id
+	 * @param player_property
+	 * @param value
+	 * @return
+	 */
+	public static NettyMessageVO packageAnyProperties(PLAYER_UNIT_TYPE unit_Type, int id, PLAYER_PROPERTY player_property, int value) {
+		UpdatePropertyResponse.Builder builder = UpdatePropertyResponse.newBuilder();
+		builder.setId(id);
+		builder.setUnitType(unit_Type);
+		UnitAnyProperty.Builder unitAnyProperty = UnitAnyProperty.newBuilder();
+		unitAnyProperty.setFieldProperty(player_property);
+		unitAnyProperty.setValue(value);
+		builder.addUnitAnyProperty(unitAnyProperty);
+
+		NettyMessageVO nettyMessageVO = new NettyMessageVO();
+		nettyMessageVO.setCommandCode(CSCommandConstant.CMD_UPDATE_PROPERTY);
+		nettyMessageVO.setData(builder.build().toByteArray());
+
+		return nettyMessageVO;
+	}
+
+	/**
+	 * 打包个别属性的时候用
+	 * 
+	 * @param unit_Type
+	 * @param id
+	 * @param player_property
+	 * @param value
+	 * @return
+	 */
+	public static NettyMessageVO packageAnyPropertiesForFresh(PLAYER_UNIT_TYPE unit_Type, int playerId, PLAYER_PROPERTY player_property, int value) {
+		UpdatePropertyResponse.Builder builder = UpdatePropertyResponse.newBuilder();
+		builder.setId(playerId);
+		builder.setUnitType(unit_Type);
+		UnitAnyProperty.Builder unitAnyProperty = UnitAnyProperty.newBuilder();
+		unitAnyProperty.setFieldProperty(player_property);
+		unitAnyProperty.setValue(value);
+		builder.addUnitAnyProperty(unitAnyProperty);
+
+		NettyMessageVO nettyMessageVO = new NettyMessageVO();
+		nettyMessageVO.setCommandCode(CSCommandConstant.CMD_UPDATE_PROPERTY);
+		nettyMessageVO.setData(builder.build().toByteArray());
+
+		return nettyMessageVO;
+	}
+
+	/**
+	 * 修改英雄属性并打包数据
+	 * 
+	 * @param heroInfoVO
+	 * @param userCached
+	 * @param commandList
+	 */
+	public static void updateHeroAndPackageCommand(PlayerHeroVO playerHeroVO, UserCached userCached, List<NettyMessageVO> commandList) {
+		boolean yzhpFull = false;
+		if (playerHeroVO.getYzhp() == playerHeroVO.getFinal_hp()) {
+			yzhpFull = true;
+		}
+		CombatUtil.heroCombat(playerHeroVO, userCached);
+
+		if (yzhpFull) {
+			playerHeroVO.setYzhp(playerHeroVO.getFinal_hp());
+		}
+
+		commandList.add(CommandUtil.packageHeroInfo(playerHeroVO));
+
+		// 计算角色战斗力
+		// CombatUtil.playerCombat(userCached);
+		// CommandUtil.packPlayerCombat(userCached, commandList);
+	}
+
+	public static void updateHeroStatus(PlayerHeroVO playerHeroVO, List<NettyMessageVO> commandList) {
+		NettyMessageVO nettyMessageVO = packageAnyProperties(PLAYER_UNIT_TYPE.UNIT_HERO, playerHeroVO.getId(), PLAYER_PROPERTY.PROPERTY_HERO_STATUS, playerHeroVO.getLineStatus());
+		commandList.add(CommandUtil.packageAnyProperties(PLAYER_UNIT_TYPE.UNIT_HERO, playerHeroVO.getId(), PLAYER_PROPERTY.PROPERTY_HUNGRYSTATUS, playerHeroVO.getHang_status()));
+		commandList.add(nettyMessageVO);
+	}
+
+	/**
+	 * 打包任务状态更新指令
+	 * 
+	 * @param commandCode
+	 * @param heroInfo
+	 * @param arrProperty
+	 * @return
+	 */
+	public static NettyMessageVO getTaskResponse(PlayerTaskVO playerTask) {
+		NettyMessageVO message = new NettyMessageVO();
+
+		TaskInfoResponse.Builder builder = TaskInfoResponse.newBuilder();
+		builder.addMyTask(VOUtil.getTask(playerTask));
+		message.setCommandCode(CSCommandConstant.TASK_UPDATE);
+		message.setData(builder.build().toByteArray());
+		return message;
+	}
+
+	/**
+	 * 升级后打包新任务
+	 * 
+	 * @author zqgame
+	 * @date 2014-1-23
+	 */
+	public static NettyMessageVO packageNextTask(UserCached userCached, int oldLevel, int newLevel) {
+		TaskInfoResponse.Builder getTaskResponse = TaskInfoResponse.newBuilder();
+		for (PlayerTaskVO playerTaskVO : userCached.getTaskList()) {
+			getTaskResponse.addMyTask(VOUtil.getTask(playerTaskVO));
+			// if (task.getTaskType() == 2) {// 支线任务满足等级时推送
+			// if (task.getReqLevel() > oldLevel && task.getReqLevel() <=
+			// newLevel) {
+			// myTask.setTaskId(playerTask.getTaskId());
+			// myTask.setTaskName(playerTask.getTaskName());
+			// myTask.setTaskType(playerTask.getTaskType());
+			// myTask.setStatus(TaskConstant.TASK_CAN_GET);
+			// getTaskResponse.addMyTask(myTask);
+			// }
+			// }
+		}
+
+		NettyMessageVO message = new NettyMessageVO();
+		message.setData(getTaskResponse.build().toByteArray());
+		return message;
+	}
+
+	/**
+	 * 打包指令和数据
+	 * 
+	 * @param commandCode
+	 * @param data
+	 * @return
+	 */
+	public static NettyMessageVO packageNettyMessage(short commandCode, byte[] data) {
+		NettyMessageVO nettyMessageVO = new NettyMessageVO();
+		nettyMessageVO.setCommandCode(commandCode);
+		nettyMessageVO.setData(data);
+		return nettyMessageVO;
+	}
+
+	public static void packageNettyMessage(NettyMessageVO nettyMessageVO, short commandCode, byte[] data) {
+		nettyMessageVO.setCommandCode(commandCode);
+		nettyMessageVO.setData(data);
+	}
+
+	public static void packageNettyMessage(short commandCode, byte[] data, List<NettyMessageVO> commandList) {
+		NettyMessageVO nettyMessageVO = new NettyMessageVO();
+		nettyMessageVO.setCommandCode(commandCode);
+		nettyMessageVO.setData(data);
+		commandList.add(nettyMessageVO);
+	}
+
+	public static NettyMessageVO packageAlertMsg(AlertEnum alertEnum) {
+		ClientAlert.Builder clientAlert = ClientAlert.newBuilder();
+		clientAlert.setMsg(ProperytiesUtil.getAlertMsg(alertEnum));
+		return packageNettyMessage(CSCommandConstant.ALERT_COMMAND, clientAlert.build().toByteArray());
+	}
+
+	public static void packageYellowGiftInfo(UserCached userCached, List<NettyMessageVO> commandList) {
+		PlayerVO playerVO = userCached.getPlayerVO();
+		PlayerTimerVO playerTimerVO = userCached.getUserTimer().getPlayerTimerVO();
+		YellowGiftInfo.Builder yellowGiftInfo = YellowGiftInfo.newBuilder();
+		yellowGiftInfo.setIsYellowVip(playerVO.getIs_yellow_vip());
+		yellowGiftInfo.setYellowVip(playerVO.getYellow_vip_level());
+		yellowGiftInfo.setIsYellowYearVip(playerVO.getIs_yellow_year_vip());
+
+		if ((playerTimerVO.getYellowNewGift() & 1) == 1) { // 新手黄钻礼包
+			yellowGiftInfo.setIsNewGift(1); // 已领取
+		} else {
+			yellowGiftInfo.setIsNewGift(0); // 未领
+		}
+
+		if (playerTimerVO.getYellowDayGift() == 1) { // 黄钻每日礼包
+			yellowGiftInfo.setIsDayGift(1); // 已领取
+		} else {
+			yellowGiftInfo.setIsDayGift(0); // 未领
+		}
+
+		for (int key : YellowRewardRes.getInstance().getLevelMap().keySet()) {
+			YellowLevelGift.Builder yellowLevelGift = YellowLevelGift.newBuilder();
+			yellowLevelGift.setId(key);
+
+			int n = key / 10;
+			if (((playerTimerVO.getYellowNewGift() >> n) & 1) == 1) {
+				yellowLevelGift.setState(1);// 已领取
+			} else {
+				yellowLevelGift.setState(0);
+			}
+			yellowGiftInfo.addYellowLevelGift(yellowLevelGift);
+		}
+
+		NettyMessageVO nettyMessageVO = new NettyMessageVO();
+		nettyMessageVO.setCommandCode(CSCommandConstant.GET_YELLOW_DETAIL);
+		nettyMessageVO.setData(yellowGiftInfo.build().toByteArray());
+		commandList.add(nettyMessageVO);
+	}
+
+	/**
+	 * @param type
+	 * @param remainTime
+	 *            当前剩余毫秒数
+	 * @param commandList
+	 */
+	public static void updateCountDown(CountType countType, int remainTime, List<NettyMessageVO> commandList) {
+		updateCountDown(countType, remainTime, 0, commandList);
+	}
+
+	/**
+	 * @param type
+	 * @param remainTime
+	 *            当前剩余毫秒数
+	 * @param commandList
+	 */
+	public static void updateCountDown(CountType countType, int remainTime, int timeLeft, List<NettyMessageVO> commandList) {
+		NettyMessageVO nettyMessageVO = new NettyMessageVO();
+		nettyMessageVO.setCommandCode(CSCommandConstant.COUNT_DOWN_UP);
+		Builder resp = CountUpdateResp.newBuilder();
+		if (countType == CountType.E_RAID || countType == CountType.M_RAID) {
+			resp.setTime(timeLeft);
+		}
+		nettyMessageVO.setData(resp.setCountDown(Math.max(0, remainTime)).setCountType(countType).build().toByteArray());
+		commandList.add(nettyMessageVO);
+	}
+
+	// public static NettyMessageVO packagePlayerCity(UserCached userCached) {
+	// PlayerCity.Builder playerCity = PlayerCity.newBuilder();
+	// playerCity.setCityId(userCached.getPlayerStrongHoldVO().getStronghold());
+	// int[] allCity =
+	// Tool.strToIntArr(userCached.getPlayerStrongHoldVO().getOpencity(), ",");
+	// for (int value : allCity) {
+	// playerCity.addAllCity(value);
+	// }
+	//
+	// NettyMessageVO nettyMessageVO = new NettyMessageVO();
+	// nettyMessageVO.setCommandCode(CSCommandConstant.CMD_UPDATE_CITY_OPEN);
+	// nettyMessageVO.setData(playerCity.build().toByteArray());
+	// return nettyMessageVO;
+	// }
+
+	/**
+	 * 每日必做推送
+	 * 
+	 * @param userCached
+	 * @param commandList
+	 */
+	public static void packCheckDayDone(UserCached userCached, List<NettyMessageVO> commandList) {
+		PlayerTimerVO pt = userCached.getUserTimer().getPlayerTimerVO();
+		NettyMessageVO messageVO = new NettyMessageVO();
+		messageVO.setCommandCode(CSCommandConstant.ACTIVITY_DAY_DONE_UPDATE);
+		messageVO.setData(PushScoreResp.newBuilder().setScore(pt.getDayDoneScore()).setRewards(pt.getDayDoneRewards()).build().toByteArray());
+		commandList.add(messageVO);
+
+	}
+
+	public static void packWorldBoss(List<NettyMessageVO> commandList) {
+		NettyMessageVO nettyMessageVO = new NettyMessageVO();
+		nettyMessageVO.setCommandCode(CSCommandConstant.ACTIVITY_WORLD_BOSS);
+		WorldBossDetailResp.Builder resp = WorldBossDetailResp.newBuilder();
+		resp.addBossInfo(BossInfo.newBuilder().setId(WorldBossVO.BOSS_ONE_CFGID).setOpenDate("每日10:00-13:00").setBOSSSTATUS(WorldBossVO.getInstance().getBossStatus(WorldBossVO.BOSS_ONE_CFGID)));
+		resp.addBossInfo(BossInfo.newBuilder().setId(WorldBossVO.BOSS_TWO_CFGID).setOpenDate("每日20:00-23:00").setBOSSSTATUS(WorldBossVO.getInstance().getBossStatus(WorldBossVO.BOSS_TWO_CFGID)));
+		nettyMessageVO.setData(resp.build().toByteArray());
+		commandList.add(nettyMessageVO);
+	}
+
+	/**
+	 * 推送玩家军团基本信息
+	 */
+	public static NettyMessageVO packBaseLegionInfo(MEM_TYPE type, LegionVO legionVO) {
+		NettyMessageVO msg = new NettyMessageVO();
+		msg.setCommandCode(CSCommandConstant.LEGION_PUSH_INFO);
+		BaseLegionInfo.Builder resp = BaseLegionInfo.newBuilder();
+		if (legionVO == null) {
+			resp.setLevel(0).setName("").setType(type).setId(0);
+		} else {
+			resp.setLevel(legionVO.getLegionLevel()).setName(legionVO.getLegionName()).setType(type).setId(legionVO.getId());
+		}
+		msg.setData(resp.build().toByteArray());
+		return msg;
+	}
+
+	public static NettyMessageVO packLegionReqNotice(int hasReq) {
+		NettyMessageVO msg = new NettyMessageVO();
+		msg.setCommandCode(CSCommandConstant.LEGION_REQ_NOTICE);
+		msg.setData(LegionReqNoticeResp.newBuilder().setHasReq(hasReq).build().toByteArray());
+		return msg;
+	}
+
+	public static void dayShare(UserCached userCached, List<NettyMessageVO> commandList) {
+		PlayerTimerVO pt = userCached.getUserTimer().getPlayerTimerVO();
+		DayShareResponse.Builder builder = DayShareResponse.newBuilder();
+		builder.setDayShare(pt.getDayShare());
+		CommandUtil.packageNettyMessage(CSCommandConstant.ACTIVITY_DAY_SHARE, builder.build().toByteArray(), commandList);
+	}
+
+	public static NettyMessageVO packStreetGridFresh(GRID_FRESH_TYPE type, int resId) {
+		NettyMessageVO nettyMessageVO = new NettyMessageVO();
+		nettyMessageVO.setCommandCode(CSCommandConstant.STREET_GRID_ATK_UPDATE);
+		GridAtkFreshResp.Builder resp = GridAtkFreshResp.newBuilder();
+		resp.setResId(resId);
+		resp.setType(type);
+		nettyMessageVO.setData(resp.build().toByteArray());
+		return nettyMessageVO;
+	}
+
+	public static void packActy(UserCached userCached, List<NettyMessageVO> commandList) {
+		NettyMessageVO nettyMessageVO = new NettyMessageVO();
+		PlayerActyVO actyVO = userCached.getUserActivity().getPlayerActyVO();
+		if (!DateUtil.isSameDay(new Date(actyVO.getLastansdate() * 1000L))) {// 需要重置
+			actyVO.clearAns();
+		}
+		boolean isOver = false;
+		if (actyVO.getIndex() >= AnsRes.QUETIONS_SIZE) {// 结束后就不在显示这个活动
+			isOver = true;
+		}
+		ActyStatusNotice.Builder resp = ActyStatusNotice.newBuilder().setStatus(isOver ? ActivityConstant.getAndCloseActyStatus(0) : ActivityConstant.getActyStatus());
+		nettyMessageVO.setData(resp.build().toByteArray());
+		commandList.add(nettyMessageVO);
+	}
+	// public static void packageIconInfo(UserCached userCached,
+	// List<NettyMessageVO> commandList) {
+	// NettyMessageVO messageVO = new NettyMessageVO();
+	// messageVO.setCommandCode(CSCommandConstant.ICON_STATUS_LIST);
+	// messageVO.setData(VOUtil.packageIcon(userCached).toByteArray());
+	// commandList.add(messageVO);
+	// }
+
+}

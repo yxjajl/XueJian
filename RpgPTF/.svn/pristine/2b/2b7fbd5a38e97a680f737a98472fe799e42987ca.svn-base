@@ -1,0 +1,27 @@
+package com.dh.game.vo.gm;
+
+import "com/proto/vo/BaseProto.proto";
+message ReloadRedisReq {
+	optional int32 playerId = 1;
+	optional string username = 2;
+}
+
+message ReloadRedisResp {
+	required bool isSucc = 1;
+}
+
+message SendSysMsgReq {
+	required string msg = 1;
+}
+
+message SendSysMailReq {
+	required string nicks = 1;
+	required string title = 2;
+	required string content = 3;
+	required string sender = 4;
+	repeated RewardInfo rewardInfo = 5;
+}
+
+message SendSysMailResp {
+	required bool isSucc = 1; //是否成功
+}

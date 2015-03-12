@@ -1,0 +1,118 @@
+package com.dh.handler.hero;
+
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.apache.log4j.Logger;
+import org.springframework.stereotype.Component;
+
+import com.dh.fx.ProtocolParseForm;
+import com.dh.game.constant.CSCommandConstant;
+import com.dh.game.vo.hero.HeroProto.HeroLevelUpRequest;
+import com.dh.game.vo.hero.HeroProto.HeroRecruitRequest;
+import com.dh.game.vo.hero.HeroProto.HeroStarUpPreRequest;
+import com.dh.game.vo.hero.HeroProto.RemoveHeroPreRequest;
+import com.dh.handler.AbstractCommandHandler;
+import com.dh.netty.NettyMessageVO;
+import com.dh.processor.ExceptionProcessor;
+import com.dh.processor.HeroProcessor;
+
+@Component
+public class HeroHandler extends AbstractCommandHandler {
+	private static Logger logger = Logger.getLogger(HeroHandler.class);
+
+	@Resource
+	private HeroProcessor heroProcessor;
+	@Resource
+	private ExceptionProcessor exceptionProcessor;
+
+	public void initCommandCode() {
+		this.addCommand(CSCommandConstant.HERO_LEVEL_UP, "heroLevelUp"); // 英雄升级
+		this.addCommand(CSCommandConstant.HERO_STAR_UP, "heroStarUp");// 英雄升星
+		this.addCommand(CSCommandConstant.HERO_STAR_UP_PRE, "heroStarUpPre");
+
+		this.addCommand(CSCommandConstant.HERO_RECRUIT_PAGE, "heroRecruitPage"); // 进入招蓦页
+		this.addCommand(CSCommandConstant.HERO_RECRUIT, "heroRecruit");
+
+		this.addCommand(CSCommandConstant.HEROTOEXP, "heroToExp"); // 英雄变经验
+		this.addCommand(CSCommandConstant.HEROTOPREEXP, "heroToPreExp");
+	}
+
+	public void heroToExp(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		HeroStarUpPreRequest request = ProtocolParseForm.parseFrom(HeroStarUpPreRequest.class, nettyMessageVO.getData());
+		heroProcessor.heroToExp(request, nettyMessageVO, commandList);
+	}
+
+	public void heroToPreExp(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		RemoveHeroPreRequest request = ProtocolParseForm.parseFrom(RemoveHeroPreRequest.class, nettyMessageVO.getData());
+		heroProcessor.heroToPreExp(request, nettyMessageVO, commandList);
+	}
+
+	/**
+	 * 进入英雄招蓦页
+	 * 
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void heroRecruitPage(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		heroProcessor.heroRecruitPage(nettyMessageVO, commandList);
+	}
+
+	/**
+	 * 英雄招蓦
+	 * 
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void heroRecruit(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		HeroRecruitRequest request = ProtocolParseForm.parseFrom(HeroRecruitRequest.class, nettyMessageVO.getData());
+		heroProcessor.heroRecruit(request, nettyMessageVO, commandList);
+	}
+
+	/**
+	 * 英雄升级
+	 * 
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void heroLevelUp(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		HeroLevelUpRequest request = ProtocolParseForm.parseFrom(HeroLevelUpRequest.class, nettyMessageVO.getData());
+		heroProcessor.heroLevelUp(request, nettyMessageVO, commandList);
+
+	}
+
+	/**
+	 * 英雄升星预览
+	 * 
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void heroStarUpPre(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		HeroStarUpPreRequest request = ProtocolParseForm.parseFrom(HeroStarUpPreRequest.class, nettyMessageVO.getData());
+		heroProcessor.heroStarUpPre(request, nettyMessageVO, commandList);
+	}
+
+	/**
+	 * 英雄升星
+	 * 
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void heroStarUp(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		HeroStarUpPreRequest request = ProtocolParseForm.parseFrom(HeroStarUpPreRequest.class, nettyMessageVO.getData());
+		heroProcessor.heroStarUp(request, nettyMessageVO, commandList);
+	}
+
+	@Override
+	protected void otherCommandCode(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) {
+		logger.error("error Commandcode " + nettyMessageVO.getCommandCode());
+		exceptionProcessor.errCommandPro(nettyMessageVO);
+	}
+
+}

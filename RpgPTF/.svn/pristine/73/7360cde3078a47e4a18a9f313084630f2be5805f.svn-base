@@ -1,0 +1,7 @@
+package com.dh.game.vo.raid;
+
+message ManyPeopleRaidTeamInfo {
+	required int32 teamId = 1;
+	required int32 playerId = 2;
+	required int32 headIcon = 3;
+}

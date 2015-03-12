@@ -1,0 +1,63 @@
+package com.dh.enums;
+
+public enum GMIOEnum {
+
+	OUT_BUY_ITEM(1, "购买物品"), //
+	OUT_BUY_POWER(2, "购买体力"), //
+	OUT_BUY_PVP(3, ", 购买竞技值"), //
+	OUT_BUY_KNAP(4, "购买背包格子"), //
+	OUT_BUY_ME_COUNT(5, "购买经验金钱次数"), //
+	OUT_BUY_ELI_COUNT(6, "购买精英副本次数"), //
+
+	OUT_CD_PVP_MATCH(10, "PVP匹配cd"), //
+	OUT_CD_PVP_BATTLE(11, "PVP战斗cd"), //
+	OUT_CD_BUILD(12, "建筑升级cd"), //
+	OUT_CD_WORLD_BOSS(13, "世界bossCd加速"), //
+	OUT_CD_SALARY(14, "领取俸禄CD"), //
+	OUT_CD_SLEEP(15, "加速养心殿恢复"), //
+	OUT_CD_LEGION_BOSS(16, "军团boss加速"), //
+	OUT_CD_ME(17, "金钱经验副本加速"), //
+	OUT_COUNT_ME(20, "神机入梦次数"), //
+	OUT_BUY_ADDTION(31, "增加号令值"), //
+	OUT_REGIGN(32, "签到补签"), //
+	OUT_HUNGREY(33, "清楚疲劳值"), //
+	OUT_CLEANOUT(34, "一键扫荡"), //
+	OUT_EQUIP_PROTECT(35, "装备护佑"), //
+	OUT_HERO_RECRU(36, "英雄招募"), //
+	IN_CHARGE(50, "充值"), //
+	IN_GM(51, "gm赠与"), //
+	IN_SCRIPT(52, "脚本"), //
+	IN_GIFT_FEEDBACK(53, "反馈礼金"), //
+	IN_ELI_PERFECT(54, "精英副本"), //
+	IN_NORMAL_PERFECT(55, "普通完美奖励"), //
+	IN_ITEM_PACK(56, "使用礼包获得"), //
+	IN_CD_KEY_PACK(57, "cdkey礼包"), //
+	IN_MAIL_GM(58, "gm发放"), //
+	IN_MAIL_KNAPFULL(59, "背包已满"), //
+	IN_MAIL_OTHER(60, "来自邮件,原因不明"), //
+	IN_VIP_DAY(70, "vip每日礼包"), //
+	IN_VIP_DYMIC(71, "黄瓜仙子礼包"), //
+	IN_LEGION_MEM(80, "军团贡献礼包"), //
+	IN_STREET_BOX(81, "江湖宝箱"), //
+	IN_STREET_MOSTER(82, "江湖野怪"), //
+	IN_LEGION_DAY(83, "军团每日领取"), //
+
+	INT_OTHER(998, "其它收入"), //
+	OUT_OTHER(999, "其它支出");
+	GMIOEnum(int usage, String desc) {
+		this.usage = usage;
+		this.desc = desc;
+	}
+
+	private final int usage;
+	private final String desc;
+
+	public int usage() {
+		return usage;
+	}
+
+	public String desc() {
+		return desc;
+	}
+
+}

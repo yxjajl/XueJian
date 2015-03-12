@@ -1,0 +1,65 @@
+package com.dh.constants;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import com.dh.Cache.RedisMap;
+import com.dh.game.vo.activity.OpenActivityProto.OpenActiveInfo;
+import com.dh.game.vo.user.PlayerOpenActVO;
+import com.dh.game.vo.user.PlayerVO;
+
+public class OpenActConstants {
+	private static List<PlayerOpenActVO> OPENACTLIST = new ArrayList<PlayerOpenActVO>();
+
+	public static void setOpenActList(List<PlayerOpenActVO> list) {
+		if (list != null && list.size() > 0) {
+			OPENACTLIST.clear();
+			OPENACTLIST.addAll(list);
+		}
+	}
+
+	public static void addPlayerOpenActVO(PlayerOpenActVO playerOpenActVO) {
+		OPENACTLIST.add(playerOpenActVO);
+	}
+
+	public static PlayerOpenActVO getPlayerOpenActVO(int playerId, int actId, int step, int rank) {
+		for (PlayerOpenActVO playerOpenActVO : OPENACTLIST) {
+			if (playerOpenActVO.getPlayerId() == playerId && playerOpenActVO.getActid() == actId && playerOpenActVO.getStep() == step && playerOpenActVO.getRank() == rank) {
+				return playerOpenActVO;
+			}
+		}
+		return null;
+	}
+
+	public static int getState(int playerId, int actId, int step, int rank) {
+		PlayerOpenActVO playerOpenActVO = getPlayerOpenActVO(playerId, actId, step, rank);
+		if (playerOpenActVO == null) {
+			return -1;
+		}
+		return playerOpenActVO.getReward();
+	}
+
+	/**
+	 * 取某个活动，排第X名的人
+	 * 
+	 * @param actId
+	 * @param step
+	 * @param rank
+	 * @return
+	 */
+	public static void getRankPlayer(int actId, int step, int rank, OpenActiveInfo.Builder builder) {
+		for (PlayerOpenActVO playerOpenActVO : OPENACTLIST) {
+			if (playerOpenActVO.getActid() == actId && playerOpenActVO.getStep() == step && playerOpenActVO.getRank() == rank) {
+				try {
+					PlayerVO playerVO = RedisMap.getPlayerVOById(playerOpenActVO.getPlayerId());
+					builder.setNick(playerVO.getName());
+					builder.setHeadicon(playerVO.getHeadIcon());
+					break;
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+
+			}
+		}
+	}
+}

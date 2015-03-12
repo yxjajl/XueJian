@@ -1,0 +1,155 @@
+package com.dh.service;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.apache.log4j.Logger;
+import org.springframework.stereotype.Component;
+
+import com.dh.Cache.ServerHandler;
+import com.dh.dao.PlayerShopMapper;
+import com.dh.game.constant.CSCommandConstant;
+import com.dh.game.vo.base.BaseShopDisCountVO;
+import com.dh.game.vo.item.ShopProto.ShopItem;
+import com.dh.game.vo.item.ShopProto.ShopItemListResponse;
+import com.dh.game.vo.user.PlayerShopVO;
+import com.dh.game.vo.user.PlayerTimerVO;
+import com.dh.netty.NettyMessageVO;
+import com.dh.resconfig.ShopDisCountRes;
+import com.dh.sqlexe.SqlSaveThread;
+import com.dh.util.DateUtil;
+import com.dh.util.GameUtil;
+import com.dh.util.SqlBuild;
+import com.dh.util.VOUtil;
+import com.dh.vo.user.UserCached;
+
+@Component
+public class ShopService {
+	public final static Logger LOGGER = Logger.getLogger(ShopService.class);
+	public final static List<BaseShopDisCountVO> SHOPDISLIST = new ArrayList<BaseShopDisCountVO>(0); // 所有人共买的３件商品
+	public final static int SHOPREFRESHHOUR = 0; // 每天０时刷新
+	public static long nextFreshTime = 0L;
+	@Resource
+	private PlayerShopMapper playerShopMapper;
+	@Resource
+	private SqlBuild sqlBuild;
+	@Resource
+	private SqlSaveThread sqlSaveThread;
+
+	public void loadPlayerShop(UserCached userCached) {
+		PlayerShopVO playerShopVO = new PlayerShopVO();
+		playerShopVO.setPlayerId(userCached.getPlayerId());
+		playerShopVO.setLastUpdateDate(DateUtil.formatDate(new Date(), DateUtil.DAY_FORMAT_STRING));
+		List<PlayerShopVO> shopList = playerShopMapper.getPlayerShop(playerShopVO);
+		if (shopList == null) {
+			shopList = new ArrayList<PlayerShopVO>(3);
+		}
+
+		userCached.getUserShop().setShopList(shopList);
+	}
+
+	/**
+	 * 每日刷新
+	 */
+	public void refreshShop() {
+		nextFreshTime = GameUtil.computerNextReFreshTime(SHOPREFRESHHOUR, 0);
+		SHOPDISLIST.addAll(ShopDisCountRes.getInstance().randomShop(0, 3));
+
+	}
+
+	// /**
+	// * 体力购买每日刷新 ##对time的所有刷新也包括在此#
+	// */
+	// public void freshBuyPower() {
+	// Object[] arrObj = ServerHandler.USERCACHEDMAP.values();
+	// int playerId = 0;
+	// NettyMessageVO nettyMessageVO = new NettyMessageVO();
+	// nettyMessageVO.setCommandCode(CSCommandConstant.SHOP_BUY_POWER);
+	//
+	// for (Object obj : arrObj) {
+	// try {
+	// UserCached userCached = (UserCached) obj;
+	// playerId = userCached.getPlayerId();
+	// PlayerTimerVO playerTimerVO =
+	// userCached.getUserTimer().getPlayerTimerVO();
+	// playerTimerVO.setBuyPowerCount(0);
+	// nettyMessageVO.setData(VOUtil.packBuyPower(userCached).build().toByteArray());
+	// if (userCached.getChannel() != null &&
+	// userCached.getChannel().isActive()) {
+	// userCached.getChannel().write(nettyMessageVO);
+	// }
+	// } catch (Exception e) {
+	// LOGGER.error("online reward  error" + playerId, e);
+	// }
+	// }
+	// }
+
+	/**
+	 * 查找
+	 * 
+	 * @param serialId
+	 * @return
+	 */
+	public BaseShopDisCountVO findBaseShopDisCountVO(int serialId) {
+		for (BaseShopDisCountVO baseShopDisCountVO : SHOPDISLIST) {
+			if (baseShopDisCountVO.getId() == serialId) {
+				return baseShopDisCountVO;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * 折扣商品列表
+	 * 
+	 * @param userCached
+	 * @param builder
+	 */
+	public void getShopItemList(UserCached userCached, ShopItemListResponse.Builder builder) {
+		ShopItem.Builder shopItem = null;
+		for (BaseShopDisCountVO baseShopDisCountVO : SHOPDISLIST) {
+			shopItem = ShopItem.newBuilder();
+			shopItem.setCfgId(baseShopDisCountVO.getItem_id()); // 物品配置id
+			shopItem.setLimitCount(baseShopDisCountVO.getTotal_limit()); // 服务器剩余总数
+			if (userCached.getUserShop() == null) {
+				System.out.println("bbbbb");
+			}
+			int singleLimit = userCached.getUserShop().getShopSingle(baseShopDisCountVO.getId(), DateUtil.formatDate(new Date(), DateUtil.DAY_FORMAT_STRING));
+			shopItem.setLimitSingle(Math.max(0, baseShopDisCountVO.getBuy_limit() - singleLimit)); // 个人限购数
+			shopItem.setRmPrice(baseShopDisCountVO.getCost_price());// 原价
+			shopItem.setNowPrice(baseShopDisCountVO.getPrice_rmb()); // 现价
+			shopItem.setSerialId(baseShopDisCountVO.getId());// 流水id(购买物品根据流水id)
+			builder.addShopItem(shopItem);
+		}
+	}
+
+	/**
+	 * 获取剩余刷新时间
+	 * 
+	 * @return
+	 */
+	public int getShopRemainTime() {
+		long curTime = System.currentTimeMillis();
+		if (curTime > nextFreshTime) {
+			nextFreshTime = GameUtil.computerNextReFreshTime(SHOPREFRESHHOUR, 0);
+		}
+		int remainTime = (int) (nextFreshTime - curTime) / 1000;
+		return remainTime;
+	}
+
+	public void insertPlayerShop(PlayerShopVO PlayerShopVO) throws Exception {
+		sqlSaveThread.putSql(sqlBuild.getSql("com.dh.dao.PlayerShopMapper.delPlayerShop", PlayerShopVO));
+		sqlSaveThread.putSql(sqlBuild.getSql("com.dh.dao.PlayerShopMapper.insertPlayerShop", PlayerShopVO));
+	}
+
+	/**
+	 * 清除记录
+	 */
+	public void deleteAllPlayerShop() {
+		sqlSaveThread.putSql(sqlBuild.getSql("com.dh.dao.PlayerShopMapper.deleteAllPlayerShop", DateUtil.formatDate(new Date(), DateUtil.DAY_FORMAT_STRING)));
+	}
+
+}

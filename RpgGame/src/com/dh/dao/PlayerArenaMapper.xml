@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dh.dao.PlayerArenaMapper">
+	
+	<select id="getAllPlayerArena" resultType="com.dh.game.vo.user.PlayerArenaVO">
+		SELECT
+		  `playerId`,
+		  `ordernum`,
+		  `win`,
+		  `lost`,
+		  `cc3win`,
+		  `ccwin`,
+		  `ccwinhis`,
+		  `failEndTime`,
+		  `reward0`,
+		  `reward3`,
+		  `toporder`,
+		  `enemyremainTime`,
+		  `enemline`,
+	      `combat`,
+		  `guwu`,
+		  `lastdayrank1`,
+		  `lastdayrank3`
+		FROM `t_player_arena` order by `ordernum`
+	</select>
+	
+	<select id="getTestPlayerArena" resultType="com.dh.game.vo.user.PlayerArenaVO">
+		SELECT
+		  `playerId`,
+		  `ordernum`,
+		  `win`,
+		  `lost`,
+		  `cc3win`,
+		  `ccwin`,
+		  `ccwinhis`,
+		  `failEndTime`,
+		  `reward0`,
+		  `reward3`,
+		  `toporder`,
+		  `enemyremainTime`,
+		  `enemline`,
+	      `combat`,
+		  `guwu`,
+		  `lastdayrank1`,
+		  `lastdayrank3`
+		FROM `t_player_arena`
+		WHERE combat = 0 OR combat = 10000
+	</select>
+	
+	<update id="updatePlayerArena" parameterType="com.dh.game.vo.user.PlayerArenaVO">
+		UPDATE `t_player_arena`
+		SET 
+		  `ordernum` = #{ordernum},
+		  `win` = #{win},
+		  `lost` = #{lost},
+		  `cc3win` = #{cc3win},
+		  `ccwin` = #{ccwin},
+		  `ccwinhis` = #{ccwinhis},
+		  `failEndTime` = #{failEndTime},
+		  `reward0` = #{reward0},
+		  `reward3` = #{reward3},
+		  `toporder` = #{toporder},
+		  `enemyremainTime` = #{enemyremainTime},
+		  `enemline` = #{enemline},
+		  combat = #{combat},
+		  `guwu` = #{guwu},
+		  `lastdayrank1` = #{lastdayrank1},
+		  `lastdayrank3`= #{lastdayrank3}
+		WHERE `playerId` = #{playerId}
+	</update>
+	
+	
+	<insert id="insertPlayerArena" parameterType="com.dh.game.vo.user.PlayerArenaVO">
+		INSERT INTO `t_player_arena`
+            (`playerId`,
+             `ordernum`,
+             `win`,
+             `lost`,
+             `cc3win`,
+             `ccwin`,
+             `ccwinhis`,
+             `failEndTime`,
+             `reward0`,
+             `reward3`,
+			 `toporder`,
+			 `enemyremainTime`,
+			 `enemline`,combat,`lastdayrank1`,
+		     `lastdayrank3`)
+	VALUES (#{playerId},
+	        #{ordernum},
+	        0,
+	        0,
+	        0,
+	        0,
+	        0,
+	        NOW(),
+	        0,
+	        0,
+		    0,NOW(),'',0,#{lastdayrank1},
+		    #{lastdayrank3})
+	</insert>
+	
+</mapper>

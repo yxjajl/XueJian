@@ -1,0 +1,340 @@
+package com.dh.util;
+
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.concurrent.TimeUnit;
+
+public class DateUtil {
+	// 一天毫秒数
+	// public static final long DAY_MILLIS = 24 * 3600 * 1000L;
+	// public static final int DAY_SECOND = 24 * 3600;
+	/** 1h */
+	// public static final long HOUR_MILLIS = 3600 * 1000L;
+	public static final long MINUTE_MILLIS = 60 * 1000L;
+
+	// public static final long HALF_HOUR_MILLIS = 1800 * 1000L;
+	public static String DAY_FORMAT_STRING = "yyyy-MM-dd";
+	public static String DAY_HOUR_FORMAT_STRING = "yyyy-MM-dd HH:mm:ss";
+
+	public static int getNow() {
+		return (int) (System.currentTimeMillis() / 1000);
+	}
+
+	public static boolean isOverTime(int time, int lifeTime) {
+		return getNow() - time < lifeTime;
+	}
+
+	public static boolean hasOverTime(long time, long lifeTime) {
+		return System.currentTimeMillis() - time >= lifeTime;
+	}
+
+	/**
+	 * 获取当前时间N天后的凌晨
+	 */
+	public static Date getMorningNextDate(int n) {
+		Calendar now = Calendar.getInstance();
+		now.set(Calendar.DATE, now.get(Calendar.DATE) + n); // 设置时间向前进n天
+		now.set(Calendar.HOUR_OF_DAY, 0);
+		now.set(Calendar.MINUTE, 0);
+		now.set(Calendar.SECOND, 0);
+		return now.getTime();
+	}
+
+	/**
+	 * 是否为同一天 TODO
+	 */
+	public static boolean isSameDay(Date date1, Date date2) {
+		Calendar cal1 = Calendar.getInstance();
+		if (date1 == null || date2 == null) {
+			return false;
+		}
+		cal1.setTime(date1);
+
+		Calendar cal2 = Calendar.getInstance();
+		cal2.setTime(date2);
+
+		return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) && cal1.get(Calendar.MONTH) == cal2.get(Calendar.MONTH) && cal1.get(Calendar.DAY_OF_MONTH) == cal2.get(Calendar.DAY_OF_MONTH);
+	}
+
+	public static boolean isToday(int second) {
+		if (second == 0) {
+			return false;
+		}
+		return isSameDay(new Date(second * 1000L));
+	}
+
+	public static boolean isSameDay(Date date1, Date date2, int hour) {
+		Calendar cal1 = Calendar.getInstance();
+		if (date1 == null || date2 == null) {
+			return false;
+		}
+		cal1.setTime(date1);
+
+		Calendar cal2 = Calendar.getInstance();
+		cal2.setTime(date2);
+
+		if (cal1.get(Calendar.YEAR) != cal2.get(Calendar.YEAR)) {
+			return false;
+		}
+
+		if (cal1.get(Calendar.MONTH) != cal2.get(Calendar.MONTH)) {
+			return false;
+		}
+
+		if (cal2.get(Calendar.HOUR_OF_DAY) >= 4) {
+			if (cal1.get(Calendar.DAY_OF_MONTH) == cal2.get(Calendar.DAY_OF_MONTH)) {
+				if (cal1.get(Calendar.HOUR_OF_DAY) < 4) {
+					return false;
+				}
+			} else {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	public static boolean isSameMonth(int unixSecond) {
+		Calendar cal = Calendar.getInstance();
+		cal.setTimeInMillis(unixSecond * 1000L);
+		Calendar today = Calendar.getInstance();
+		return cal.get(Calendar.YEAR) == today.get(Calendar.YEAR) && cal.get(Calendar.MONTH) == today.get(Calendar.MONTH);
+	}
+
+	/**
+	 * 是否是当天
+	 */
+	public static boolean isSameDay(Date date) {
+		if (date == null) {
+			return false;
+		}
+		Calendar cal = Calendar.getInstance();
+		cal.setTime(date);
+		Calendar today = Calendar.getInstance();
+		return cal.get(Calendar.YEAR) == today.get(Calendar.YEAR) && cal.get(Calendar.MONTH) == today.get(Calendar.MONTH) && cal.get(Calendar.DAY_OF_MONTH) == today.get(Calendar.DAY_OF_MONTH);
+	}
+
+	/**
+	 * 在date1　前　second　秒
+	 * 
+	 * @param date1
+	 * @param second
+	 * @return
+	 */
+	public static Date beforeSec(Date date1, int second) {
+		Calendar ca = Calendar.getInstance();
+		ca.setTime(date1);
+		ca.add(Calendar.SECOND, -second);
+		return ca.getTime();
+	}
+
+	/**
+	 * 在date1　后　second　秒
+	 * 
+	 * @param date1
+	 * @param second
+	 * @return
+	 */
+	public static Date afterSec(Date date1, int second) {
+		Calendar ca = Calendar.getInstance();
+		ca.setTime(date1);
+		ca.add(Calendar.SECOND, second);
+		return ca.getTime();
+	}
+
+	/**
+	 * 两个时间之间的时间差。
+	 * 
+	 * @param timeA
+	 * @param timeB
+	 * @return 返回 “分钟：秒”形式
+	 */
+	public static long dateMinDifference(long timeA, long timeB) {
+		long l = timeA - timeB;
+		long day = l / (24 * 60 * 60 * 1000);
+		long hour = (l / (60 * 60 * 1000) - day * 24);
+		long min = ((l / (60 * 1000)) - day * 24 * 60 - hour * 60);
+		// long s = (l / 1000 - day * 24 * 60 * 60 - hour * 60 * 60 - min * 60);
+		return min;
+	}
+
+	/**
+	 * 两个时间之间的时间差。
+	 * 
+	 * @param timeA
+	 * @param timeB
+	 * @return 返回 “分钟：秒”形式
+	 */
+	public static long dateSecDifference(long timeA, long timeB) {
+		long l = timeA - timeB;
+		long day = l / (24 * 60 * 60 * 1000);
+		long hour = (l / (60 * 60 * 1000) - day * 24);
+		long min = ((l / (60 * 1000)) - day * 24 * 60 - hour * 60);
+		long s = (l / 1000 - day * 24 * 60 * 60 - hour * 60 * 60 - min * 60);
+		return s;
+	}
+
+	/**
+	 * 两个时间之间的时间差。
+	 * 
+	 * @param timeA
+	 * @param timeB
+	 * @return 返回 小时
+	 */
+
+	public static long dateHourDifference(long timeA, long timeB) {
+		long l = timeA - timeB;
+		long day = l / (24 * 60 * 60 * 1000);
+		long hour = (l / (60 * 60 * 1000) - day * 24);
+		// long min = ((l / (60 * 1000)) - day * 24 * 60 - hour * 60);
+		// long s = (l / 1000 - day * 24 * 60 * 60 - hour * 60 * 60 - min * 60);
+		return hour;
+	}
+
+	public static int dateDayDifference(long a, long b) {
+		long between = (a - b) / 1000;// 除以1000是为了转换成秒
+		int day = (int) (between / (24 * 3600));
+		return day;
+
+	}
+
+	/**
+	 * 按时间形式格式化指定的毫秒数
+	 * 
+	 * @param time
+	 * @return
+	 */
+	public static Date getDate(long time) {
+		Calendar ca = Calendar.getInstance();
+		ca.setTimeInMillis(time);
+		return ca.getTime();
+	}
+
+	public static Date getDate() {
+		return new Date();
+	}
+
+	/**
+	 * 
+	 * @return 返回当前时间的UNIX形式
+	 */
+	public static long getTimeStamp() {
+		Calendar ca = Calendar.getInstance();
+		ca.setTime(new Date());
+		return ca.getTimeInMillis() / 1000;
+	}
+
+	/**
+	 * UNIX 时间转换为日期
+	 * 
+	 * @param timestampString
+	 * @return
+	 */
+	public static Date TimeStamp2Date(long timestampString) {
+		Long timestamp = timestampString * 1000;
+		Calendar ca = Calendar.getInstance();
+		ca.setTimeInMillis(timestamp);
+		return ca.getTime();
+	}
+
+	public static Date add(Date date, int field, int amount) {
+		Calendar ca = Calendar.getInstance();
+		ca.setTime(date);
+		ca.add(field, amount);
+		return ca.getTime();
+	}
+
+	public static Date add(long ldate, int field, int amount) {
+		Calendar ca = Calendar.getInstance();
+		ca.setTimeInMillis(ldate);
+		ca.add(field, amount);
+		return ca.getTime();
+	}
+
+	public static String formatDate() {
+		return formatDate(new Date(), DAY_FORMAT_STRING);
+	}
+
+	public static String formatDate(Date date) {
+		return formatDate(date, DAY_HOUR_FORMAT_STRING);
+	}
+
+	public static String formatDate(String format) {
+		return formatDate(new Date(), format);
+	}
+
+	public static String formatDate(Date date, String format) {
+		SimpleDateFormat dateformat1 = new SimpleDateFormat(format);
+		return dateformat1.format(date);
+	}
+
+	public static Date str2Date(String date) throws ParseException {
+
+		return str2Date(date, DAY_HOUR_FORMAT_STRING);
+
+	}
+
+	public static Date str2Date(String date, String format) throws ParseException {
+		SimpleDateFormat df = new SimpleDateFormat(format);
+		return df.parse(date);
+	}
+
+	/**
+	 * @return 今天指定时间
+	 */
+	@SuppressWarnings("deprecation")
+	public static Date getTodayByHMS(String str) {
+		Date d = new Date();
+		String[] times = str.split("[:]");
+		int ch = Integer.parseInt(times[0]);
+		int cm = Integer.parseInt(times[1]);
+		int cs = Integer.parseInt(times[2]);
+		d.setHours(ch);
+		d.setMinutes(cm);
+		d.setSeconds(cs);
+		return d;
+
+	}
+
+	public static Date getTomorrow() {
+		Date d = new Date();
+		Calendar time = Calendar.getInstance();
+		time.setTime(d);
+		GregorianCalendar ca = new GregorianCalendar();
+		ca.set(time.get(Calendar.YEAR), time.get(Calendar.MONTH), time.get(Calendar.DAY_OF_MONTH), 0, 0, 0);
+		ca.add(Calendar.DAY_OF_YEAR, 1);
+		return ca.getTime();
+	}
+
+	public static Date getToday(int sec) {
+		Date d = new Date();
+		Calendar time = Calendar.getInstance();
+		time.setTime(d);
+		GregorianCalendar ca = new GregorianCalendar();
+		ca.set(time.get(Calendar.YEAR), time.get(Calendar.MONTH), time.get(Calendar.DAY_OF_MONTH), 0, 0, sec);
+		return ca.getTime();
+	}
+
+	public static Date getToday() {
+		Date d = new Date();
+		Calendar time = Calendar.getInstance();
+		time.setTime(d);
+		GregorianCalendar ca = new GregorianCalendar();
+		ca.set(time.get(Calendar.YEAR), time.get(Calendar.MONTH), time.get(Calendar.DAY_OF_MONTH), 0, 0, 1);
+		return ca.getTime();
+	}
+
+	public static void main(String[] args) throws Exception {
+		String str = "2014-11-19 14:17:59";
+		Date dd = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").parse(str);
+		int pp = (int) ((System.currentTimeMillis() - dd.getTime()) / TimeUnit.SECONDS.toMillis(30));
+		int pilao = 100;
+
+		pilao -= pp;
+		System.out.println(pp + "," + pilao);
+		System.out.println(DateUtil.MINUTE_MILLIS / 2);
+	}
+}

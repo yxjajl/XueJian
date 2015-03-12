@@ -1,0 +1,317 @@
+package com.dh.service;
+
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.springframework.stereotype.Service;
+
+import com.dh.constants.GameRecordConstants;
+import com.dh.dao.BaseInfoMapper;
+import com.dh.dao.WelfareMapper;
+import com.dh.game.vo.base.BaseActivityVO;
+import com.dh.game.vo.base.DymicGiftVO;
+import com.dh.game.vo.base.GameRecordVO;
+import com.dh.resconfig.AnsRes;
+import com.dh.resconfig.BossRewardRes;
+import com.dh.resconfig.BoxRewardRes;
+import com.dh.resconfig.BuildLevelRes;
+import com.dh.resconfig.CdKeyRes;
+import com.dh.resconfig.ComposeRes;
+import com.dh.resconfig.DayChangeRewardRes;
+import com.dh.resconfig.DayDoneRes;
+import com.dh.resconfig.DayDoneRewardRes;
+import com.dh.resconfig.DaySignRes;
+import com.dh.resconfig.EnhanceRes;
+import com.dh.resconfig.EquipmentEnhanceCostRes;
+import com.dh.resconfig.EquipmentStarRes;
+import com.dh.resconfig.ExpeditionRes;
+import com.dh.resconfig.ExpeditionRewardRes;
+import com.dh.resconfig.ExpeditionShopRes;
+import com.dh.resconfig.FaZhenRes;
+import com.dh.resconfig.GridRes;
+import com.dh.resconfig.HeroGrowthRes;
+import com.dh.resconfig.HeroPreNameRes;
+import com.dh.resconfig.HeroRes;
+import com.dh.resconfig.HeroStarRes;
+import com.dh.resconfig.HoleRes;
+import com.dh.resconfig.ItemRes;
+import com.dh.resconfig.JJCRankRes;
+import com.dh.resconfig.JJCShopRes;
+import com.dh.resconfig.JJCSuccRes;
+import com.dh.resconfig.LegionBossRes;
+import com.dh.resconfig.LegionMemRes;
+import com.dh.resconfig.LegionRes;
+import com.dh.resconfig.LegionRewardRes;
+import com.dh.resconfig.LegionShopRes;
+import com.dh.resconfig.LevelRes;
+import com.dh.resconfig.MachineRes;
+import com.dh.resconfig.ManyPeopleRaidRes;
+import com.dh.resconfig.MonsterGroupRes;
+import com.dh.resconfig.MonsterRes;
+import com.dh.resconfig.NameRes;
+import com.dh.resconfig.OnlineRewardRes;
+import com.dh.resconfig.PassivesSkillRes;
+import com.dh.resconfig.PlayerLevelRes;
+import com.dh.resconfig.ProtectionRes;
+import com.dh.resconfig.RaidRes;
+import com.dh.resconfig.ResourceRes;
+import com.dh.resconfig.RewardRes;
+import com.dh.resconfig.RobRes;
+import com.dh.resconfig.SalaryRes;
+import com.dh.resconfig.ScoreShopRes;
+import com.dh.resconfig.ShopDisCountRes;
+import com.dh.resconfig.ShopRes;
+import com.dh.resconfig.SkillLevelCostRes;
+import com.dh.resconfig.SkillRes;
+import com.dh.resconfig.TaskRes;
+import com.dh.resconfig.TaskRewardRes;
+import com.dh.resconfig.TipsRes;
+import com.dh.resconfig.TotalStarRes;
+import com.dh.resconfig.VipLevelRes;
+import com.dh.resconfig.VipRewardRes;
+import com.dh.resconfig.WelfareRes;
+import com.dh.resconfig.WelfareRewardRes;
+import com.dh.resconfig.YellowRewardRes;
+import com.dh.sqlexe.SqlSaveThread;
+import com.dh.util.SqlBuild;
+
+/**
+ * 基础数据加载
+ * 
+ * @author Administrator
+ * 
+ */
+@Service
+public class BaseInfoService {
+	private static List<GameRecordVO> GAMERECORDLIST = null;
+	@Resource
+	private BaseInfoMapper baseInfoMapper;
+	@Resource
+	private WelfareMapper welfareMapper;
+	@Resource
+	private SqlBuild sqlBuild;
+	@Resource
+	private SqlSaveThread sqlSaveThread;
+
+	/**
+	 * 生成id
+	 * 
+	 * @param key
+	 * @return
+	 * @throws Exception
+	 */
+	// public long generID(String key) throws Exception {
+	// HashMap<String, Object> map = new HashMap<String, Object>();
+	// try {
+	// map.put("v_key", key);
+	// map.put("r_id", new Long(0));
+	// baseInfoMapper.generID(map);
+	// System.out.println(map.get("r_id"));
+	// return (Long) map.get("r_id");
+	// } catch (Exception e) {
+	// throw e;
+	// } finally {
+	// map.clear();
+	// map = null;
+	// }
+	// }
+
+	public static GameRecordVO getGameRecordVO(int id) {
+		if (GAMERECORDLIST != null) {
+			for (GameRecordVO gameRecordVO : GAMERECORDLIST) {
+				if (gameRecordVO.getId() == id) {
+					return gameRecordVO;
+				}
+			}
+		}
+		return null;
+	}
+
+	public void updateGameRecordVO(GameRecordVO gameRecordVO) {
+		// baseInfoMapper.updateGameRecordVO(gameRecordVO);
+		sqlSaveThread.putSql(sqlBuild.getSql("com.dh.dao.BaseInfoMapper.updateGameRecordVO", gameRecordVO));
+	}
+
+	public void loadActivity() {
+
+		List<BaseActivityVO> list = baseInfoMapper.getAllBaseActivityVO();
+		if (list != null) {
+			GameRecordConstants.ACTIVITYLIST.clear();
+			for (BaseActivityVO baseActivityVO : list) {
+				GameRecordConstants.ACTIVITYLIST.add(baseActivityVO);
+			}
+		}
+	}
+
+	public void loadGameRecord() {
+		GAMERECORDLIST = baseInfoMapper.getGameRecordVOList();
+		GameRecordConstants.TENZAOMU_VALUE.set(getGameRecordVO(GameRecordConstants.TENZAOMU).getValue1());// 求贤若渴
+																											// 全服十连抽达到500次
+		GameRecordConstants.JJCTZ_VALUE.set(getGameRecordVO(GameRecordConstants.JJCTZ).getValue1());// 身经百战
+																									// 全服竞技场挑战达到1000次
+		GameRecordConstants.ENHANCE_VALUE.set(getGameRecordVO(GameRecordConstants.ENHANCE).getValue1());// 千锤百炼
+																										// 全服装备强化达到1000次
+		GameRecordConstants.HEROUPLEVEL_VALUE.set(getGameRecordVO(GameRecordConstants.HEROUPLEVEL).getValue1());// 突飞猛进
+																												// 全服英雄升级达到1000次
+		GameRecordConstants.VIP1NUM_VALUE.set(getGameRecordVO(GameRecordConstants.VIP1NUM).getValue1());// 人杰地灵
+																										// vip1数量达到200个
+		GameRecordConstants.VIP4NUM_VALUE.set(getGameRecordVO(GameRecordConstants.VIP4NUM).getValue1());// 钟灵毓秀
+																										// vip4数量达到50个
+		GameRecordConstants.VIP7NUM_VALUE.set(getGameRecordVO(GameRecordConstants.VIP7NUM).getValue1());// 卧虎藏龙
+																										// vip7数量达到30个
+		GameRecordConstants.VIP8NUM_VALUE.set(getGameRecordVO(GameRecordConstants.VIP8NUM).getValue1());// 群英荟萃
+																										// vip8数量达到20个
+		GameRecordConstants.VIP9NUM_VALUE.set(getGameRecordVO(GameRecordConstants.VIP9NUM).getValue1());// 鸾翔凤集
+																										// vip9数量达到20个
+		GameRecordConstants.VIP10NUM_VALUE.set(getGameRecordVO(GameRecordConstants.VIP10NUM).getValue1());// 国士无双
+																											// vip10数量达到20个
+
+		GameRecordVO gameRecordVO = getGameRecordVO(GameRecordConstants.TENZAOMU);
+		GameRecordConstants.TENZAOMU_VALUE.set(gameRecordVO.getValue1());// 求贤若渴
+																			// 全服十连抽达到500次
+		GameRecordConstants.WALFARELIST.add(gameRecordVO);
+
+		gameRecordVO = getGameRecordVO(GameRecordConstants.JJCTZ);
+		GameRecordConstants.JJCTZ_VALUE.set(gameRecordVO.getValue1());// 身经百战
+																		// 全服竞技场挑战达到1000次
+		GameRecordConstants.WALFARELIST.add(gameRecordVO);
+
+		gameRecordVO = getGameRecordVO(GameRecordConstants.ENHANCE);
+		GameRecordConstants.ENHANCE_VALUE.set(gameRecordVO.getValue1());// 千锤百炼
+																		// 全服装备强化达到1000次
+		GameRecordConstants.WALFARELIST.add(gameRecordVO);
+
+		gameRecordVO = getGameRecordVO(GameRecordConstants.HEROUPLEVEL);
+		GameRecordConstants.HEROUPLEVEL_VALUE.set(gameRecordVO.getValue1());// 突飞猛进
+																			// 全服英雄升级达到1000次
+		GameRecordConstants.WALFARELIST.add(gameRecordVO);
+
+		gameRecordVO = getGameRecordVO(GameRecordConstants.VIP1NUM);
+		GameRecordConstants.VIP1NUM_VALUE.set(gameRecordVO.getValue1());// 人杰地灵
+																		// vip1数量达到200个
+		GameRecordConstants.WALFARELIST.add(gameRecordVO);
+
+		gameRecordVO = getGameRecordVO(GameRecordConstants.VIP4NUM);
+		GameRecordConstants.VIP4NUM_VALUE.set(gameRecordVO.getValue1());// 钟灵毓秀
+																		// vip4数量达到50个
+		GameRecordConstants.WALFARELIST.add(gameRecordVO);
+
+		gameRecordVO = getGameRecordVO(GameRecordConstants.VIP7NUM);
+		GameRecordConstants.VIP7NUM_VALUE.set(gameRecordVO.getValue1());// 卧虎藏龙
+																		// vip7数量达到30个
+		GameRecordConstants.WALFARELIST.add(gameRecordVO);
+
+		gameRecordVO = getGameRecordVO(GameRecordConstants.VIP8NUM);
+		GameRecordConstants.VIP8NUM_VALUE.set(gameRecordVO.getValue1());// 群英荟萃
+																		// vip8数量达到20个
+		GameRecordConstants.WALFARELIST.add(gameRecordVO);
+
+		gameRecordVO = getGameRecordVO(GameRecordConstants.VIP9NUM);
+		GameRecordConstants.VIP9NUM_VALUE.set(gameRecordVO.getValue1());// 鸾翔凤集
+																		// vip9数量达到20个
+		GameRecordConstants.WALFARELIST.add(gameRecordVO);
+
+		gameRecordVO = getGameRecordVO(GameRecordConstants.VIP10NUM);
+		GameRecordConstants.VIP10NUM_VALUE.set(gameRecordVO.getValue1());// 国士无双
+																			// vip10数量达到20个
+		GameRecordConstants.WALFARELIST.add(gameRecordVO);
+
+		List<DymicGiftVO> list = welfareMapper.getAllDymicGiftName();
+		if (list != null) {
+			GameRecordConstants.DYMICGIFTLIST.addAll(list);
+		}
+
+		loadActivity();
+	}
+
+	public void loadBaseData() {
+		reloadCSV("");
+	}
+
+	public void reloadCSV(String name) {
+		PlayerLevelRes.getInstance().reLoadFile(PlayerLevelRes.Path, name);
+		NameRes.getInstance().reLoadFile(NameRes.Path, name);
+		ItemRes.getInstance().reLoadFile(ItemRes.Path, name);
+		HeroRes.getInstance().reLoadFile(HeroRes.Path, name);
+		HeroGrowthRes.getInstance().reLoadFile(HeroGrowthRes.Path, name);
+		HeroStarRes.getInstance().reLoadFile(HeroStarRes.Path, name);
+		LevelRes.getInstance().reLoadFile(LevelRes.Path, name);
+		EnhanceRes.getInstance().reLoadFile(EnhanceRes.Path, name);
+		EquipmentStarRes.getInstance().reLoadFile(EquipmentStarRes.Path, name);
+		EquipmentEnhanceCostRes.getInstance().reLoadFile(EquipmentEnhanceCostRes.Path, name);
+		// ComposeRes.getInstance().reLoadFile(ComposeRes.Path,name);
+		RewardRes.getInstance().reLoadFile(RewardRes.Path, name);
+		TaskRewardRes.getInstance().reLoadFile(TaskRewardRes.Path, name);
+		RaidRes.getInstance().reLoadFile(RaidRes.Path, name);
+		SalaryRes.getInstance().reLoadFile(SalaryRes.Path, name);
+		BuildLevelRes.getInstance().reLoadFile(BuildLevelRes.Path, name);
+		ShopRes.getInstance().reLoadFile(ShopRes.Path, name);
+		ShopDisCountRes.getInstance().reLoadFile(ShopDisCountRes.Path, name);
+		JJCShopRes.getInstance().reLoadFile(JJCShopRes.Path, name);
+		JJCSuccRes.getInstance().reLoadFile(JJCSuccRes.Path, name);
+		JJCRankRes.getInstance().reLoadFile(JJCRankRes.Path, name);
+		ComposeRes.getInstance().reLoadFile(ComposeRes.Path, name);
+		RobRes.getInstance().reLoadFile(RobRes.Path, name);
+		CdKeyRes.getInstance().reLoadFile(CdKeyRes.Path, name);
+		ScoreShopRes.getInstance().reLoadFile(ScoreShopRes.Path, name);
+
+		// 技能要在buf后
+		// BuffRes.getInstance().reLoadFile(BuffRes.Path, name);
+		SkillRes.getInstance().reLoadFile(SkillRes.Path, name);
+		PassivesSkillRes.getInstance().reLoadFile(PassivesSkillRes.Path, name);
+		HoleRes.getInstance().reLoadFile(HoleRes.Path, name);
+		ProtectionRes.getInstance().reLoadFile(ProtectionRes.Path, name);
+		SkillLevelCostRes.getInstance().reLoadFile(SkillLevelCostRes.Path, name);
+
+		MonsterRes.getInstance().reLoadFile(MonsterRes.Path, name);
+
+		TaskRes.getInstance().reLoadFile(TaskRes.Path, name);
+
+		// 江湖
+		GridRes.getInstance().reLoadFile(GridRes.Path, name);
+		ResourceRes.getInstance().reLoadFile(ResourceRes.Path, name);
+		MonsterGroupRes.getInstance().reLoadFile(MonsterGroupRes.Path, name);
+		MachineRes.getInstance().reLoadFile(MachineRes.Path, name);
+		BoxRewardRes.getInstance().reLoadFile(BoxRewardRes.Path, name);
+		FaZhenRes.getInstance().reLoadFile(FaZhenRes.Path, name);
+
+		// 福利大厅
+		WelfareRes.getInstance().reLoadFile(WelfareRes.Path, name);
+		WelfareRewardRes.getInstance().reLoadFile(WelfareRewardRes.Path, name);
+		VipLevelRes.getInstance().reLoadFile(VipLevelRes.Path, name);
+		VipRewardRes.getInstance().reLoadFile(VipRewardRes.Path, name);
+		TotalStarRes.getInstance().reLoadFile(TotalStarRes.Path, name);
+		HeroPreNameRes.getInstance().reLoadFile(HeroPreNameRes.Path, name);
+		OnlineRewardRes.getInstance().reLoadFile(OnlineRewardRes.Path, name);
+		DaySignRes.getInstance().reLoadFile(DaySignRes.Path, name);
+
+		ExpeditionRes.getInstance().reLoadFile(ExpeditionRes.Path, name);
+		ExpeditionRewardRes.getInstance().reLoadFile(ExpeditionRewardRes.Path, name);
+		ExpeditionShopRes.getInstance().reLoadFile(ExpeditionShopRes.Path, name);
+		BossRewardRes.getInstance().reLoadFile(BossRewardRes.Path, name);
+		DayChangeRewardRes.getInstance().reLoadFile(DayChangeRewardRes.Path, name);
+		YellowRewardRes.getInstance().reLoadFile(YellowRewardRes.Path, name);
+		TipsRes.getInstance().reLoadFile(TipsRes.Path, name);
+		DayDoneRewardRes.getInstance().reLoadFile(DayDoneRewardRes.Path, name);
+		DayDoneRes.getInstance().reLoadFile(DayDoneRes.Path, name);
+		LegionRewardRes.getInstance().reLoadFile(LegionRewardRes.Path, name);
+		LegionRes.getInstance().reLoadFile(LegionRes.Path, name);
+		LegionMemRes.getInstance().reLoadFile(LegionMemRes.Path, name);
+		LegionShopRes.getInstance().reLoadFile(LegionShopRes.Path, name);
+		LegionBossRes.getInstance().reLoadFile(LegionBossRes.Path, name);
+		AnsRes.getInstance().reLoadFile(AnsRes.Path, name);
+		ManyPeopleRaidRes.getInstance().reLoadFile(ManyPeopleRaidRes.Path, name);
+	}
+
+	public static void main(String[] args) throws Exception {
+		// ApplicationContext ctx = null;
+		// PropertyConfigurator.configure("config/log4j.properties");
+		// ctx = new
+		// FileSystemXmlApplicationContext("config/applicationContext.xml");
+		// BaseInfoService baseInfoService = (BaseInfoService)
+		// ctx.getBean("baseInfoService");
+
+		// System.out.println(baseInfoService.generID("HEROID"));
+	}
+}

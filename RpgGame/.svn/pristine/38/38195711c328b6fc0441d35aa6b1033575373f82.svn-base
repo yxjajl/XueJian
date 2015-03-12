@@ -1,0 +1,238 @@
+package com.dh.constants;
+
+import gnu.trove.map.hash.TIntLongHashMap;
+import gnu.trove.map.hash.TIntObjectHashMap;
+import gnu.trove.map.hash.TObjectIntHashMap;
+import gnu.trove.set.TIntSet;
+import io.netty.channel.group.DefaultChannelGroup;
+import io.netty.util.concurrent.DefaultEventExecutor;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
+import com.dh.Cache.RedisMap;
+import com.dh.Cache.ServerHandler;
+import com.dh.game.vo.user.LegionMemVO;
+import com.dh.game.vo.user.LegionVO;
+import com.dh.game.vo.user.PlayerVO;
+
+/**
+ * 帮会常量
+ * 
+ */
+public class LegionConstant {
+	public final static int PAGE_COUNT = 10;
+	public final static int LEGION_BOSS_NUM = 20;
+
+	public final static int LEGION_CREATE_LEVEL = 20;// 创建等级需求
+	public final static int LEGION_CREATE_MONEY = 200000;// 创建军团花费
+	public final static int LEGION_OPEN_LEVEL = 20;// 开启军团等级
+	public final static int LEGION_DESTROY_TIME = 24 * 60 * 60;
+	public final static int LEGION_BUILD_MONEY_RATE = 10000;// 军团建设贡献与金钱转化率
+	public final static String[] titles = { "无盟者", "申请者", "普通成员", "堂主", "副盟主", "盟主" };
+
+	private final static long SORTED_PERIOD = 6 * 60 * 60 * 1000;// 排名刷新周期
+
+	private final static long MEM_FRESH_TIME = 2 * 60 * 60 * 1000;// 玩家排名刷新
+
+	private static List<LegionVO> LEGION_LIST = new ArrayList<LegionVO>();
+	private static Object LEGIONS_CRUD_MUTEX = new Object();
+	private static Object LEGIONID_INCR_MUTEX = new Object();
+	private static TIntObjectHashMap<LegionVO> LEGION_MAP = new TIntObjectHashMap<LegionVO>();
+
+	/** 军团基本信息 */
+	/** 成员信息 */
+	private static TIntObjectHashMap<List<LegionMemVO>> MEM_MAP = new TIntObjectHashMap<List<LegionMemVO>>();
+	private static TObjectIntHashMap<String> LEGION_NAME_MAP = new TObjectIntHashMap<String>();
+	private static TIntLongHashMap MEM_SORT_TIMES = new TIntLongHashMap();// 将每个军团刷新时间写入列表中
+	private static int maxLegionId;
+	private static int maxRank;
+	private static long lastSortedTime = 0;
+
+	public static void initLoadLegion(List<LegionVO> legions, int startId) {
+		for (LegionVO legionVO : legions) {
+			LEGION_NAME_MAP.put(legionVO.getLegionName(), legionVO.getId());
+			LEGION_MAP.put(legionVO.getId(), legionVO);
+			LEGION_LIST.add(legionVO);
+			startId = Math.max(startId, legionVO.getId());
+			// channel的初始化留着发消息时进行
+
+		}
+		Collections.sort(LEGION_LIST);
+		int rank = 1;
+		for (LegionVO legionVO : legions) {// 初始化排名
+			legionVO.setRank(rank++);
+		}
+		maxRank = rank;
+		maxLegionId = startId;
+	}
+
+	public static String getMemTitleByType(int type) {
+		return titles[type];
+	}
+
+	private static int getAndIncrId() {
+		synchronized (LEGIONID_INCR_MUTEX) {
+			maxLegionId++;
+			return maxLegionId;
+		}
+	}
+
+	public static int getAndIncrRank() {
+		// synchronized (RANK_INCR_MUTEX) {
+		return maxRank++;
+		// }
+	}
+
+	public static boolean existLegionName(String name) {
+		synchronized (LEGIONS_CRUD_MUTEX) {
+			return LEGION_NAME_MAP.get(name) != 0;
+		}
+	}
+
+	public static LegionVO addLegion(LegionVO legionVO) {
+		synchronized (LEGIONS_CRUD_MUTEX) {
+			int id = getAndIncrId();
+			legionVO.setId(id);
+			legionVO.setRank(getAndIncrRank());
+			LEGION_MAP.put(legionVO.getId(), legionVO);
+			LEGION_LIST.add(legionVO);
+			LEGION_NAME_MAP.put(legionVO.getLegionName(), legionVO.getId());
+			ServerHandler.LEGIONS_CHANNEL.put(legionVO.getId(), new DefaultChannelGroup(new DefaultEventExecutor()));// 移除通道
+			return legionVO;
+		}
+	}
+
+	/** 移除军团 */
+	public static void removeLegion(int id) {
+		synchronized (LEGIONS_CRUD_MUTEX) {
+			LegionVO legionVO = LEGION_MAP.get(id);
+			LEGION_MAP.remove(id);
+			LEGION_LIST.remove(legionVO);
+			LEGION_NAME_MAP.remove(legionVO.getLegionName());
+			ServerHandler.removeLegionChannel(id);// 移除通道
+			legionVO.getMems().clear();
+			legionVO.getJoin_mems().clear();
+			legionVO.getRealyMems().clear();
+			legionVO = null;
+		}
+	}
+
+	/**
+	 * 获取军团列表<br/>
+	 * page=-1代表所有
+	 */
+	public static List<LegionVO> getLegionList(int page) {
+		long curtime = System.currentTimeMillis();
+		if (curtime - lastSortedTime > SORTED_PERIOD) {
+			// int rank = maxRank;
+			synchronized (LEGIONS_CRUD_MUTEX) {
+				if (curtime - lastSortedTime > SORTED_PERIOD) {
+					Collections.sort(LEGION_LIST);
+					int rank = 1;
+					for (LegionVO legionVO : LEGION_LIST) {
+						legionVO.setRank(rank++);
+					}
+					lastSortedTime = curtime;
+					maxRank = rank;
+				}
+			}
+		}
+		page = page < 0 ? 0 : page;
+		int start = page * PAGE_COUNT;
+		int end = Math.min((page + 1) * PAGE_COUNT, LEGION_LIST.size());
+		return LEGION_LIST.subList(start, end);
+	}
+
+	public static int getLegionSize() {
+		synchronized (LEGIONS_CRUD_MUTEX) {
+			return LEGION_LIST.size();
+		}
+	}
+
+	public static void legionDayFresh() {
+		synchronized (LEGIONS_CRUD_MUTEX) {
+			Object[] values = LEGION_MAP.values();
+			LegionVO legionVO = null;
+			PlayerVO playerVO = null;
+			int combat;
+			for (Object object : values) {
+				legionVO = (LegionVO) object;
+				combat = 0;
+				Arrays.fill(legionVO.getBossKiller(), 0);
+				for (LegionMemVO mem : legionVO.getRealyMems()) {
+					playerVO = RedisMap.getPlayerVObyId(mem.getPlayerId());
+					mem.setCombat(playerVO.getCombat());
+					combat += mem.getCombat();
+				}
+				legionVO.setCombat(combat);
+			}
+		}
+	}
+
+	/**
+	 * 取军团信息
+	 * 
+	 * @param legionId
+	 * @return
+	 */
+	public static LegionVO getLegion(int legionId) {
+		return LEGION_MAP.get(legionId);
+	}
+
+	/**
+	 * 加入军团
+	 * 
+	 * @param legionid
+	 * @param LegionMemVO
+	 */
+	public static void addMember(int legionid, LegionMemVO LegionMemVO) {
+		List<LegionMemVO> list = MEM_MAP.get(legionid);
+		if (list == null) {
+			list = new ArrayList<LegionMemVO>();
+			MEM_MAP.put(legionid, list);
+		}
+		list.add(LegionMemVO);
+	}
+
+	/**
+	 * 移除团员
+	 * 
+	 * @param LegionMemVO
+	 */
+	public static void removeMember(LegionMemVO LegionMemVO) {
+		List<LegionMemVO> list = MEM_MAP.get(LegionMemVO.getId());
+		if (list != null) {
+			list.remove(LegionMemVO);
+		}
+	}
+
+	/**
+	 * 获取排序后的成员列表()
+	 * 
+	 * @author zqgame
+	 * @date 2013-10-8
+	 */
+	public static List<LegionMemVO> getMembers(int id, int page) {
+		List<LegionMemVO> list = MEM_MAP.get(id);
+		if (list != null) {
+			long curtime = System.currentTimeMillis();
+			Long memSortTime = MEM_SORT_TIMES.get(id);
+			if (memSortTime == null || curtime - memSortTime > MEM_FRESH_TIME) {
+				synchronized (memSortTime) {
+					if (curtime - memSortTime > MEM_FRESH_TIME) {
+						Collections.sort(list);
+						MEM_SORT_TIMES.put(id, curtime);
+					}
+				}
+			}
+		}
+		page = page < 0 ? 0 : page;
+		int start = page * PAGE_COUNT;
+		int end = Math.min((page + 1) * PAGE_COUNT, list.size());
+		return list.subList(start, end);
+	}
+
+}

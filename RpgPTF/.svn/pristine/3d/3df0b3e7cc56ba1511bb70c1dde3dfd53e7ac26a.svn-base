@@ -1,0 +1,49 @@
+package com.dh.game.vo.user;
+
+public class LegionLogVO {
+	private int id;
+	private int legionId;
+	private int type;
+	private String[] datas;// 数据类型
+	private String dataStr;
+
+	public int getId() {
+		return id;
+	}
+
+	public void setId(int id) {
+		this.id = id;
+	}
+
+	public int getLegionId() {
+		return legionId;
+	}
+
+	public void setLegionId(int legionId) {
+		this.legionId = legionId;
+	}
+
+	public int getType() {
+		return type;
+	}
+
+	public void setType(int type) {
+		this.type = type;
+	}
+
+	public String[] getDatas() {
+		return datas;
+	}
+
+	public void setDatas(String[] datas) {
+		this.datas = datas;
+	}
+
+	public String getDataStr() {
+		return dataStr;
+	}
+
+	public void setDataStr(String dataStr) {
+		this.dataStr = dataStr;
+	}
+}

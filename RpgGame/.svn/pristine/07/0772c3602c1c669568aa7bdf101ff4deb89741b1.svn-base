@@ -1,0 +1,492 @@
+package com.dh.service;
+
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.apache.log4j.Logger;
+import org.springframework.stereotype.Service;
+
+import com.alibaba.fastjson.JSON;
+import com.dh.Cache.JedisTool;
+import com.dh.Cache.RedisMap;
+import com.dh.Cache.ServerHandler;
+import com.dh.constants.CommonConstants;
+import com.dh.constants.HeroConstants;
+import com.dh.constants.ItemConstants;
+import com.dh.dao.PlayerHeroMapper;
+import com.dh.dao.PlayerKnapsackMapper;
+import com.dh.game.constant.CSCommandConstant;
+import com.dh.game.constant.RedisKey;
+import com.dh.game.constant.TaskConstant;
+import com.dh.game.vo.BaseProto.MyHero;
+import com.dh.game.vo.base.BaseEnhanceVO;
+import com.dh.game.vo.base.BaseGrowthVO;
+import com.dh.game.vo.base.BaseHeroInfoVO;
+import com.dh.game.vo.base.BaseItemVO;
+import com.dh.game.vo.base.BaseLevelVO;
+import com.dh.game.vo.base.BaseProteVO;
+import com.dh.game.vo.base.HeroPreNameVO;
+import com.dh.game.vo.base.PassivesSkillVO;
+import com.dh.game.vo.login.PlayerLoginProto.PLAYER_PROPERTY;
+import com.dh.game.vo.login.PlayerLoginProto.PLAYER_UNIT_TYPE;
+import com.dh.game.vo.login.PlayerLoginProto.UpdateHeroResponse;
+import com.dh.game.vo.user.PlayerHeroHangVO;
+import com.dh.game.vo.user.PlayerHeroVO;
+import com.dh.game.vo.user.PlayerKnapsackVO;
+import com.dh.game.vo.user.PlayerVO;
+import com.dh.game.vo.user.UserPartCache;
+import com.dh.netty.NettyMessageVO;
+import com.dh.resconfig.EnhanceRes;
+import com.dh.resconfig.HeroGrowthRes;
+import com.dh.resconfig.HeroPreNameRes;
+import com.dh.resconfig.HeroRes;
+import com.dh.resconfig.ItemRes;
+import com.dh.resconfig.LevelRes;
+import com.dh.resconfig.PassivesSkillRes;
+import com.dh.resconfig.ProtectionRes;
+import com.dh.sqlexe.SqlSaveThread;
+import com.dh.util.CodeTool;
+import com.dh.util.CombatUtil;
+import com.dh.util.CommandUtil;
+import com.dh.util.DateUtil;
+import com.dh.util.MyClassLoaderUtil;
+import com.dh.util.SqlBuild;
+import com.dh.util.VOUtil;
+import com.dh.vo.user.UserCached;
+
+/**
+ * 英雄操作
+ * 
+ * @author Administrator
+ * 
+ */
+@Service
+public class HeroService {
+	private final static Logger LOGGER = Logger.getLogger(HeroService.class);
+
+	@Resource
+	private PlayerHeroMapper playerHeroMapper;
+	@Resource
+	private PlayerKnapsackMapper playerKnapsackMapper;
+	@Resource
+	private SqlBuild sqlBuild;
+	@Resource
+	private SqlSaveThread sqlSaveThread;
+	@Resource
+	private TasksService tasksService;
+	@Resource
+	private ArenaService arenaService;
+	@Resource
+	private PlayerService playerService;
+
+	/**
+	 * 加载所有玩家数据<br/>
+	 * 2014年7月24日
+	 * 
+	 * @author dingqu-pc100
+	 */
+	public void loadAllPlayerHeros(List<PlayerVO> playerVOList) {
+		if (playerVOList.isEmpty()) {
+			return;
+		}
+		// System.out.println("hero缓存:   " +
+		// RedisMap.hlen(JedisTool.createCombinedKey(RedisKey.PLAYER_HERO,
+		// playerVOList.get(0).getPlayerId())));
+
+		if (RedisMap.hlen(JedisTool.createCombinedKey(RedisKey.PLAYER_HERO, playerVOList.get(playerVOList.size() - 1).getPlayerId())) > 0) {
+			return;
+		}
+		for (PlayerVO playerVO : playerVOList) {
+			loadPlayerHero(playerVO);
+		}
+	}
+
+	public List<PlayerHeroVO> getTop5Heros(int playerId) {
+		List<PlayerHeroVO> heros = playerHeroMapper.getTop5Heros(playerId);
+		for (PlayerHeroVO playerHeroVO : heros) {
+			BaseHeroInfoVO baseHeroInfoVO = HeroRes.getInstance().getBaseHeroInfoVO(playerHeroVO.getCfgId());
+			playerHeroVO.setStar(baseHeroInfoVO.getStar());
+			// 被动技能
+
+			loadPassiveSkill(playerHeroVO);
+
+			List<PlayerKnapsackVO> knap = playerKnapsackMapper.getKnapsByHeroVO(playerHeroVO);
+			for (PlayerKnapsackVO playerKnapsackVO : knap) {
+				BaseItemVO baseItemVO = ItemRes.getInstance().getBaseItemVO(playerKnapsackVO.getCfgId());
+				if (baseItemVO == null) {
+					LOGGER.error("没有找到此物品的基础数据" + playerId + "," + playerKnapsackVO.getCfgId());
+				}
+				playerKnapsackVO.setBaseItemVO(baseItemVO);
+
+				if (ItemConstants.ITEM_TYPE_EQPI == baseItemVO.getType()) {
+					ItemRes.getInstance().loadGem(playerKnapsackVO);
+					BaseEnhanceVO baseEnhanceVO = EnhanceRes.getInstance().getBaseEnhanceVO(playerKnapsackVO.getCfgId());
+					playerKnapsackVO.setBaseEnhanceVO(baseEnhanceVO);
+					// 护佑
+					BaseProteVO baseProteVO = ProtectionRes.getInstance().getBaseProteVO(playerKnapsackVO.getProtectLevel());
+					playerKnapsackVO.setBaseProteVO(baseProteVO);
+
+					// 计算装备的战斗力
+					CombatUtil.equipCombat(playerKnapsackVO);
+				}
+				playerHeroVO.addEquipment(playerKnapsackVO);
+			}
+		}
+		return heros;
+	}
+
+	public void refreshYuanZhenHp(UserCached userCached) throws Exception {
+		for (PlayerHeroVO playerHeroVO : userCached.getUserHero().getHeroList()) {
+			playerHeroVO.setYzhp(playerHeroVO.getFinal_hp());
+			updateHero(playerHeroVO);
+		}
+
+	}
+
+	public UserPartCache getPartCache(int playerId) {
+		UserPartCache partCache = ServerHandler.getPlayerPartCache(playerId);
+		if (partCache == null || DateUtil.isOverTime(partCache.getLifeTime(), CommonConstants.PARTCACHE_LIFETIME)) {
+			partCache = new UserPartCache();
+			partCache.setPlayerId(playerId);
+			PlayerVO playerVO = RedisMap.getPlayerVObyId(playerId);
+			partCache.setPlayerVO(playerVO);
+			List<PlayerHeroVO> heros = getTop5Heros(playerId);
+			partCache.setHeros(heros);
+			partCache.setLifeTime(DateUtil.getNow());
+			ServerHandler.addPlayerPartCache(partCache);
+		}
+		return partCache;
+	}
+
+	public void loadPlayerHero(PlayerVO playerVO) {
+		List<PlayerHeroVO> herolist = playerHeroMapper.getPlayerHeroList(playerVO.getPlayerId());
+		if (herolist != null) {
+			for (PlayerHeroVO playerHeroVO : herolist) {
+				BaseHeroInfoVO baseHeroInfoVO = HeroRes.getInstance().getBaseHeroInfoVO(playerHeroVO.getCfgId());
+				playerHeroVO.setStar(baseHeroInfoVO.getStar());
+				// 被动技能
+				loadPassiveSkill(playerHeroVO);
+			}
+			RedisMap.hAddPlayerHeros(herolist);
+		}
+	}
+
+	/**
+	 * 加载英雄
+	 * 
+	 * @param userCached
+	 * @throws Exception
+	 */
+	public void loadHeroList(UserCached userCached) throws Exception {
+		List<PlayerHeroVO> heros = RedisMap.hvalPlayerHeroVOs(userCached.getPlayerId());
+		analysisHeroList(userCached, heros);
+	}
+
+	public void analysisHeroList(UserCached userCached, List<PlayerHeroVO> herolist) throws Exception {
+
+		int maxHeroId = 0; // 当前所用英雄最大id
+		if (herolist != null) {
+			for (PlayerHeroVO playerHeroVO : herolist) {
+				if (playerHeroVO.getId() > maxHeroId) {
+					maxHeroId = playerHeroVO.getId();
+				}
+				BaseHeroInfoVO baseHeroInfoVO = HeroRes.getInstance().getBaseHeroInfoVO(playerHeroVO.getCfgId());
+				BaseLevelVO baseLevelVO = LevelRes.getInstance().getBaseLevelVO(playerHeroVO.getLevel());
+				BaseGrowthVO baseGrowthVO = HeroGrowthRes.getInstance().getBaseGrowthVO(playerHeroVO.getCfgId());
+
+				playerHeroVO.setBaseHeroInfoVO(baseHeroInfoVO);
+				playerHeroVO.setBaseLevelVO(baseLevelVO);
+				playerHeroVO.setBaseGrowthVO(baseGrowthVO);
+
+				if (playerHeroVO.getLineStatus() >= CommonConstants.STREE_LINE_START && playerHeroVO.getLineStatus() <= CommonConstants.STREE_LINE_END) {
+					playerHeroVO.setHang_status(CommonConstants.HANG_STATUS_STREET);
+				}
+
+				// 被动技能
+				loadPassiveSkill(playerHeroVO);
+
+				int oldCombat = playerHeroVO.getCombat();
+				CombatUtil.heroCombat(playerHeroVO, userCached);
+				if (playerHeroVO.getCombat() != oldCombat) {
+					this.updateHero(playerHeroVO);
+				}
+			}
+
+			userCached.getUserHero().setHeroList(herolist);
+			userCached.getUserHero().setMaxHeroId(maxHeroId);
+			userCached.getUserHero().initTeam();
+
+		}
+	}
+
+	/**
+	 * 战斗力计算
+	 * 
+	 * @param userCached
+	 */
+	public void computerCombat(UserCached userCached) {
+		for (PlayerHeroVO playerHeroVO : userCached.getUserHero().getHeroList()) {
+			CombatUtil.heroCombat(playerHeroVO, userCached);
+		}
+	}
+
+	/**
+	 * 英雄加经验
+	 * 
+	 * @param heroInfoVO
+	 * @param exp
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public int addHeroExp(UserCached userCached, PlayerHeroVO heroInfoVO, int exp, List<NettyMessageVO> commandList) throws Exception {
+		if (exp < 0) {
+			exp = 0;
+			return 0;
+		}
+		int tempExp = heroInfoVO.getExp() + exp;
+		int level = heroInfoVO.getLevel();
+		int oldLevel = level;
+
+		BaseLevelVO baseLevelVO = heroInfoVO.getBaseLevelVO();
+		while (tempExp >= baseLevelVO.getExp()) {
+			level++;
+			tempExp = tempExp - baseLevelVO.getExp();
+			baseLevelVO = LevelRes.getInstance().getBaseLevelVO(level);
+			if (baseLevelVO == null) {
+				tempExp = 0;
+				level--;
+				break;
+			} else {
+				heroInfoVO.setBaseLevelVO(baseLevelVO);
+			}
+
+		}
+
+		heroInfoVO.setLevel(level);
+		heroInfoVO.setExp(tempExp);
+		// 保存
+		updateHero(heroInfoVO);
+
+		if (level != oldLevel) {
+			// tasksService.changTask(userCached, TaskConstant.TASK_HERO_LEVEL,
+			// level);
+			updateHeroCombat(userCached, heroInfoVO, commandList);
+		} else {
+			// 只加经验
+			commandList.add(CommandUtil.packageAnyProperties(PLAYER_UNIT_TYPE.UNIT_HERO, heroInfoVO.getId(), PLAYER_PROPERTY.PROPERTY_EXP, heroInfoVO.getExp()));
+		}
+
+		return level - oldLevel;
+	}
+
+	/**
+	 * 修改英雄数据
+	 * 
+	 * @param heroInfoVO
+	 * @throws Exception
+	 */
+	public void updateHero(PlayerHeroVO playerHeroVO) throws Exception {
+		RedisMap.updatePlayerHero(playerHeroVO);
+		sqlSaveThread.putSql(sqlBuild.getSql("com.dh.dao.PlayerHeroMapper.updatePlayerHero", playerHeroVO));
+	}
+
+	public void freeHeroFromStreet(PlayerHeroVO playerHeroVO, List<NettyMessageVO> commandList) throws Exception {
+		playerHeroVO.setLineStatus(CommonConstants.HERO_LINE_FREE);
+		playerHeroVO.setHang_status(0);
+		updateHero(playerHeroVO);
+		if (commandList != null) {
+			commandList.add(CommandUtil.packageHeroInfo(playerHeroVO));
+		}
+	}
+
+	/**
+	 * 添加新英雄
+	 * 
+	 * @param baseHeroInfoVO
+	 * @param level
+	 * @param userCached
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public PlayerHeroVO addPlayerHero(BaseHeroInfoVO baseHeroInfoVO, int level, UserCached userCached, boolean isRandom, List<NettyMessageVO> commandList) throws Exception {
+
+		int cfgId = baseHeroInfoVO.getCfgId();
+		PlayerHeroVO playerHeroVO = new PlayerHeroVO();
+		playerHeroVO.setPlayerId(userCached.getPlayerId());
+		playerHeroVO.setId(userCached.getUserHero().generHeroId());
+
+		playerHeroVO.setCfgId(cfgId);
+		playerHeroVO.setLevel(level);
+		playerHeroVO.setExp(0);
+		playerHeroVO.setHungre(0);
+		playerHeroVO.setSkillLevel(1);
+
+		playerHeroVO.setName(baseHeroInfoVO.getName());
+
+		playerHeroVO.setHp(baseHeroInfoVO.getHp());
+		playerHeroVO.setDef(baseHeroInfoVO.getDef());
+		playerHeroVO.setMdef(baseHeroInfoVO.getMdef());
+		playerHeroVO.setAtk(baseHeroInfoVO.getAtk());
+		playerHeroVO.setMatk(baseHeroInfoVO.getMatk());
+		playerHeroVO.setHit(baseHeroInfoVO.getHit());
+		playerHeroVO.setDodge(baseHeroInfoVO.getDodge());
+		playerHeroVO.setCir_rate(baseHeroInfoVO.getCir_rate());
+		playerHeroVO.setBaseHeroInfoVO(baseHeroInfoVO);
+		playerHeroVO.setBaseGrowthVO(HeroGrowthRes.getInstance().getBaseGrowthVO(cfgId));
+		playerHeroVO.setBaseLevelVO(LevelRes.getInstance().getBaseLevelVO(level));
+		playerHeroVO.setPassivesSkill(HeroConstants.HERO_PASSIVE_SKILL_INIT);
+		playerHeroVO.setYzhp(playerHeroVO.getHp());
+
+		if (isRandom) {
+			HeroPreNameVO HeroPreNameVO = HeroPreNameRes.getInstance().getHeroPreNameVO();
+			int cc = HeroPreNameRes.getInstance().getCC(); // 随机一个符号 是加或是减
+			if (cc > 0) {
+				playerHeroVO.setName(HeroPreNameVO.getName1() + baseHeroInfoVO.getName());
+
+			} else {
+				playerHeroVO.setName(HeroPreNameVO.getName2() + baseHeroInfoVO.getName());
+			}
+			playerHeroVO.setPrefix(cc * HeroPreNameVO.getId());
+		}
+
+		loadPassiveSkill(playerHeroVO);
+
+		userCached.getUserHero().getHeroList().add(playerHeroVO);
+		addPlayerHero(playerHeroVO);
+
+		CombatUtil.heroCombat(playerHeroVO, userCached);
+		playerHeroVO.setYzhp(playerHeroVO.getFinal_hp());
+		// System.err.println("添加新英雄id = " + playerHeroVO.getYzhp());
+		UpdateHeroResponse.Builder builder = UpdateHeroResponse.newBuilder();
+		builder.addMyHero(VOUtil.getHeroInfo(playerHeroVO));
+		CommandUtil.packageNettyMessage(CSCommandConstant.HERO_INSERT_HERO, builder.build().toByteArray(), commandList);
+
+		// N个N星英雄
+		MyClassLoaderUtil.getInstance().getTaskCheck().changTaskByReQType(userCached, TaskConstant.TASK_NHERO_NSTAR, commandList);
+
+		return playerHeroVO;
+	}
+
+	/**
+	 * 删除英雄
+	 * 
+	 * @param playerHeroVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void deletePlayerHero(UserCached userCached, PlayerHeroVO playerHeroVO, List<NettyMessageVO> commandList) throws Exception {
+		PlayerHeroHangVO playerHeroHangVO = userCached.getUserHero().getHeroHangByHeroId(playerHeroVO.getId());
+
+		if (playerHeroHangVO != null) {
+			playerHeroHangVO.setHeroId(0);
+			playerHeroHangVO.setIsHang(HeroHangService.HERO_STATUS_OFF);
+			updatePlayerHang(playerHeroHangVO);
+		}
+
+		userCached.getUserHero().deletePlayerHero(playerHeroVO);
+		deletePlayerHero(playerHeroVO);
+		playerHeroVO.clear();
+		UpdateHeroResponse.Builder builder = UpdateHeroResponse.newBuilder();
+		MyHero.Builder myHero = MyHero.newBuilder();
+		myHero.setId(playerHeroVO.getId());
+		myHero.setCfgId(playerHeroVO.getCfgId());
+		builder.addMyHero(myHero);
+		CommandUtil.packageNettyMessage(CSCommandConstant.HERO_DELETE_HERO, builder.build().toByteArray(), commandList);
+	}
+
+	/**
+	 * 更新战斗力
+	 * 
+	 * @param userCached
+	 * @param playerHeroVO
+	 * @param commandList
+	 */
+	public void updateHeroCombat(UserCached userCached, PlayerHeroVO playerHeroVO, List<NettyMessageVO> commandList) throws Exception {
+		CommandUtil.updateHeroAndPackageCommand(playerHeroVO, userCached, commandList);
+
+		if (CombatUtil.playerCombat(userCached)) {
+			playerService.updatePlayerVO(userCached.getPlayerVO());
+			// 计算角色战斗力
+			CommandUtil.reComputerPlayerCombat(userCached, commandList);
+		}
+
+		updateHero(playerHeroVO);
+	}
+
+	public void updatePlayerHang(PlayerHeroHangVO playerHeroHangVO) {
+		sqlSaveThread.putSql(sqlBuild.getSql("com.dh.dao.PlayerHeroHangMapper.updatePlayerHang", playerHeroHangVO));
+	}
+
+	/**
+	 * 移除英雄
+	 * 
+	 * @param playerHeroVO
+	 * @throws Exception
+	 */
+	public void deletePlayerHero(PlayerHeroVO playerHeroVO) throws Exception {
+		RedisMap.hdel(JedisTool.createCombinedKey(RedisKey.PLAYER_HERO, playerHeroVO.getPlayerId()), String.valueOf(playerHeroVO.getId()));
+		sqlSaveThread.putSql(sqlBuild.getSql("com.dh.dao.PlayerHeroMapper.deletePlayerHero", playerHeroVO));
+	}
+
+	/**
+	 * 增加新英雄
+	 * 
+	 * @param playerHeroVO
+	 * @throws Exception
+	 */
+	private void addPlayerHero(PlayerHeroVO playerHeroVO) throws Exception {
+		String heroStr = JSON.toJSONString(playerHeroVO);
+		RedisMap.hset(JedisTool.createCombinedKey(RedisKey.PLAYER_HERO, playerHeroVO.getPlayerId()), String.valueOf(playerHeroVO.getId()), heroStr);
+		sqlSaveThread.putSql(sqlBuild.getSql("com.dh.dao.PlayerHeroMapper.addPlayerHero", playerHeroVO));
+	}
+
+	/**
+	 * 初始化被动技能
+	 * 
+	 * @param playerHeroVO
+	 */
+	public static void loadPassiveSkill(PlayerHeroVO playerHeroVO) {
+		// 被动技能
+		if (!CodeTool.isNotEmpty(playerHeroVO.getPassivesSkill())) {
+			return;
+		}
+
+		if (playerHeroVO.getPassivesSkill().indexOf(',') > -1) {
+			playerHeroVO.setPassivesSkill(HeroConstants.HERO_PASSIVE_SKILL_INIT);
+		}
+
+		String[] str = playerHeroVO.getPassivesSkill().split(";");
+
+		for (int i = 0; i < playerHeroVO.getNpassivesSkill().length; i++) {
+			String[] sp = str[i].split("-");
+			int skillid = Integer.valueOf(sp[0]);
+			int skillLevel = Integer.valueOf(sp[1]);
+			int state = Integer.valueOf(sp[2]);
+			PassivesSkillVO passivesSkillVO = PassivesSkillRes.getInstance().getPassivesSkillVO(skillid, skillLevel);
+			if (passivesSkillVO != null) {
+				playerHeroVO.getNpassivesSkill()[i] = passivesSkillVO.clone();
+				playerHeroVO.getNpassivesSkill()[i].setState(state);
+			} else {
+				if (skillid > 0) {
+					LOGGER.error("error skill " + skillid + "," + skillLevel + "," + state);
+				}
+				playerHeroVO.getNpassivesSkill()[i] = null;
+
+			}
+		} // end for
+	}
+
+	// /**
+	// * 修 改出战阵容
+	// *
+	// * @param heroTeamVO
+	// * @throws Exception
+	// */
+	// public void updatePlayerHeroTeam(HeroTeamVO heroTeamVO) throws Exception
+	// {
+	// sqlSaveThread.putSql(sqlBuild.getSql("com.dh.dao.HeroTeamMapper.updateHeroTeam",
+	// heroTeamVO));
+	// }
+
+}

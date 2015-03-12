@@ -1,0 +1,585 @@
+package com.dh.processor;
+
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.springframework.stereotype.Component;
+
+import com.dh.Cache.ServerHandler;
+import com.dh.constants.ItemConstants;
+import com.dh.enums.GMIOEnum;
+import com.dh.exception.GameException;
+import com.dh.game.constant.AlertEnum;
+import com.dh.game.constant.CSCommandConstant;
+import com.dh.game.constant.TaskConstant;
+import com.dh.game.vo.BaseProto.BUILDID;
+import com.dh.game.vo.BaseProto.BuildInfo;
+import com.dh.game.vo.base.BaseBuildLevelVO;
+import com.dh.game.vo.base.BaseSalaryVO;
+import com.dh.game.vo.base.Reward;
+import com.dh.game.vo.build.BuildProto.BuildUpLevelACCRequest;
+import com.dh.game.vo.build.BuildProto.BuildUpLevelRequest;
+import com.dh.game.vo.build.BuildProto.GetSalaryResponse;
+import com.dh.game.vo.build.BuildProto.YiSiTangDetailResponse;
+import com.dh.game.vo.build.VipProto.DayVipGiftInfoResp;
+import com.dh.game.vo.common.CommonProto.CountType;
+import com.dh.game.vo.login.PlayerLoginProto.PLAYER_PROPERTY;
+import com.dh.game.vo.user.PlayerBuildVO;
+import com.dh.game.vo.user.PlayerTimerVO;
+import com.dh.netty.NettyMessageVO;
+import com.dh.resconfig.BuildLevelRes;
+import com.dh.resconfig.SalaryRes;
+import com.dh.resconfig.VipRewardRes;
+import com.dh.service.ActivityService;
+import com.dh.service.ChatService;
+import com.dh.service.HeroHangService;
+import com.dh.service.KnapsackService;
+import com.dh.service.PlayerAccountService;
+import com.dh.service.PlayerTimerService;
+import com.dh.service.RewardService;
+import com.dh.util.CommandUtil;
+import com.dh.util.DateUtil;
+import com.dh.util.GameUtil;
+import com.dh.util.MyClassLoaderUtil;
+import com.dh.vo.user.UserCached;
+
+@Component
+public class BuildProcessor {
+	@Resource
+	private PlayerTimerService playerTimerService;
+	@Resource
+	private PlayerAccountService playerAccountService;
+	@Resource
+	private HeroHangService heroHangService;
+	@Resource
+	private RewardService rewardService;
+	@Resource
+	private ActivityService activityService;
+	@Resource
+	private KnapsackService knapsackService;
+
+	/**
+	 * 议事堂
+	 * 
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void buildYiSiTang(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		// 1.领俸禄
+		// 2.升级CD
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		YiSiTangDetailResponse.Builder response = YiSiTangDetailResponse.newBuilder();
+		BuildInfo.Builder buildInfo = BuildInfo.newBuilder();
+		GetSalaryResponse.Builder salaryResp = GetSalaryResponse.newBuilder();
+
+		PlayerTimerVO playerTimerVO = userCached.getUserTimer().getPlayerTimerVO();
+		PlayerBuildVO playerBuildVO = userCached.getUserTimer().getPlayerBuildVO();
+		int buildLevel = playerBuildVO.getB1(); // 议事厅等级
+		int remainTime = 0;
+		int haveSalary = 1;// 1有薪资可领 0无
+		long curTime = System.currentTimeMillis();
+		if (playerTimerVO.getSalaryD() == null || (!DateUtil.isSameDay(playerTimerVO.getSalaryD()))) {
+			playerTimerVO.setSalaryD(DateUtil.getToday());
+			playerTimerVO.setSalaryStep((short) 0);
+			playerTimerService.updateSalaryTime(playerTimerVO);
+		}
+
+		if (playerTimerVO.getSalaryStep() >= (SalaryRes.SALARCD.length - 1)) {
+			remainTime = 0;
+			haveSalary = 0;
+		} else {
+			remainTime = GameUtil.getRemainTime(curTime, playerTimerVO.getSalaryD(), SalaryRes.SALARCD[playerTimerVO.getSalaryStep()]);
+		}
+
+		int buildTime = 0;
+		if (playerTimerVO.getBuildD1() != null) {
+			buildTime = GameUtil.getRemainTime(curTime, playerTimerVO.getBuildD1());
+		}
+
+		BaseBuildLevelVO baseBuildLevelVO = BuildLevelRes.getInstance().getBaseBuildLevelVO(buildLevel, BUILDID.YISITANG.getNumber());
+		buildInfo.setBuildId(BUILDID.YISITANG);
+		buildInfo.setBuildLevel(buildLevel);
+		buildInfo.setBuildUpRemainTime(buildTime);
+		buildInfo.setReqMoney(baseBuildLevelVO.getReqMoney());
+		buildInfo.setItemCfgId(baseBuildLevelVO.getItem());
+		buildInfo.setNum(baseBuildLevelVO.getNum());
+		buildInfo.setNextLevelCD(baseBuildLevelVO.getCd());
+
+		BaseSalaryVO nnbaseSalaryVO = SalaryRes.getInstance().getBaseSalaryVO(playerBuildVO.getB1() + 1);
+		BaseSalaryVO baseSalaryVO = SalaryRes.getInstance().getBaseSalaryVO(playerBuildVO.getB1());
+		if (nnbaseSalaryVO != null) {
+			buildInfo.setNextSalary(nnbaseSalaryVO.getSalary1());
+		} else {
+			buildInfo.setNextSalary(baseSalaryVO.getSalary1());
+		}
+
+		salaryResp.setSalaryStep(playerTimerVO.getSalaryStep());
+		salaryResp.setSalaryRemainTime(remainTime);
+		salaryResp.setHaveSalary(haveSalary);
+
+		if (playerTimerVO.getSalaryStep() < baseSalaryVO.getSalary().length) {
+			salaryResp.setSalary(baseSalaryVO.getSalary()[playerTimerVO.getSalaryStep()]);
+		} else {
+			salaryResp.setSalary(0);
+		}
+
+		// salaryResp.setSalary(baseSalaryVO.getSalary()[playerTimerVO.getSalaryStep()]);
+		if (haveSalary == 0) {
+			salaryResp.setCd(0);
+		} else {
+			salaryResp.setCd((int) (SalaryRes.SALARCD[playerTimerVO.getSalaryStep()] / 1000));
+		}
+
+		response.setBuildInfo(buildInfo);
+		response.setSalary(salaryResp);
+
+		CommandUtil.packageNettyMessage(CSCommandConstant.BUILD_YISIT_LIST, response.build().toByteArray(), commandList);
+	}
+
+	/**
+	 * 领取俸禄
+	 * 
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	@SuppressWarnings("deprecation")
+	public void getSalaryResponse(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		GetSalaryResponse.Builder salaryResp = GetSalaryResponse.newBuilder();
+		PlayerTimerVO playerTimerVO = userCached.getUserTimer().getPlayerTimerVO();
+		PlayerBuildVO playerBuildVO = userCached.getUserTimer().getPlayerBuildVO();
+
+		int remainTime = 0;
+		int haveSalary = 1;// 1有薪资可领 0无
+		long curTime = System.currentTimeMillis();
+		if (playerTimerVO.getSalaryD() == null) {
+			playerTimerVO.setSalaryD(DateUtil.getToday());
+			playerTimerVO.setSalaryStep((short) 0);
+		}
+
+		if (playerTimerVO.getSalaryStep() >= (SalaryRes.SALARCD.length - 1)) {
+			throw new GameException(AlertEnum.REWARD_NOT_FOUND);
+		} else {
+			if (playerTimerVO.getSalaryD().getHours() == 0 && playerTimerVO.getSalaryD().getMinutes() == 0 && playerTimerVO.getSalaryD().getSeconds() == 0) {
+				remainTime = 0;
+			} else {
+				remainTime = GameUtil.getRemainTime(curTime, playerTimerVO.getSalaryD(), SalaryRes.SALARCD[playerTimerVO.getSalaryStep()]);
+			}
+		}
+
+		if (remainTime > 0) {
+			throw new GameException(AlertEnum.CD_NOT_FINISH);
+		} else {
+			playerTimerVO.setSalaryStep((short) (playerTimerVO.getSalaryStep() + 1));
+
+			if (playerTimerVO.getSalaryStep() >= (SalaryRes.SALARCD.length - 1)) {
+				remainTime = 0;
+				haveSalary = 0;
+			} else {
+				remainTime = (int) (SalaryRes.SALARCD[playerTimerVO.getSalaryStep()] / 1000);
+			}
+
+			if (!DateUtil.isSameDay(playerTimerVO.getSalaryD())) {
+				Date today = DateUtil.getToday();
+				haveSalary = 1;
+				playerTimerVO.setSalaryD(today);
+				playerTimerVO.setSalaryStep((short) 0);
+				remainTime = GameUtil.getRemainTime(curTime, playerTimerVO.getSalaryD(), playerTimerVO.getSalaryStep());
+				playerTimerVO.setSalaryD(DateUtil.getToday());
+			} else {
+				playerTimerVO.setSalaryD(new Date());
+			}
+		}
+
+		BaseSalaryVO baseSalaryVO = SalaryRes.getInstance().getBaseSalaryVO(playerBuildVO.getB1());
+		if (baseSalaryVO == null) {
+			throw new Exception("找不到对应等级的薪资数据" + playerBuildVO.getB1());
+		}
+
+		salaryResp.setSalaryStep(playerTimerVO.getSalaryStep());
+		salaryResp.setSalaryRemainTime(remainTime);
+
+		salaryResp.setHaveSalary(haveSalary);
+
+		if (playerTimerVO.getSalaryStep() < baseSalaryVO.getSalary().length) {
+			salaryResp.setSalary(baseSalaryVO.getSalary()[playerTimerVO.getSalaryStep()]);
+		} else {
+			salaryResp.setSalary(0);
+		}
+
+		if (haveSalary == 0) {
+			salaryResp.setCd(0);
+		} else {
+			salaryResp.setCd((int) (SalaryRes.SALARCD[playerTimerVO.getSalaryStep()] / 1000));
+		}
+
+		System.out.println("========================");
+		System.out.println("setp = " + playerTimerVO.getSalaryStep());
+		System.out.println("setSalary = " + salaryResp.getSalary());
+		System.out.println("remainTime = " + remainTime);
+		System.out.println("haveSalary = " + haveSalary);
+		System.out.println("setCd = " + salaryResp.getCd());
+
+		playerTimerService.updateSalaryTime(playerTimerVO);
+
+		if (baseSalaryVO != null) {
+			int money = baseSalaryVO.getSalary()[playerTimerVO.getSalaryStep() - 1];
+
+			playerAccountService.addCurrency(PLAYER_PROPERTY.PROPERTY_MONEY, money, userCached.getPlayerAccountVO(), commandList, "领取俸禄");
+
+			if (userCached.getPlayerVO().getVip() > 0) {
+				rewardService.checkAndReward(userCached, baseSalaryVO.getVipRewardList(), commandList);
+			}
+		}
+
+		CommandUtil.packageNettyMessage(CSCommandConstant.BUILD_YISIT_SALART, salaryResp.build().toByteArray(), commandList);
+
+		// 征收Ｎ次
+		MyClassLoaderUtil.getInstance().getTaskCheck().changTaskByReQTypeAcc(userCached, TaskConstant.TASK_BUILD_SALARY, 0, 1, commandList);
+
+	}
+
+	public void clearSalaryCD(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		boolean useRMB = false;
+		if (knapsackService.hasEnoughItem(userCached.getUserKnapsack().getKnapsackList(), ItemConstants.ITEM_CDESC_LENQUE, 1)) {
+			useRMB = false;
+		} else {
+			playerAccountService.hasEnoughRMBAndGift(userCached, 5);
+			useRMB = true;
+		}
+
+		GetSalaryResponse.Builder salaryResp = GetSalaryResponse.newBuilder();
+		PlayerTimerVO playerTimerVO = userCached.getUserTimer().getPlayerTimerVO();
+		PlayerBuildVO playerBuildVO = userCached.getUserTimer().getPlayerBuildVO();
+
+		int remainTime = 0;
+		int haveSalary = 1;// 1有薪资可领 0无
+		long curTime = System.currentTimeMillis();
+		if (playerTimerVO.getSalaryD() == null) {
+			playerTimerVO.setSalaryD(DateUtil.getToday());
+			playerTimerVO.setSalaryStep((short) 0);
+		}
+
+		if (playerTimerVO.getSalaryStep() >= (SalaryRes.SALARCD.length - 1)) {
+			throw new GameException(AlertEnum.REWARD_NOT_FOUND);
+		} else {
+			remainTime = GameUtil.getRemainTime(curTime, playerTimerVO.getSalaryD(), SalaryRes.SALARCD[playerTimerVO.getSalaryStep()]);
+		}
+
+		int step = playerTimerVO.getSalaryStep();
+		if (remainTime > 0) {
+			playerTimerVO.setSalaryD(DateUtil.getToday(0));
+		}
+
+		BaseSalaryVO baseSalaryVO = SalaryRes.getInstance().getBaseSalaryVO(playerBuildVO.getB1());
+		if (baseSalaryVO == null) {
+			throw new Exception("找不到对应等级的薪资数据" + playerBuildVO.getB1());
+		}
+
+		playerTimerService.updateSalaryTime(playerTimerVO);
+
+		if (!useRMB) {
+			knapsackService.removeItem(userCached, ItemConstants.ITEM_CDESC_LENQUE, 1, commandList);
+		} else {
+			playerAccountService.deductCurrency(PLAYER_PROPERTY.PROPERTY_RMB, 5, userCached.getPlayerAccountVO(), commandList, "俸禄清cd", GMIOEnum.OUT_CD_SALARY.usage());
+		}
+
+		salaryResp.setSalaryStep(playerTimerVO.getSalaryStep());
+		salaryResp.setSalaryRemainTime(0);
+		salaryResp.setHaveSalary(haveSalary);
+		salaryResp.setSalary(baseSalaryVO.getSalary()[step]);
+		salaryResp.setCd(0);
+
+		CommandUtil.packageNettyMessage(CSCommandConstant.BUILD_YISIT_SALART, salaryResp.build().toByteArray(), commandList);
+	}
+
+	// /建筑升级加速
+	public void buildUpLevelACC(BuildUpLevelACCRequest request, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		PlayerTimerVO playerTimerVO = userCached.getUserTimer().getPlayerTimerVO();
+		PlayerBuildVO playerBuildVO = userCached.getUserTimer().getPlayerBuildVO();
+
+		Date endDate = null;
+		int buildlevel = 0;
+		switch (request.getBuildId()) {
+		case YISITANG:
+			endDate = playerTimerVO.getBuildD1();
+			buildlevel = playerBuildVO.getB1();
+			break;
+		case YANGXINGDIAN:
+			endDate = playerTimerVO.getBuildD2();
+			buildlevel = playerBuildVO.getB2();
+			break;
+		default:
+			break;
+
+		}
+
+		long curTime = System.currentTimeMillis();
+		int costRMB = 0;
+		if (curTime > endDate.getTime()) {
+			//
+		} else {
+			int n = (int) ((endDate.getTime() - curTime - 5) / 3600000L) + 1; // -5
+																				// 是为了避免余数为０
+			costRMB = n * 5; // 每小时５元宝
+		}
+
+		if (request.getType() == 0) { // 冷确符
+			if (knapsackService.hasEnoughItem(userCached.getUserKnapsack().getKnapsackList(), ItemConstants.ITEM_CDESC_LENQUE, 1)) {
+				knapsackService.removeItem(userCached, ItemConstants.ITEM_CDESC_LENQUE, 1, commandList);
+			}
+		} else {
+			playerAccountService.hasEnoughRMBAndGift(userCached, costRMB);
+			playerAccountService.deductCurrency(PLAYER_PROPERTY.PROPERTY_RMB, costRMB, userCached.getPlayerAccountVO(), commandList, "建筑升级加速", GMIOEnum.OUT_CD_BUILD.usage());
+		}
+
+		// 清CD
+		endDate = new Date();
+
+		BaseBuildLevelVO nextBaseBuildLevelVO = BuildLevelRes.getInstance().getBaseBuildLevelVO(buildlevel, request.getBuildId().getNumber());
+		switch (request.getBuildId()) {
+		case YISITANG:
+			playerTimerVO.setBuildD1(endDate);
+			// playerBuildVO.setB1(buildlevel);
+			break;
+		case YANGXINGDIAN:
+			playerTimerVO.setBuildD2(endDate);
+			// playerBuildVO.setB2(buildlevel);
+			break;
+		default:
+			break;
+
+		}
+
+		playerTimerService.updateYIPlayerTimer(playerTimerVO);
+		// playerTimerService.updateBuild(playerBuildVO);
+
+		BuildInfo.Builder builder = BuildInfo.newBuilder();
+		builder.setBuildId(request.getBuildId());
+		builder.setBuildLevel(buildlevel);
+		builder.setBuildUpRemainTime(0);
+		builder.setReqMoney(nextBaseBuildLevelVO.getReqMoney());
+		builder.setItemCfgId(nextBaseBuildLevelVO.getItem());
+		builder.setNum(nextBaseBuildLevelVO.getNum());
+		builder.setNextLevelCD(nextBaseBuildLevelVO.getCd());
+
+		CommandUtil.packageNettyMessage(CSCommandConstant.BUILD_UP_LEVEL_ACC, builder.build().toByteArray(), commandList);
+
+		if (BUILDID.YISITANG == request.getBuildId()) {
+			buildYiSiTang(nettyMessageVO, commandList);
+		}
+
+		// if (BUILDID.YISITANG == request.getBuildId()) {
+		// buildYiSiTang(nettyMessageVO, commandList);
+		// activityService.addDayDone(userCached, 13, commandList);
+		// }
+
+	}
+
+	/**
+	 * 建筑升级
+	 * 
+	 * @param request
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void buildUpLevel(BuildUpLevelRequest request, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		PlayerTimerVO playerTimerVO = userCached.getUserTimer().getPlayerTimerVO();
+		PlayerBuildVO playerBuildVO = userCached.getUserTimer().getPlayerBuildVO();
+
+		Date endDate = null;
+		int buildlevel = 0;
+		switch (request.getBuildId()) {
+		case YISITANG:
+			endDate = playerTimerVO.getBuildD1();
+			buildlevel = playerBuildVO.getB1();
+			break;
+		case YANGXINGDIAN:
+			endDate = playerTimerVO.getBuildD2();
+			buildlevel = playerBuildVO.getB2();
+			break;
+		default:
+			break;
+
+		}
+		long curTime = System.currentTimeMillis();
+
+		if (endDate != null && endDate.getTime() > curTime) {
+			throw new GameException(AlertEnum.CD_NOT_FINISH);
+		}
+
+		int maLevel = userCached.getPlayerVO().getLevel();
+		if (request.getBuildId() != BUILDID.YISITANG) {
+			maLevel = playerBuildVO.getB1();
+			if (buildlevel + 1 > maLevel) {
+				throw new GameException(AlertEnum.LEVEL_NOT_MORE_THAN_MAINBUILD);
+			}
+		} else {
+			if (buildlevel + 1 > maLevel) {
+				throw new GameException(AlertEnum.LEVEL_NOT_MORE_THAN_ROLE);
+			}
+		}
+
+		BaseBuildLevelVO baseBuildLevelVO = BuildLevelRes.getInstance().getBaseBuildLevelVO(buildlevel, request.getBuildId().getNumber());
+		playerAccountService.hasEnoughMoney(userCached, baseBuildLevelVO.getReqMoney());
+		if (!knapsackService.hasEnoughItem(userCached.getUserKnapsack().getKnapsackList(), baseBuildLevelVO.getItem(), baseBuildLevelVO.getNum())) {
+			throw new GameException(AlertEnum.ITEM_NUM_NOT);
+		}
+
+		playerAccountService.deductCurrency(PLAYER_PROPERTY.PROPERTY_MONEY, baseBuildLevelVO.getReqMoney(), userCached.getPlayerAccountVO(), commandList, "建筑升级扣银两");
+		knapsackService.removeItem(userCached, baseBuildLevelVO.getItem(), baseBuildLevelVO.getNum(), commandList);
+
+		buildlevel++;
+		endDate = DateUtil.add(new Date(), Calendar.SECOND, baseBuildLevelVO.getCd());
+		int oldGrid = baseBuildLevelVO.getGrid();
+
+		BaseBuildLevelVO nextBaseBuildLevelVO = BuildLevelRes.getInstance().getBaseBuildLevelVO(buildlevel, request.getBuildId().getNumber());
+		switch (request.getBuildId()) {
+		case YISITANG:
+			playerTimerVO.setBuildD1(endDate);
+			playerBuildVO.setB1(buildlevel);
+			CommandUtil.updateCountDown(CountType.YST, baseBuildLevelVO.getCd(), commandList);
+			break;
+		case YANGXINGDIAN:
+			playerTimerVO.setBuildD2(endDate);
+			playerBuildVO.setB2(buildlevel);
+			// 开启蒲团功能
+
+			int newGrid = nextBaseBuildLevelVO.getGrid();
+			// nextBaseBuildLevelVO =
+			// BuildLevelRes.getInstance().getBaseBuildLevelVO(playerBuildVO.getB2(),
+			// request.getBuildId().getNumber());
+			// if (nextBaseBuildLevelVO == null) {
+			// nextBaseBuildLevelVO = baseBuildLevelVO;
+			// } else {
+			// newGrid = nextBaseBuildLevelVO.getGrid();
+			// }
+
+			if (newGrid > oldGrid && newGrid > userCached.getUserHero().getHeroHangList().size()) {
+				int times = nextBaseBuildLevelVO.getTimes() - playerTimerVO.getHerorestTime();
+				if (times < 0) {
+					times = 0;
+				}
+				for (int i = oldGrid; i < newGrid; i++) {
+					heroHangService.addPlayerHeroHangVO(userCached, times, commandList);
+				}
+			}
+			CommandUtil.updateCountDown(CountType.YXD, baseBuildLevelVO.getCd(), commandList);
+			break;
+		default:
+			break;
+
+		}
+
+		playerTimerService.updateYIPlayerTimer(playerTimerVO);
+		playerTimerService.updateBuild(playerBuildVO);
+
+		BuildInfo.Builder builder = BuildInfo.newBuilder();
+		builder.setBuildId(request.getBuildId());
+		builder.setBuildLevel(buildlevel);
+		builder.setBuildUpRemainTime(baseBuildLevelVO.getCd());
+		builder.setReqMoney(nextBaseBuildLevelVO.getReqMoney());
+		builder.setItemCfgId(nextBaseBuildLevelVO.getItem());
+		builder.setNum(nextBaseBuildLevelVO.getNum());
+		builder.setNextLevelCD(nextBaseBuildLevelVO.getCd());
+
+		CommandUtil.packageNettyMessage(CSCommandConstant.BUILD_UP_LEVEL, builder.build().toByteArray(), commandList);
+		if (BUILDID.YISITANG == request.getBuildId()) {
+			buildYiSiTang(nettyMessageVO, commandList);
+			activityService.addDayDone(userCached, 13, commandList);
+		}
+		// 建筑升级
+		MyClassLoaderUtil.getInstance().getTaskCheck().changTaskByReQType(userCached, TaskConstant.TASK_BUILD_UPLEVEL, request.getBuildId().getNumber(), buildlevel, commandList);
+		if (buildlevel >= 10 && buildlevel % 10 == 0) {
+			ChatService.sendSysMsg(ChatService.sendBuildUpdate(userCached.getPlayerVO().getName(), BuildLevelRes.getBuildName(request.getBuildId()), buildlevel), ChatService.TAGS[0]);
+		}
+
+	}
+
+	public void dayVipGift(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		dayVipGift(userCached, commandList);
+	}
+
+	public void dayVipGift(UserCached userCached, List<NettyMessageVO> commandList) throws Exception {
+		PlayerTimerVO playerTimerVO = userCached.getUserTimer().getPlayerTimerVO();
+
+		DayVipGiftInfoResp.Builder dayVipGiftInfoResp = DayVipGiftInfoResp.newBuilder();
+		dayVipGiftInfoResp.setRechargeHis(userCached.getPlayerAccountVO().getHisrecharge());
+		dayVipGiftInfoResp.setStatus(-1);
+		if (userCached.getPlayerVO().getVip() > 0) {
+			if (DateUtil.isSameDay(playerTimerVO.getVipRewardDate())) {
+				dayVipGiftInfoResp.setStatus(1);
+			} else {
+				dayVipGiftInfoResp.setStatus(0);
+			}
+		}
+
+		CommandUtil.packageNettyMessage(CSCommandConstant.DAYVIPGIFT, dayVipGiftInfoResp.build().toByteArray(), commandList);
+
+	}
+
+	public void dayVipReward(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		PlayerTimerVO playerTimerVO = userCached.getUserTimer().getPlayerTimerVO();
+
+		Date nowDate = new Date();
+		int status = -1;
+		int vipLevel = userCached.getPlayerVO().getVip();
+		if (vipLevel > 0) {
+			if (DateUtil.isSameDay(nowDate, playerTimerVO.getVipRewardDate())) {
+				status = 1;
+			} else {
+				status = 0;
+			}
+		}
+
+		if (status == -1) {
+			throw new Exception("VIP等级不够");
+		} else if (status == 1) {
+			throw new Exception("VIP奖励已领取");
+		}
+
+		// 领取奖励
+
+		List<Reward> list = VipRewardRes.getInstance().getRewardRateGroup(vipLevel);
+		if (list == null) {
+			throw new Exception("没有等级的VIP奖励");
+		}
+
+		rewardService.checkAndReward(userCached, list, commandList, GMIOEnum.IN_VIP_DAY.usage());
+
+		// 更新状态
+		playerTimerVO.setVipReward((short) 1);
+		playerTimerVO.setVipRewardDate(nowDate);
+		playerTimerService.updateVipReward(playerTimerVO);
+
+		dayVipGift(userCached, commandList);
+
+		activityService.addDayDone(userCached, 8, commandList);
+	}
+}

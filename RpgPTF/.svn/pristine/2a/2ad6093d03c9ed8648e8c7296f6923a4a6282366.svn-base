@@ -1,0 +1,8 @@
+package com.dh.game.constant;
+
+public class ShareCommandConstant {
+	// 网关
+	public final static short GATE_WAY_COMMAND = 1;
+
+	public final static short COMMAND_ZHONG_ZHUAN = 100; // 指令中转
+}

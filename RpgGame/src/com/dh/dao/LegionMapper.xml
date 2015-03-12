@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dh.dao.LegionMapper">
+	<insert id="insertLegion" parameterType="com.dh.game.vo.user.LegionVO">
+		INSERT INTO `t_legion` (`id`, `legionName`, `playerId`, `playerNick`, `legionLevel`,
+		`descs`, `notice`, `createTime`, `money`, `material`,`killerStr`) VALUES (#{id},
+		#{legionName}, #{playerId}, #{playerNick}, #{legionLevel}, #{descs},#{notice}, #{createTime},
+		#{money}, #{material},#{killerStr})
+	</insert>
+	<insert id="insertLegionMem" parameterType="com.dh.game.vo.user.LegionMemVO">
+		insert into `t_legion_mem` (`id`, `playerId`, `type`, `joinTime`, `donate`,`ownDonate`,`bossId`,`bossRewardId`,`atkBossDate`,`hp`)
+		values (#{id}, #{playerId}, #{type}, #{joinTime}, #{donate},#{ownDonate},#{bossId},#{bossRewardId},#{atkBossDate},#{hp})
+	</insert>
+	<delete id="delLegion" parameterType="java.lang.Integer">DELETE FROM `t_legion` WHERE `id` = #{id}</delete>
+	<select id="getLegions" resultType="com.dh.game.vo.user.LegionVO">
+		SELECT `id`, `legionName`, `playerId`, `playerNick`, `legionLevel`, `descs`, `notice`,
+		`createTime`, `money`, `material`, `qq`, `destroyTime`,`killerStr` FROM `t_legion`
+	</select>
+	<update id="updateLegion" parameterType="com.dh.game.vo.user.LegionVO">
+		UPDATE `t_legion` SET `legionName` = #{legionName}, `playerId` = #{playerId}, `playerNick`
+		= #{playerNick}, `legionLevel` = #{legionLevel}, `descs` = #{descs}, `notice` =
+		#{notice}, `createTime` = #{createTime}, `money` = #{money}, `material` = #{material},
+		`qq` = #{qq}, `destroyTime` = #{destroyTime}, `killerStr`=#{killerStr} WHERE `id`
+		= #{id}
+	</update>
+	<select id="getMems" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.LegionMemVO">
+		SELECT `id`, `playerId`, `type`, `joinTime`, `ownDonate`, `donate`, `bossId`, `bossRewardId`,
+		`atkBossDate`, `hp`,`bossStatus` from `t_legion_mem` where `id`=#{id}
+	</select>
+	
+	<select id="getJoinList" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.LegionMemVO">
+		SELECT `id`, `playerId`, `type`, `joinTime`, `donate`, `ownDonate`, `donate`, `bossId`,
+		`bossRewardId`, `atkBossDate`, `hp`,`bossStatus` FROM `t_legion_mem` where `type`=1
+		and `playerId`=#{playerId}
+	</select>
+	<update id="updateLegionMem" parameterType="com.dh.game.vo.user.LegionMemVO">
+		UPDATE `t_legion_mem` SET `type` = #{type}, `joinTime` = #{joinTime}, `ownDonate`
+		= #{ownDonate}, `donate` = #{donate}, `bossId` = #{bossId}, `bossRewardId` = #{bossRewardId},
+		`atkBossDate` = #{atkBossDate}, `hp` = #{hp}, `bossStatus` = #{bossStatus} WHERE
+		`id` = #{id} AND `playerId` = #{playerId};
+	</update>
+	<delete id="delLegionMem" parameterType="com.dh.game.vo.user.LegionMemVO">DELETE FROM `t_legion_mem` WHERE `id` = #{id} AND `playerId` = #{playerId};</delete>
+	<select id="getLogs" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.LegionLogVO">
+		SELECT `id`, `legionId`, `date`, `type`, `dataStr` FROM `t_legion_log` where `legionId`=#{legionId}
+	</select>
+	<insert id="insertLegionLog" parameterType="com.dh.game.vo.user.LegionLogVO">
+		INSERT INTO `t_legion_log` (`id`, `legionId`, `date`, `type`, `dataStr`) VALUES (#{id},#{legionId},
+		#{date}, #{type}, #{dataStr})
+	</insert>
+	<delete id="delLegionLog"  parameterType="com.dh.game.vo.user.LegionLogVO">DELETE FROM `t_legion_log` WHERE `id` = #{id} AND `legionId` = #{legionId}</delete>
+	<update id="updateAllLegionKiller" parameterType="java.lang.String">UPDATE `t_legion` SET `killerStr` = #{killerStr}</update>
+	<delete id="destroyLegion" parameterType="java.lang.Integer">
+		delete from `t_legion` where `id`=#{id}; delete from `t_legion_mem` where `id`=#{id`};
+		delete from `t_legion_log` where `id`=#{id};
+	</delete>
+</mapper>

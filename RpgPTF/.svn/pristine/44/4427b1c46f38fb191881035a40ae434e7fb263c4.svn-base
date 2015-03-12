@@ -1,0 +1,279 @@
+package com.dh.game.vo.user;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import com.dh.game.vo.base.BaseLegionVO;
+import com.dh.game.vo.legion.LegionProto.MEM_TYPE;
+import com.dh.util.DateUtil;
+
+public class LegionVO implements Comparable<LegionVO> {
+	private int id;
+	private String legionName; // 军团名
+	private int playerId; // 团长id
+	private String playerNick; // 团长名字
+	private int legionLevel; // 军团等级
+	private int legionExp; // 军团经验
+	private String notice = ""; // 公告
+	private String descs = "";// 介绍
+	private Date createTime;
+	private int destroyTime;
+	private int destroyTimeLeft;
+	private int money;
+	private int material;
+	private String qq = "";
+	private int rank;
+	private List<LegionMemVO> mems = new ArrayList<LegionMemVO>();
+	private List<LegionMemVO> join_mems = new ArrayList<LegionMemVO>();
+	private List<LegionMemVO> really_mems = new ArrayList<LegionMemVO>();
+
+	private BaseLegionVO baseLegionVO = null;
+	private Object mem_mutex = new Object();
+
+	/**
+	 * 获取管理成员数量
+	 * 
+	 * @return
+	 */
+	public int getManageNum(MEM_TYPE type) {
+		int num = 0;
+		for (LegionMemVO legionMemVO : mems) {
+			if (legionMemVO.getType() == type.getNumber()) {
+				num++;
+			}
+		}
+		return num++;
+	}
+
+	public void initMems() {
+		for (LegionMemVO legionMemVO : mems) {
+			if (legionMemVO.getType() == MEM_TYPE.MEM_TYPE_REQ_VALUE) {
+				join_mems.add(legionMemVO);
+			} else {
+				really_mems.add(legionMemVO);
+			}
+
+		}
+	}
+
+	public void removeJoin(LegionMemVO legionMemVO) {
+		synchronized (mem_mutex) {
+			join_mems.remove(legionMemVO);
+		}
+	}
+
+	public void addReallyMem(LegionMemVO legionMemVO) {
+		synchronized (mem_mutex) {
+			really_mems.add(legionMemVO);
+		}
+	}
+
+	public List<LegionMemVO> getJionList() {
+		// List<LegionMemVO> joins = new ArrayList<LegionMemVO>();
+		// for (LegionMemVO legionMemVO : mems) {
+		// if (legionMemVO.getType() == MEM_TYPE.MEM_TYPE_REQ_VALUE) {
+		// joins.add(legionMemVO);
+		// }
+		// }
+		return join_mems;
+	}
+
+	public void addMem(LegionMemVO legionMemVO) {
+		synchronized (mem_mutex) {
+			mems.add(legionMemVO);
+			if (legionMemVO.getType() == MEM_TYPE.MEM_TYPE_REQ_VALUE) {
+				join_mems.add(legionMemVO);
+			} else {
+				really_mems.add(legionMemVO);
+			}
+
+		}
+	}
+
+	public void removeMem(LegionMemVO legionMemVO) {
+		synchronized (mem_mutex) {
+			mems.remove(legionMemVO);
+			if (legionMemVO.getType() == MEM_TYPE.MEM_TYPE_REQ_VALUE) {
+				join_mems.remove(legionMemVO);
+			} else {
+				really_mems.remove(legionMemVO);
+			}
+
+		}
+	}
+
+	public LegionMemVO getMem(int memId) {
+		synchronized (mem_mutex) {
+			for (LegionMemVO legionMemVO : mems) {
+				if (legionMemVO.getPlayerId() == memId) {
+					return legionMemVO;
+				}
+			}
+		}
+		return null;
+	}
+
+	@Override
+	public int compareTo(LegionVO arg0) {
+		if (this.getLegionLevel() != arg0.getLegionLevel()) {
+			return this.getLegionLevel() > arg0.getLegionLevel() ? -1 : 1;
+		}
+		if (this.getMaterial() != arg0.getMaterial()) {
+			return this.getMaterial() > arg0.getMaterial() ? -1 : 1;
+		}
+		if (this.getMoney() != arg0.getMoney()) {
+			return this.getMoney() > arg0.getMoney() ? -1 : 1;
+		}
+		return 0;
+	}
+
+	public int getId() {
+		return id;
+	}
+
+	public void setId(int id) {
+		this.id = id;
+	}
+
+	public String getLegionName() {
+		return legionName;
+	}
+
+	public void setLegionName(String legionName) {
+		this.legionName = legionName;
+	}
+
+	public int getPlayerId() {
+		return playerId;
+	}
+
+	public void setPlayerId(int playerId) {
+		this.playerId = playerId;
+	}
+
+	public String getPlayerNick() {
+		return playerNick;
+	}
+
+	public void setPlayerNick(String playerNick) {
+		this.playerNick = playerNick;
+	}
+
+	public int getLegionLevel() {
+		return legionLevel;
+	}
+
+	public void setLegionLevel(int legionLevel) {
+		this.legionLevel = legionLevel;
+	}
+
+	public int getLegionExp() {
+		return legionExp;
+	}
+
+	public void setLegionExp(int legionExp) {
+		this.legionExp = legionExp;
+	}
+
+	public String getNotice() {
+		return notice;
+	}
+
+	public void setNotice(String notice) {
+		this.notice = notice;
+	}
+
+	public String getDescs() {
+		return descs;
+	}
+
+	public void setDescs(String descs) {
+		this.descs = descs;
+	}
+
+	public Date getCreateTime() {
+		return createTime;
+	}
+
+	public void setCreateTime(Date createTime) {
+		this.createTime = createTime;
+	}
+
+	public List<LegionMemVO> getRealyMems() {
+		return this.really_mems;
+	}
+
+	public List<LegionMemVO> getMems() {
+		return mems;
+	}
+
+	public void setMems(List<LegionMemVO> mems) {
+		this.mems = mems;
+	}
+
+	public BaseLegionVO getBaseLegionVO() {
+		return baseLegionVO;
+	}
+
+	public void setBaseLegionVO(BaseLegionVO baseLegionVO) {
+		this.baseLegionVO = baseLegionVO;
+	}
+
+	public int getMoney() {
+		return money;
+	}
+
+	public void setMoney(int money) {
+		this.money = money;
+	}
+
+	public int getMaterial() {
+		return material;
+	}
+
+	public void setMaterial(int material) {
+		this.material = material;
+	}
+
+	public String getQq() {
+		return qq;
+	}
+
+	public void setQq(String qq) {
+		this.qq = qq;
+	}
+
+	public int getRank() {
+		return rank;
+	}
+
+	public void setRank(int rank) {
+		this.rank = rank;
+	}
+
+	public int getDestroyTime() {
+		return destroyTime;
+	}
+
+	public void setDestroyTime(int destroyTime) {
+		this.destroyTime = destroyTime;
+	}
+
+	public Object getMem_mutex() {
+		return mem_mutex;
+	}
+
+	public void setMem_mutex(Object mem_mutex) {
+		this.mem_mutex = mem_mutex;
+	}
+
+	public int getDestroyTimeLeft() {
+		return destroyTimeLeft;
+	}
+
+	public void setDestroyTimeLeft(int destroyTimeLeft) {
+		this.destroyTimeLeft = destroyTimeLeft;
+	}
+
+}

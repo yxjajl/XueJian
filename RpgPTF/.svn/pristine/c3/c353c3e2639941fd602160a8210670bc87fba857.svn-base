@@ -1,0 +1,68 @@
+package com.dh.game.vo.user;
+
+import java.util.Date;
+import java.util.List;
+
+public class LegionLogVO implements Comparable<LegionLogVO> {
+	private int id;
+	private int legionId;
+	private int type;
+	// private String[] datas;// 数据类型
+	private String dataStr;
+	private List<String> dataList;
+	private Date date;
+
+	public int getId() {
+		return id;
+	}
+
+	public void setId(int id) {
+		this.id = id;
+	}
+
+	public int getLegionId() {
+		return legionId;
+	}
+
+	public void setLegionId(int legionId) {
+		this.legionId = legionId;
+	}
+
+	public int getType() {
+		return type;
+	}
+
+	public void setType(int type) {
+		this.type = type;
+	}
+
+	public String getDataStr() {
+		return dataStr;
+	}
+
+	public void setDataStr(String dataStr) {
+		this.dataStr = dataStr;
+	}
+
+	public List<String> getDataList() {
+		return dataList;
+	}
+
+	public void setDataList(List<String> dataList) {
+		this.dataList = dataList;
+	}
+
+	@Override
+	public int compareTo(LegionLogVO arg0) {
+		return arg0.getDate().compareTo(this.getDate());
+	}
+
+	public Date getDate() {
+		return date;
+	}
+
+	public void setDate(Date date) {
+		this.date = date;
+	}
+
+}

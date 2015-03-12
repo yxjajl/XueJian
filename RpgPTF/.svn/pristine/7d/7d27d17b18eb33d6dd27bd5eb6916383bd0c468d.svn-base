@@ -1,0 +1,14 @@
+package com.dh.game.vo.gm;
+
+message ReloadRedisReq {
+	optional int32 playerId = 1;
+	optional string username = 2;
+}
+
+message ReloadRedisResp {
+	required bool isSucc = 1;
+}
+
+message SendSysMsgReq {
+	required string msg = 1;
+}

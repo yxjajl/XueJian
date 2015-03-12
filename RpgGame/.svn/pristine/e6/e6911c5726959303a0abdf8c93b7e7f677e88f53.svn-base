@@ -1,0 +1,899 @@
+package com.dh.processor;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.apache.log4j.Logger;
+import org.springframework.stereotype.Component;
+
+import com.dh.Cache.ServerHandler;
+import com.dh.constants.ArenaConstants;
+import com.dh.constants.CommonConstants;
+import com.dh.constants.GameRecordConstants;
+import com.dh.constants.ItemConstants;
+import com.dh.constants.RaidConstant;
+import com.dh.enums.GMIOEnum;
+import com.dh.exception.GameException;
+import com.dh.game.constant.AlertEnum;
+import com.dh.game.constant.CSCommandConstant;
+import com.dh.game.vo.base.BaseActivityVO;
+import com.dh.game.vo.base.BaseRaidInfo;
+import com.dh.game.vo.base.TotalStarVO;
+import com.dh.game.vo.common.CommonProto.CountType;
+import com.dh.game.vo.login.PlayerLoginProto.PLAYER_PROPERTY;
+import com.dh.game.vo.raid.RaidProto.BATTLE_TYPE;
+import com.dh.game.vo.raid.RaidProto.ChapterScoreRewardRequest;
+import com.dh.game.vo.raid.RaidProto.EliRaidTimesBuyReq;
+import com.dh.game.vo.raid.RaidProto.HeroTeam;
+import com.dh.game.vo.raid.RaidProto.MERaidAccrCDResp;
+import com.dh.game.vo.raid.RaidProto.MERaidAddCountReq;
+import com.dh.game.vo.raid.RaidProto.MERaidAddCountResp;
+import com.dh.game.vo.raid.RaidProto.MERaidDetail;
+import com.dh.game.vo.raid.RaidProto.OpenBoxRequest;
+import com.dh.game.vo.raid.RaidProto.RaidChapterResponse;
+import com.dh.game.vo.raid.RaidProto.RaidEndRequest;
+import com.dh.game.vo.raid.RaidProto.RaidPrepareRequest;
+import com.dh.game.vo.raid.RaidProto.RaidProgress;
+import com.dh.game.vo.raid.RaidProto.RaidProgressRequest;
+import com.dh.game.vo.raid.RaidProto.RaidProgressResponse;
+import com.dh.game.vo.raid.RaidProto.RaidStartRequest;
+import com.dh.game.vo.raid.RaidProto.RaidStartResponse;
+import com.dh.game.vo.raid.RaidProto.RaidUIResponse;
+import com.dh.game.vo.user.PlayerArenaVO;
+import com.dh.game.vo.user.PlayerEliteRaidVO;
+import com.dh.game.vo.user.PlayerHeroVO;
+import com.dh.game.vo.user.PlayerRaidVO;
+import com.dh.game.vo.user.PlayerTimerVO;
+import com.dh.handler.arena.ArenaRedisTool;
+import com.dh.handler.battle.BossBattle;
+import com.dh.handler.battle.DuoBaoBattle;
+import com.dh.handler.battle.EliRaidBattle;
+import com.dh.handler.battle.IBattle;
+import com.dh.handler.battle.JingjiBattle;
+import com.dh.handler.battle.LegionBossBattle;
+import com.dh.handler.battle.MEBattle;
+import com.dh.handler.battle.MonsterBattle;
+import com.dh.handler.battle.RaidBattle;
+import com.dh.handler.battle.StreetBattle;
+import com.dh.handler.battle.YuanZhenBattle;
+import com.dh.netty.NettyMessageVO;
+import com.dh.resconfig.RaidRes;
+import com.dh.resconfig.TotalStarRes;
+import com.dh.resconfig.VipLevelRes;
+import com.dh.service.ArenaService;
+import com.dh.service.GMService;
+import com.dh.service.HeroService;
+import com.dh.service.KnapsackService;
+import com.dh.service.PlayerAccountService;
+import com.dh.service.PlayerService;
+import com.dh.service.PlayerTimerService;
+import com.dh.service.RaidService;
+import com.dh.service.RewardService;
+import com.dh.service.StreetService;
+import com.dh.service.TasksService;
+import com.dh.util.CommandUtil;
+import com.dh.util.DateUtil;
+import com.dh.util.Tool;
+import com.dh.util.VOUtil;
+import com.dh.vo.user.UserCached;
+
+@Component
+public class RaidProcessor {
+	private static Logger logger = Logger.getLogger(RaidProcessor.class);
+	@Resource
+	private RaidService raidService;
+
+	@Resource
+	private TasksService tasksService;
+
+	@Resource
+	private PlayerAccountService playerAccountService;
+
+	@Resource
+	private RewardService rewardService;
+
+	@Resource
+	private PlayerService playerService;
+
+	@Resource
+	private HeroService heroService;
+
+	@Resource
+	private PlayerTimerService playerTimerService;
+
+	@Resource
+	private GMService gmService;
+	// @Resource
+	// private AreaGroupService areaGroupService;
+
+	@Resource
+	private ArenaService arenaService;
+
+	@Resource
+	private RaidBattle raidBattle;
+	@Resource
+	private JingjiBattle jingjiBattle;
+	@Resource
+	private DuoBaoBattle duoBaoBattle;
+
+	@Resource
+	private StreetBattle streetBattle;
+	@Resource
+	private EliRaidBattle eliRaidBattle;
+	@Resource
+	private MonsterBattle monsterBattle;
+	@Resource
+	private MEBattle meBattle;
+	@Resource
+	private YuanZhenBattle yuanZhenBattle;
+	@Resource
+	private BossBattle bossBattle;
+	@Resource
+	private KnapsackService knapsackService;
+	@Resource
+	private StreetService streetService;
+	@Resource
+	private LegionBossBattle legionBossBattle;
+
+	// 副本及活动初始UI界面
+	public void raidUIInfo(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+		int count = raidService.getCountTimesAndClear(userCached);
+
+		RaidUIResponse.Builder builder = RaidUIResponse.newBuilder();
+		builder.setEliRaidCount(count);
+
+		CommandUtil.packageNettyMessage(CSCommandConstant.RAID_UI_INFO, builder.build().toByteArray(), commandList);
+	}
+
+	/**
+	 * 购买次数
+	 * 
+	 * @param req
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void raidBuyTimes(EliRaidTimesBuyReq req, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+		PlayerTimerVO playerTimerVO = userCached.getUserTimer().getPlayerTimerVO();
+
+		int costRMB = 100;
+
+		PlayerEliteRaidVO firstPlayerEliteRaidVO = userCached.getUserRaid().getFirstPlayerEliteRaidVO();
+		int n = req.getTimes();
+
+		if ((n + playerTimerVO.getEliRaidBuyTimes()) > VipLevelRes.getInstance().getEliRaidBuyTimes(userCached.getPlayerVO().getVip())) {
+			throw new GameException(AlertEnum.ELIRAID_BUY_TIMES_ENOUGH);
+		}
+
+		playerTimerVO.setEliRaidBuyTimes(playerTimerVO.getEliRaidBuyTimes() + n);
+		playerTimerService.updateEliRaidBuyTimes(playerTimerVO);
+
+		costRMB = costRMB * n;
+		playerAccountService.hasEnoughRMBAndGift(userCached, costRMB);
+
+		// for (int raidid : req.getRaididList()) {
+		// PlayerEliteRaidVO playerEliteRaidVO =
+		// userCached.getUserRaid().getPlayerEliteRaidVO(raidid);
+		// if (playerEliteRaidVO != null) {
+		// playerEliteRaidVO.setTimes(playerEliteRaidVO.getTimes() + 1);
+		// }
+		// }
+		firstPlayerEliteRaidVO.setTimes(firstPlayerEliteRaidVO.getTimes() + n);
+		raidService.updateEliteRaid(firstPlayerEliteRaidVO);
+
+		playerAccountService.deductCurrency(PLAYER_PROPERTY.PROPERTY_RMB, costRMB, userCached.getPlayerAccountVO(), commandList, "精英副本次数购买", GMIOEnum.OUT_BUY_ELI_COUNT.usage());
+
+		// int reqChapter = 1;
+		// BaseRaidInfo curBaseInfo =
+		// RaidRes.getInstance().getBaseRaidInfo(req.getRaididList().get(0));
+		// reqChapter = curBaseInfo.getChapterid();
+		//
+		// eliProgress(userCached, reqChapter, commandList);
+
+		commandList.add(nettyMessageVO);
+	}
+
+	public void raidScoreReward(ChapterScoreRewardRequest request, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		int reqChapter = request.getChapter();
+		PlayerRaidVO tempPlayerRaidVO = null;
+		PlayerRaidVO firstPlayerRaidVO = null;
+		PlayerRaidVO secondPlayerRaidVO = null;
+
+		int countStar = 0;
+		for (BaseRaidInfo baseRaidInfo : RaidRes.getInstance().getRaidListByChapterId(reqChapter, RaidRes.RAID_MODE_NOR)) {
+			// 只发一个请求的章节
+			if (reqChapter != baseRaidInfo.getChapterid()) {
+				continue;
+			}
+
+			tempPlayerRaidVO = userCached.getUserRaid().getPlayerRaidVO(baseRaidInfo.getRaidid());
+
+			if (baseRaidInfo.getRaidid() % 10 == 1 && tempPlayerRaidVO != null) {
+				firstPlayerRaidVO = tempPlayerRaidVO;
+			} else if (baseRaidInfo.getRaidid() % 10 == 2 && tempPlayerRaidVO != null) {
+				secondPlayerRaidVO = tempPlayerRaidVO;
+			}
+
+			if (tempPlayerRaidVO != null) {
+				if (tempPlayerRaidVO.getScore() == 5) {
+					countStar += tempPlayerRaidVO.getScore();
+				}
+			}
+		}
+
+		if (firstPlayerRaidVO == null) {
+			throw new Exception("星级不够");
+		}
+
+		List<TotalStarVO> list = TotalStarRes.getInstance().getTotalStarVO(reqChapter);
+		if (list == null || list.size() < 2) {
+			throw new Exception("没有配置此章的奖励" + reqChapter);
+		}
+
+		if (request.getIndex() == 1) {
+			if (1 == firstPlayerRaidVO.getScorereward1()) {
+				throw new Exception("已经领过奖励了");
+			}
+			TotalStarVO totalStarVO = list.get(0);
+			if (countStar < totalStarVO.getStar()) {
+				throw new Exception("星级不够");
+			}
+
+			firstPlayerRaidVO.setScorereward1((short) 1);
+			rewardService.reward(userCached, totalStarVO.getRewardid(), commandList);
+
+			raidService.updateRaid(firstPlayerRaidVO);
+		} else if (request.getIndex() == 2) {
+			if (1 == firstPlayerRaidVO.getScorereward2()) {
+				throw new Exception("已经领过奖励了");
+			}
+			TotalStarVO totalStarVO = list.get(1);
+			if (countStar < totalStarVO.getStar()) {
+				throw new Exception("星级不够");
+			}
+
+			firstPlayerRaidVO.setScorereward2((short) 1);
+			rewardService.reward(userCached, totalStarVO.getRewardid(), commandList);
+
+			raidService.updateRaid(firstPlayerRaidVO);
+		} else {
+			if (1 == secondPlayerRaidVO.getScorereward1()) {
+				throw new Exception("已经领过奖励了");
+			}
+			TotalStarVO totalStarVO = list.get(2);
+			if (countStar < totalStarVO.getStar()) {
+				throw new Exception("星级不够");
+			}
+
+			secondPlayerRaidVO.setScorereward1((short) 1);
+			rewardService.reward(userCached, totalStarVO.getRewardid(), commandList);
+
+			raidService.updateRaid(secondPlayerRaidVO);
+		}
+
+		commandList.add(nettyMessageVO);
+
+	}
+
+	/**
+	 * 首次完美过关奖励
+	 * 
+	 * @param request
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 *             10101,1
+	 */
+	public void fiveElireward(RaidStartRequest request, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		PlayerEliteRaidVO playerEliteRaidVO = userCached.getUserRaid().getPlayerEliteRaidVO(request.getRaidid());
+		if (playerEliteRaidVO == null) {
+			throw new GameException(AlertEnum.NORAID_CANT_REWARD);
+		}
+
+		if (playerEliteRaidVO.getScore() != 5) {
+			throw new GameException(AlertEnum.RAID_SCORE_NOT_FIVE);
+		}
+
+		if (playerEliteRaidVO.getFivereward() > 0) {
+			throw new GameException(AlertEnum.FIVE_REWARD_ALEARDY_GET);
+		}
+
+		BaseRaidInfo baseRaidInfo = RaidRes.getInstance().getBaseRaidInfo(request.getRaidid());
+
+		rewardService.reward(userCached, baseRaidInfo.getPerfectreward(), commandList, GMIOEnum.IN_ELI_PERFECT.usage());
+
+		playerEliteRaidVO.setFivereward(1);
+
+		raidService.updateEliteRaid(playerEliteRaidVO);
+
+		// commandList.add(tempNettyMessageVO);
+		int reqChapter = 1;
+		BaseRaidInfo curBaseInfo = RaidRes.getInstance().getBaseRaidInfo(request.getRaidid());
+		reqChapter = curBaseInfo.getChapterid();
+		eliProgress(userCached, reqChapter, commandList);
+	}
+
+	public void fivereward(RaidStartRequest request, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		PlayerRaidVO playerRaidVO = userCached.getUserRaid().getPlayerRaidVO(request.getRaidid());
+		if (playerRaidVO == null) {
+			throw new GameException(AlertEnum.NORAID_CANT_REWARD);
+		}
+
+		if (playerRaidVO.getScore() != 5) {
+			throw new GameException(AlertEnum.RAID_SCORE_NOT_FIVE);
+		}
+
+		if (playerRaidVO.getFivereward() > 0) {
+			throw new GameException(AlertEnum.FIVE_REWARD_ALEARDY_GET);
+		}
+
+		BaseRaidInfo baseRaidInfo = RaidRes.getInstance().getBaseRaidInfo(request.getRaidid());
+
+		rewardService.reward(userCached, baseRaidInfo.getPerfectreward(), commandList, GMIOEnum.IN_NORMAL_PERFECT.usage());
+
+		playerRaidVO.setFivereward((short) 1);
+
+		raidService.updateRaid(playerRaidVO);
+
+		// commandList.add(tempNettyMessageVO);
+		int reqChapter = 1;
+		BaseRaidInfo curBaseInfo = RaidRes.getInstance().getBaseRaidInfo(request.getRaidid());
+		reqChapter = curBaseInfo.getChapterid();
+		raidProgress(userCached, reqChapter, commandList);
+	}
+
+	/**
+	 * 取副本详情
+	 * 
+	 * @param request
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void battleDetail(RaidPrepareRequest request, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		IBattle battle = getIBattleInstance(request.getType());
+		battle.battleDetail(request, userCached, commandList);
+	}
+
+	/**
+	 * 修 改英雄队列
+	 * 
+	 * @param request
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void raidUpdateHeroTeam(HeroTeam request, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		if (request.getHeroIdsList().size() > 5) {
+			logger.error("前台传了超过5个英雄数据" + request.getHeroIdsList().size());
+			throw new Exception("前台传了超过5个英雄数据");
+		}
+
+		if (request.getHeroIdsList() != null && request.getHeroIdsList().size() > 0) {
+
+			PlayerHeroVO heroVO = null;
+			for (int value : request.getHeroIdsList()) {
+				if ((heroVO = userCached.getUserHero().getPlayerHeroVOById(value)) == null) {
+					throw new GameException(AlertEnum.HERO_NOT_FOUND);
+				}
+				if (heroVO.getLineStatus() == CommonConstants.HERO_LINE_FREE || heroVO.getLineStatus() == CommonConstants.ATK_LINE_START) {
+				}
+				// else {
+				// throw new GameException(AlertEnum.HERO_NOT_FOUND);
+				// }
+			}
+			// soldierline = strBuffer.toString();
+		}
+
+		ArrayList<PlayerHeroVO> changePlayerHeroList = new ArrayList<PlayerHeroVO>();
+		changePlayerHeroList.addAll(userCached.getUserHero().getAtkHeroList());
+
+		userCached.getUserHero().clearTeam();
+
+		int combat = 0;
+		if (request.getHeroIdsList() != null && request.getHeroIdsList().size() > 0) {
+
+			PlayerHeroVO heroVO = null;
+			for (int value : request.getHeroIdsList()) {
+				heroVO = userCached.getUserHero().getPlayerHeroVOById(value);
+				// if (heroVO.getLineStatus() != 0) {
+				// throw new GameException(AlertEnum.HERO_BUSYING);
+				// }
+				heroVO.setLineStatus(CommonConstants.ATK_LINE_START);
+				if (changePlayerHeroList.contains(heroVO)) {
+					changePlayerHeroList.remove(heroVO);
+				} else {
+					changePlayerHeroList.add(heroVO);
+				}
+				combat += heroVO.getCombat();
+			}
+
+			for (PlayerHeroVO playerHeroVO : changePlayerHeroList) {
+				CommandUtil.updateHeroStatus(playerHeroVO, commandList);
+				heroService.updateHero(playerHeroVO);
+			}
+
+		}
+
+		userCached.getUserHero().initTeam(); // 重新初始化副本
+
+		PlayerArenaVO playerArenaVO = ArenaService.getPlayerArenaVOFromRedis(String.valueOf(userCached.getPlayerId()));
+		// arenaService.getPlayerArenaVO(userCached);
+
+		if (playerArenaVO != null && playerArenaVO.getCombat() < combat) {
+
+			if (userCached.getUserHero().getAtkHeroList() != null && userCached.getUserHero().getAtkHeroList().size() > 0) {
+				ArenaConstants.put(playerArenaVO.getPlayerId(), playerArenaVO.getCombat());
+
+				arenaService.updatePlayerArenaCombat(playerId, combat);
+				ArenaRedisTool.savePlayerHeroVO(playerId, userCached.getUserHero().getAtkHeroList());
+				arenaService.savePlayerHeroDefVO(playerId, userCached.getUserHero().getAtkHeroList());
+				streetService.updateStreetResPlayerVOCombat(userCached, combat);
+			} else {
+				logger.error("没有英雄放到竞技场 : raidUpdateHeroTeam ");
+			}
+
+		}
+		userCached.getPlayerVO().setCombat(combat);
+
+		// 计算角色战斗力
+		// CommandUtil.reComputerPlayerCombat(userCached, commandList);
+		// playerService.updatePlayerVO(userCached.getPlayerVO());
+
+		// heroService.updatePlayerHeroTeam(heroTeamVO);
+
+	}
+
+	/**
+	 * 副本进度
+	 * 
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void raidProgress(RaidProgressRequest request, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		int reqChapter = request.getChapter();
+		if (reqChapter < 1 || reqChapter > RaidRes.getInstance().MAX_CHARPTER) {
+			reqChapter = userCached.getUserRaid().getCurChapter();
+			// throw new Exception("前端传送错误的章节ID数据" + reqChapter);
+		}
+		raidProgress(userCached, reqChapter, commandList);
+
+	}
+
+	public static void raidProgress(UserCached userCached, int reqChapter, List<NettyMessageVO> commandList) {
+		RaidProgressResponse.Builder raidProgressResponse = RaidProgressResponse.newBuilder();
+		int index = userCached.getUserRaid().getRaidList().size() - 1;
+		int curRaidId = userCached.getUserRaid().getRaidList().get(index).getRaidid();
+		PlayerRaidVO tempPlayerRaidVO = null;
+		PlayerRaidVO firstPlayerRaidVO = null;
+		PlayerRaidVO secondPlayerRaidVO = null;
+		for (BaseRaidInfo baseRaidInfo : RaidRes.getInstance().getRaidListByChapterId(reqChapter, RaidRes.RAID_MODE_NOR)) {
+			// 只发一个请求的章节
+			if (reqChapter != baseRaidInfo.getChapterid()) {
+				continue;
+			}
+
+			tempPlayerRaidVO = userCached.getUserRaid().getPlayerRaidVO(baseRaidInfo.getRaidid());
+
+			if (baseRaidInfo.getRaidid() % 10 == 1 && tempPlayerRaidVO != null) {
+				firstPlayerRaidVO = tempPlayerRaidVO;
+			} else if (baseRaidInfo.getRaidid() % 10 == 2 && tempPlayerRaidVO != null) {
+				secondPlayerRaidVO = tempPlayerRaidVO;
+			}
+
+			RaidProgress.Builder raidProgress = RaidProgress.newBuilder();
+			raidProgress.setChapter(baseRaidInfo.getChapterid());
+			raidProgress.setRaidid(baseRaidInfo.getRaidid());
+
+			if (tempPlayerRaidVO != null) {
+				curRaidId = tempPlayerRaidVO.getRaidid();
+				raidProgress.setStatus(1);
+				raidProgress.setScore(tempPlayerRaidVO.getScore());
+				raidProgress.setFivereward(tempPlayerRaidVO.getFivereward());
+			} else {
+				raidProgress.setStatus(0);
+				raidProgress.setScore(0);
+				raidProgress.setFivereward(0);
+			}
+
+			raidProgressResponse.addRaidProgress(raidProgress);
+		}
+
+		raidProgressResponse.setCurChapter(reqChapter);
+		raidProgressResponse.setRaidid(curRaidId);
+
+		if (firstPlayerRaidVO == null) {
+			raidProgressResponse.setScorereward1(0);
+			raidProgressResponse.setScorereward2(0);
+		} else {
+			raidProgressResponse.setScorereward1(firstPlayerRaidVO.getScorereward1());
+			raidProgressResponse.setScorereward2(firstPlayerRaidVO.getScorereward2());
+		}
+
+		if (secondPlayerRaidVO == null) {
+			raidProgressResponse.setScorereward3(0);
+		} else {
+			raidProgressResponse.setScorereward3(secondPlayerRaidVO.getScorereward1());
+		}
+
+		CommandUtil.packageNettyMessage(CSCommandConstant.RAID_PROGRESS, raidProgressResponse.build().toByteArray(), commandList);
+	}
+
+	// 精英副本进度
+	public void raidEliProgress(RaidProgressRequest request, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		int reqChapter = request.getChapter();
+		if (reqChapter < 1 || reqChapter > RaidRes.getInstance().MAX_CLICHARPTER) {
+			throw new Exception("前端传送错误的章节ID数据" + reqChapter);
+		}
+		eliProgress(userCached, reqChapter, commandList);
+	}
+
+	public void eliProgress(UserCached userCached, int reqChapter, List<NettyMessageVO> commandList) {
+		RaidProgressResponse.Builder raidProgressResponse = RaidProgressResponse.newBuilder();
+		int index = userCached.getUserRaid().getEliteRaidList().size() - 1;
+		int curRaidId = 0;
+		if (userCached.getUserRaid().getEliteRaidList().size() > 0) {
+			curRaidId = userCached.getUserRaid().getEliteRaidList().get(index).getRaidid();
+		}
+		PlayerEliteRaidVO tempPlayerEliteRaidVO = null;
+
+		for (BaseRaidInfo baseRaidInfo : RaidRes.getInstance().getRaidListByChapterId(reqChapter, RaidRes.RAID_MODE_ELI)) {
+			// 只发一个请求的章节
+			if (reqChapter != baseRaidInfo.getChapterid()) {
+				continue;
+			}
+			tempPlayerEliteRaidVO = userCached.getUserRaid().getPlayerEliteRaidVO(baseRaidInfo.getRaidid());
+			RaidProgress.Builder raidProgress = RaidProgress.newBuilder();
+			raidProgress.setChapter(baseRaidInfo.getChapterid());
+			raidProgress.setRaidid(baseRaidInfo.getRaidid());
+
+			if (tempPlayerEliteRaidVO != null) {
+				curRaidId = baseRaidInfo.getRaidid();
+				raidProgress.setStatus(1);
+				raidProgress.setScore(tempPlayerEliteRaidVO.getScore());
+				raidProgress.setTimers(0);
+				raidProgress.setFivereward(tempPlayerEliteRaidVO.getFivereward());
+			} else {
+				raidProgress.setStatus(0);
+				raidProgress.setScore(0);
+				raidProgress.setTimers(0);
+				raidProgress.setFivereward(0);
+			}
+			raidProgressResponse.addRaidProgress(raidProgress);
+		}
+
+		PlayerEliteRaidVO firstPlayerEliteRaidVO = userCached.getUserRaid().getFirstPlayerEliteRaidVO();
+		PlayerTimerVO playerTimerVO = userCached.getUserTimer().getPlayerTimerVO();
+		int nn = VipLevelRes.getInstance().getEliRaidBuyTimes(userCached.getPlayerVO().getVip()) - playerTimerVO.getEliRaidBuyTimes();
+		if (firstPlayerEliteRaidVO != null) {
+			raidProgressResponse.setElitimes(firstPlayerEliteRaidVO.getTimes());
+			raidProgressResponse.setEliCountTimes(nn);
+		} else {
+			raidProgressResponse.setElitimes(0);
+			raidProgressResponse.setEliCountTimes(nn);
+		}
+
+		raidProgressResponse.setCurChapter(reqChapter);
+		raidProgressResponse.setRaidid(curRaidId);
+		raidProgressResponse.setScorereward1(0);
+		raidProgressResponse.setScorereward2(0);
+		raidProgressResponse.setScorereward3(0);
+
+		CommandUtil.packageNettyMessage(CSCommandConstant.RAID_ELI_PROGRESS, raidProgressResponse.build().toByteArray(), commandList);
+	}
+
+	/**
+	 * 开牌
+	 * 
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void openBox(OpenBoxRequest request, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		duoBaoBattle.openBox(userCached, request, commandList);
+	}
+
+	/**
+	 * 副本章节
+	 * 
+	 * @param request
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 *             10101,1
+	 */
+	public void raidChapterList(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		RaidChapterResponse.Builder raidChapterResponse = RaidChapterResponse.newBuilder();
+		raidChapterResponse.setCurChapter(userCached.getUserRaid().getCurChapter());
+		raidChapterResponse.setMinChapter(1);
+
+		int index = userCached.getUserRaid().getRaidList().size() - 1;
+		PlayerRaidVO playerRaidVO = userCached.getUserRaid().getRaidList().get(index);
+
+		BaseRaidInfo baseRaidInfo = RaidRes.getInstance().getBaseRaidInfo(playerRaidVO.getRaidid());
+
+		raidChapterResponse.setMaxChapter(baseRaidInfo.getChapterid()); // RaidRes.getInstance().MAX_CHARPTER
+		raidChapterResponse.setMaxRaidid(playerRaidVO.getRaidid());
+		CommandUtil.packageNettyMessage(CSCommandConstant.RAID_CHAPTER_LIST, raidChapterResponse.build().toByteArray(), commandList);
+	}
+
+	/**
+	 * 副本章节
+	 * 
+	 * @param request
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 *             10101,1
+	 */
+	public void raidEliChapterList(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		raidService.getCountTimesAndClear(userCached);
+
+		RaidChapterResponse.Builder raidChapterResponse = RaidChapterResponse.newBuilder();
+		raidChapterResponse.setCurChapter(userCached.getUserRaid().getCurrEliteChapter());
+		raidChapterResponse.setMinChapter(1);
+		if (userCached.getUserRaid().getEliteRaidList().size() == 0) {
+			raidChapterResponse.setMaxChapter(1);
+			raidChapterResponse.setMaxRaidid(0);
+		} else {
+			int index = userCached.getUserRaid().getEliteRaidList().size() - 1;
+			PlayerEliteRaidVO playerEliteRaidVO = userCached.getUserRaid().getEliteRaidList().get(index);
+
+			BaseRaidInfo baseRaidInfo = RaidRes.getInstance().getBaseRaidInfo(playerEliteRaidVO.getRaidid());
+			raidChapterResponse.setMaxRaidid(playerEliteRaidVO.getRaidid());
+			raidChapterResponse.setMaxChapter(baseRaidInfo.getChapterid()); // RaidRes.getInstance().MAX_CHARPTER
+		}
+
+		CommandUtil.packageNettyMessage(CSCommandConstant.RAID_ELICHAPTER_LIST, raidChapterResponse.build().toByteArray(), commandList);
+	}
+
+	/**
+	 * 副本开始
+	 * 
+	 * @param request
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 *             10101,1
+	 */
+	public void raidStart(RaidStartRequest request, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		IBattle battle = getIBattleInstance(request.getType());
+		battle.battleStart(userCached, request, commandList);
+
+		// 生成安全码
+		userCached.getUserRaid().battleStart(request.getRaidid(), RaidRes.RAID_DIFF_EASY);
+
+		RaidStartResponse.Builder raidStartResponse = RaidStartResponse.newBuilder();
+		raidStartResponse.setRaidid(request.getRaidid());
+		raidStartResponse.setValidateKey(userCached.getUserRaid().getValidateKey());
+		raidStartResponse.setType(request.getType());
+		System.out.println("副本key : = " + userCached.getUserRaid().getValidateKey());
+		System.out.println("sign=" + Tool.MD5(request.getRaidid() + "&" + RaidRes.RAID_DIFF_EASY + "&" + userCached.getUserRaid().getValidateKey()));
+		NettyMessageVO tempNettyMessageVO = new NettyMessageVO();
+		tempNettyMessageVO.setCommandCode(CSCommandConstant.RAID_START);
+		tempNettyMessageVO.setData(raidStartResponse.build().toByteArray());
+
+		commandList.add(tempNettyMessageVO);
+	}
+
+	/**
+	 * 副本结束时 新增副本或发送奖励
+	 * 
+	 * @param request
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void raidEnd(RaidEndRequest request, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		// 安全码效验
+		int addtion = 0;
+		if (userCached.getUserActivity().getPlayerBossVO() != null && request.getType() == BATTLE_TYPE.BOSS) {
+			addtion = userCached.getUserActivity().getPlayerBossVO().getAddtion();
+		}
+
+		if (!userCached.getUserRaid().validate(request.getRaidid(), RaidRes.RAID_DIFF_EASY, request.getValidateCode(), request.getIsSucc(), request.getScore(), addtion)) {
+			throw new GameException(AlertEnum.RAID_NOT_FOUND);
+		}
+
+		IBattle battle = getIBattleInstance(request.getType());
+
+		try {
+			battle.battleEnd(userCached, request, commandList);
+
+			if (BATTLE_TYPE.ELITE == request.getType()) {
+				int reqChapter = 1;
+				BaseRaidInfo curBaseInfo = RaidRes.getInstance().getBaseRaidInfo(request.getRaidid());
+				reqChapter = curBaseInfo.getChapterid();
+				eliProgress(userCached, reqChapter, commandList);
+			}
+
+		} catch (Exception e) {
+			throw e;
+		} finally {
+			userCached.getUserRaid().clearCurRaid();
+		}
+
+	}
+
+	/**
+	 * 选择器
+	 * 
+	 * @param type
+	 * @return
+	 */
+	public IBattle getIBattleInstance(BATTLE_TYPE type) {
+		switch (type) {
+		case RAID:
+			return raidBattle;
+		case ARENA:
+			return jingjiBattle;
+		case DUOBAO:
+			return duoBaoBattle;
+		case STREET:
+			return streetBattle;
+		case ELITE:
+			return eliRaidBattle;
+		case MONSTER:
+			return monsterBattle;
+		case ME:
+			return meBattle;
+		case YUANZHEN:
+			return yuanZhenBattle;
+		case BOSS:
+			return bossBattle;
+		case LEGION_BOSS:
+			return legionBossBattle;
+		default:
+			return raidBattle;
+		}
+	}
+
+	/**
+	 * 处理银两经验副本
+	 * 
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void GetMEDetail(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+		getMEDetail(userCached, commandList);
+	}
+
+	public void getMEDetail(UserCached userCached, List<NettyMessageVO> commandList) {
+		BaseActivityVO moneyRaid = GameRecordConstants.getMERaid(GameRecordConstants.MERAID_MONEY);
+		BaseActivityVO expcRaid = GameRecordConstants.getMERaid(GameRecordConstants.MERAID_EXPC);
+		MERaidDetail.Builder resp = MERaidDetail.newBuilder();
+
+		NettyMessageVO nettyMessageVO = new NettyMessageVO();
+		nettyMessageVO.setCommandCode(CSCommandConstant.RAID_ME_DETAIL);
+		PlayerTimerVO timeVO = userCached.getUserTimer().getPlayerTimerVO();
+
+		int now = DateUtil.getNow();
+		if (!DateUtil.isSameDay(new Date(timeVO.getMERaidFreshDate() * 1000L))) {
+			timeVO.setMERaidFreshDate(now);
+			timeVO.setERaidBuyCount(0);
+			timeVO.setERaidCount(0);
+			timeVO.setERaidDate(0);
+			timeVO.setMRaidBuyCount(0);
+			timeVO.setMRaidCount(0);
+			timeVO.setMRaidDate(0);
+			playerTimerService.updateMERaid(timeVO);
+		}
+		if (moneyRaid != null) {
+			resp.addMERaidInfo(VOUtil.packMERaid(userCached, moneyRaid, now));
+		}
+		if (expcRaid != null) {
+			resp.addMERaidInfo(VOUtil.packMERaid(userCached, expcRaid, now));
+		}
+		nettyMessageVO.setData(resp.build().toByteArray());
+		commandList.add(nettyMessageVO);
+	}
+
+	public void addMERaidCount(MERaidAddCountReq.Builder req, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+		PlayerTimerVO timeVO = userCached.getUserTimer().getPlayerTimerVO();
+		boolean isE = req.getType() == 1;
+		int buyCount = isE ? timeVO.getERaidBuyCount() : timeVO.getMRaidBuyCount();
+		int vipLevel = userCached.getPlayerVO().getVip();
+		int RAID_E_BUY_TIME = VipLevelRes.getInstance().getExpRaidBuyTimes(vipLevel);
+
+		if (buyCount > RAID_E_BUY_TIME) {
+			throw new GameException(AlertEnum.ME_RAID_BUYCOUNT_OUT);
+		}
+		playerAccountService.hasEnoughRMBAndGift(userCached, RaidConstant.RAID_BUY_COST_RMB);
+		playerAccountService.deductCurrency(PLAYER_PROPERTY.PROPERTY_RMB, RaidConstant.RAID_BUY_COST_RMB, userCached.getPlayerAccountVO(), commandList, "增加购买经验和银两副本次数",
+				GMIOEnum.OUT_BUY_ME_COUNT.usage());
+		int now = DateUtil.getNow();
+		if (isE) {
+			timeVO.setERaidBuyCount(timeVO.getERaidBuyCount() + 1);
+			CommandUtil.updateCountDown(CountType.E_RAID, RaidConstant.RAID_E_CD - (now - timeVO.getERaidDate()), RaidConstant.RAID_E_TIME + timeVO.getERaidBuyCount() - timeVO.getERaidCount(),
+					commandList);
+		} else {
+			timeVO.setMRaidBuyCount(timeVO.getMRaidBuyCount() + 1);
+			CommandUtil.updateCountDown(CountType.M_RAID, RaidConstant.RAID_M_CD - (now - timeVO.getMRaidDate()), RaidConstant.RAID_M_TIME + timeVO.getMRaidBuyCount() - timeVO.getMRaidCount(),
+					commandList);
+		}
+		playerTimerService.updateMERaid(timeVO);
+		nettyMessageVO.setData(MERaidAddCountResp.newBuilder().setType(req.getType())
+				.setTotalTime(RaidConstant.RAID_E_TIME + (isE ? timeVO.getERaidBuyCount() : timeVO.getMRaidBuyCount()) - (isE ? timeVO.getERaidCount() : timeVO.getMRaidCount()))
+				.setLeftTime(RAID_E_BUY_TIME - (isE ? timeVO.getERaidBuyCount() : timeVO.getMRaidBuyCount())).build().toByteArray());
+		commandList.add(nettyMessageVO);
+	}
+
+	public void accrMECD(com.dh.game.vo.raid.RaidProto.MERaidAccrCDReq.Builder req, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+		PlayerTimerVO timeVO = userCached.getUserTimer().getPlayerTimerVO();
+		int now = (int) (System.currentTimeMillis() / 1000);
+		boolean isE = req.getType() == 1;
+		int timeLeft = now - (isE ? timeVO.getERaidDate() : timeVO.getMRaidDate());
+		if (timeLeft > RaidConstant.RAID_E_CD) {
+			throw new GameException(AlertEnum.CD_HAD_FINISHED);
+		}
+		if (knapsackService.hasEnoughItem(userCached.getUserKnapsack().getKnapsackList(), ItemConstants.ITEM_CDESC_LENQUE, 1)) {
+			knapsackService.removeItem(userCached, ItemConstants.ITEM_CDESC_LENQUE, 1, commandList);
+		} else {
+			playerAccountService.hasEnoughRMBAndGift(userCached, RaidConstant.RAID_ACCRCD_COST_RMB);
+			playerAccountService.deductCurrency(PLAYER_PROPERTY.PROPERTY_RMB, RaidConstant.RAID_ACCRCD_COST_RMB, userCached.getPlayerAccountVO(), commandList, "加入银两和经验副本", GMIOEnum.OUT_CD_ME.usage());
+		}
+
+		if (isE) {
+			timeVO.setERaidDate(0);
+			CommandUtil.updateCountDown(CountType.E_RAID, 0, RaidConstant.RAID_E_TIME + timeVO.getERaidBuyCount() - timeVO.getERaidCount(), commandList);
+		} else {
+			timeVO.setMRaidDate(0);
+			CommandUtil.updateCountDown(CountType.M_RAID, 0, RaidConstant.RAID_M_TIME + timeVO.getMRaidBuyCount() - timeVO.getMRaidCount(), commandList);
+		}
+		playerTimerService.updateMERaid(timeVO);
+		BaseActivityVO meRaid = GameRecordConstants.getMERaid(isE ? GameRecordConstants.MERAID_EXPC : GameRecordConstants.MERAID_MONEY);
+		nettyMessageVO.setData(MERaidAccrCDResp.newBuilder().setType(req.getType()).setOpenTip(meRaid.getDec()).build().toByteArray());
+		commandList.add(nettyMessageVO);
+	}
+}

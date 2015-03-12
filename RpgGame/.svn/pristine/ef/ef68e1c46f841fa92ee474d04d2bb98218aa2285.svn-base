@@ -1,0 +1,637 @@
+package com.dh.processor;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.apache.log4j.Logger;
+import org.springframework.stereotype.Component;
+
+import com.MyOpenApiV3;
+import com.YellowYipApiV3;
+import com.dh.Cache.ServerHandler;
+import com.dh.constants.CommonCommand;
+import com.dh.constants.CommonConstants;
+import com.dh.constants.GMConstants;
+import com.dh.constants.PlatformConstant;
+import com.dh.constants.StreetConstants;
+import com.dh.exception.GameException;
+import com.dh.game.constant.AlertEnum;
+import com.dh.game.constant.CSCommandConstant;
+import com.dh.game.vo.login.CheckRoleNameProto.CheckRoleNameRequest;
+import com.dh.game.vo.login.GetRoleNameProto.GetRoleNameRequest;
+import com.dh.game.vo.login.GetRoleNameProto.GetRoleNameResponse;
+import com.dh.game.vo.login.PlayerCreateProto.PlayerCreateRequest;
+import com.dh.game.vo.login.PlayerLoginProto.BufListInfo;
+import com.dh.game.vo.login.PlayerLoginProto.EXIST_STATUS;
+import com.dh.game.vo.login.PlayerLoginProto.GuideUpReq;
+import com.dh.game.vo.login.PlayerLoginProto.PlayerLoginRequest;
+import com.dh.game.vo.login.PlayerLoginProto.PlayerLoginResponse;
+import com.dh.game.vo.login.PlayerLoginProto.PlayerProto;
+import com.dh.game.vo.user.PlayerShopVO;
+import com.dh.game.vo.user.PlayerTimerVO;
+import com.dh.game.vo.user.PlayerVO;
+import com.dh.netty.NettyMessageVO;
+import com.dh.resconfig.NameRes;
+import com.dh.service.ActivityService;
+import com.dh.service.BuildService;
+import com.dh.service.FriendService;
+import com.dh.service.GMService;
+import com.dh.service.HeroHangService;
+import com.dh.service.HeroService;
+import com.dh.service.KnapsackService;
+import com.dh.service.LegionService;
+import com.dh.service.MailService;
+import com.dh.service.PlayerAccountService;
+import com.dh.service.PlayerService;
+import com.dh.service.PlayerTimerService;
+import com.dh.service.RaidService;
+import com.dh.service.ShopService;
+import com.dh.service.SoldierService;
+import com.dh.service.StreetService;
+import com.dh.service.TasksService;
+import com.dh.service.WelfareService;
+import com.dh.service.YuanZhenService;
+import com.dh.sync.LockConstant;
+import com.dh.sync.SyncLock;
+import com.dh.sync.SyncUtil;
+import com.dh.timer.PlayerLogoutThread;
+import com.dh.util.BadWordsFilter;
+import com.dh.util.CodeTool;
+import com.dh.util.CombatUtil;
+import com.dh.util.CommandUtil;
+import com.dh.util.CommonUtils;
+import com.dh.util.DateUtil;
+import com.dh.util.Tool;
+import com.dh.util.VOUtil;
+import com.dh.vo.user.UserCached;
+import com.google.protobuf.ByteString;
+import com.qq.open.vo.TxUserVO;
+
+/**
+ * 登陆处理中心
+ * 
+ * @author Administrator
+ * 
+ */
+@SuppressWarnings("deprecation")
+@Component
+public class LoginProcessor {
+	private final static int ROLE_NAME_MIN_LEN = 4;
+	private final static int ROLE_NAME_MAX_LEN = 12;
+	private static final String PARTKEY = "242105"; // 9cb的partkey
+	private static Logger logger = Logger.getLogger(LoginProcessor.class);
+	@Resource
+	private PlayerService playerService;
+	@Resource
+	private PlayerAccountService playerAccountService;
+	@Resource
+	private SoldierService soldierService;
+	@Resource
+	private HeroService heroService;
+	@Resource
+	private HeroHangService heroHangService;
+	@Resource
+	private MailService mailService;
+	@Resource
+	private RaidService raidService;
+	@Resource
+	private TasksService tasksService;
+	@Resource
+	private KnapsackService knapsackService;
+	@Resource
+	private PlayerTimerService playerTimerService;
+	@Resource
+	private BuildService buildService;
+	@Resource
+	private ShopService shopService;
+	@Resource
+	private YuanZhenService yuanZhenService;
+	@Resource
+	private FriendService friendService;
+
+	// @Resource
+	// private AreaGroupService areaGroupService;
+	@Resource
+	private StreetService streetService;
+	@Resource
+	private WelfareService welfareService;
+	@Resource
+	private ActivityService activityService;
+	@Resource
+	private GMService gmService;
+	@Resource
+	private LegionService legionService;
+
+	public synchronized void processRegister(PlayerCreateRequest playerCreateRequest, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+
+		try {
+			System.err.println("playerCreateRequest.getAccount() = " + playerCreateRequest.getAccount());
+			System.err.println("playerCreateRequest.getPassword() = " + playerCreateRequest.getPassword());
+			boolean isMinGan = MyOpenApiV3.mingganworld(playerCreateRequest.getAccount(), playerCreateRequest.getPassword(), playerCreateRequest.getPlatform(), playerCreateRequest.getPfkey(),
+					playerCreateRequest.getNick());
+
+			if (isMinGan) {
+				throw new GameException(AlertEnum.ISMINGAN);
+			}
+
+			isMinGan = BadWordsFilter.containBadWord(playerCreateRequest.getNick());
+
+			if (isMinGan) {
+				throw new GameException(AlertEnum.ISMINGAN);
+			}
+
+			UserCached userCached = playerService.singleRegPlayer(playerCreateRequest);
+			long curTime = System.currentTimeMillis();
+			userCached.setLastedAccessTime(curTime);
+			userCached.setChannel(nettyMessageVO.getChannel());
+			userCached.getPlayerVO().setLastLoginDate(new Date());
+			userCached.getPlayerVO().setLastLoginTime(curTime);
+			userCached.getPlayerVO().setScores(1);
+			// System.err.println("我注册在线1:" + curTime);
+
+			mailService.checkNewMail(userCached);
+
+			// --------------------------------
+			heroService.analysisHeroList(userCached, userCached.getUserHero().getHeroList());
+
+			knapsackService.analysisKnaspack(userCached, userCached.getUserKnapsack().getKnapsackList(), true);
+
+			heroService.computerCombat(userCached); // 计算英雄战斗力
+
+			playerTimerService.flushKnaspack(userCached);
+
+			// userCached.getUserRaid().setRaidList(new
+			// ArrayList<PlayerRaidVO>());
+
+			tasksService.analysisTask(userCached, userCached.getTaskList());
+
+			userCached.getUserShop().setShopList(new ArrayList<PlayerShopVO>(3));
+
+			// ------------------------------
+
+			ServerHandler.putUserCached(userCached.getPlayerId(), userCached);
+			ServerHandler.addPlayerChannel(userCached.getPlayerId(), nettyMessageVO.getChannel());
+			// ServerHandler.addPlayerToLegionChannel(userCached.getPlayerVO().getLegionId(),
+			// nettyMessageVO.getChannel());
+			// ServerHandler.addLegionChannel(userCached.getPlayerVO().getLegionId(),
+			// nettyMessageVO.getChannel());
+			commandList.add(packagePlayAllInfoMessage(userCached));
+			loadZqGame(userCached.getPlayerVO());
+			CommandUtil.packageYellowGiftInfo(userCached, commandList);
+			CommandUtil.dayShare(userCached, commandList);
+
+		} catch (GameException ge) {
+			logger.error("注册gameException异常" + ge.getMessage(), ge);
+			throw ge;
+		} catch (Exception e) {
+			logger.error("注册异常" + e.getMessage(), e);
+			throw new GameException(AlertEnum.REGISTER_FAIL);
+		}
+		// processorLogin(playerCreateRequest.getAccount(),
+		// playerCreateRequest.getPassword(), nettyMessageVO, commandList);
+	}
+
+	/**
+	 * 登陆
+	 * 
+	 * @param account
+	 * @param password
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void processorLogin(PlayerLoginRequest request, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		try {
+
+			if (request.getAccount() == null || request.getAccount().trim().length() < 5) {
+				commandList.add(CommonCommand.LOGIN_EXCEPTION_MSG);
+				return;
+			}
+
+			if (PlatformConstant.is9CBPlatform(request.getPlatform())) {
+				if (!Tool.validateMD5(request.getAccount() + PARTKEY, request.getPassword())) {
+					commandList.add(CommonCommand.LOGIN_EXCEPTION_MSG);
+					return;
+				}
+			}
+
+			PlayerVO playerVO = PlayerService.getPlayerVOByAccount(request.getAccount());
+
+			if (playerVO == null) {
+				commandList.add(CommonCommand.NO_USER_MSG); // 无此用户
+				return;
+			} else if (GMConstants.canntLogin(playerVO.getGmGroup())) {
+				throw new GameException(AlertEnum.GM_FORBIN_LOGIN);
+			}
+
+			SyncLock syncLock = SyncUtil.getInstance().getLock(LockConstant.LOCK_PLAYERVO + playerVO.getPlayerId());
+			synchronized (syncLock) {
+
+				// if (NettyServerHandler.mode == NettyServerHandler.MODE_DEBUG
+				// &&
+				// playerVO.getPlayerId() >= 100) {
+				// logger.debug("系统维护");
+				// return;
+				// }
+
+				UserCached userCached = ServerHandler.getUserCached2(playerVO.getPlayerId());
+				if (userCached == null) {
+					userCached = loadPlayerAllInfo(playerVO);
+				} else {
+					// 每天清理pvp值
+					if (!DateUtil.isSameDay(userCached.getPlayerVO().getLastLoginDate())) {
+						playerAccountService.clearPvp(userCached);
+						userCached.getPlayerVO().setScores(userCached.getPlayerVO().getScores() + 1); // 登陆天数
+						playerTimerService.dayFreshOnLogin(userCached.getUserTimer().getPlayerTimerVO());
+					}
+
+					playerTimerService.flushKnaspack(userCached);
+					// userCached.getPlayerVO().setLastLoginDate(new Date());
+					userCached.getPlayerVO().setLastLoginTime(userCached.getPlayerVO().getLastLoginDate().getTime());
+					playerService.updateLastLoginDate(userCached);
+					playerAccountService.freshPlayerPower(userCached);// 计算当前体力恢复
+				}
+
+				if (userCached == null) {
+					commandList.add(CommonCommand.NO_USER_MSG);
+					return;
+				}
+				playerVO = userCached.getPlayerVO();
+				playerVO.setPassword(request.getPassword());
+				playerVO.setPfkey(request.getPfkey());
+				playerVO.setBchannel(request.getPlatform());
+
+				userCached.setLastedAccessTime(System.currentTimeMillis());
+				// 挤掉原用户
+				if (userCached.getChannel() != null && userCached.getChannel().isActive()) {
+					userCached.getChannel().writeAndFlush(CommonCommand.OTHERLOGINMESSAGE);
+					userCached.getChannel().close();
+				}
+				userCached.setChannel(nettyMessageVO.getChannel());
+				LoginEvent(true, userCached);
+				ServerHandler.putUserCached(userCached.getPlayerId(), userCached);
+				ServerHandler.addPlayerChannel(userCached.getPlayerId(), nettyMessageVO.getChannel());
+				ServerHandler.addPlayerToLegionChannel(userCached.getPlayerVO().getLegionId(), nettyMessageVO.getChannel());
+				// userCached =
+				// ServerHandler.getUserCached(userCached.getPlayerId());
+
+				// MyClassLoaderUtil.getInstance().getTaskCheck().taskCheck();
+
+				mailService.checkNewMail(userCached);
+				commandList.add(packagePlayAllInfoMessage(userCached));
+
+				loadZqGame(userCached.getPlayerVO());
+				pushMsg(userCached, commandList);
+				// 前台推送
+			}
+		} catch (Exception e) {
+			logger.error("登陆异常" + request.getAccount(), e);
+			commandList.add(CommonCommand.LOGIN_EXCEPTION_MSG);
+		}
+
+	}
+
+	public static void loadZqGame(PlayerVO playerVO) {
+		try {
+			if (PlatformConstant.isTXPlatform(playerVO.getBchannel())) {
+				TxUserVO txUserVO = YellowYipApiV3.getUserInfo(playerVO.getUserName(), playerVO.getPassword(), playerVO.getBchannel());
+				if (txUserVO != null) {
+					playerVO.setIs_yellow_vip(txUserVO.getIs_yellow_vip());
+					// playerVO.setIs_yellow_vip(1);
+					playerVO.setYellow_vip_level(txUserVO.getYellow_vip_level());
+					// playerVO.setYellow_vip_level(3);
+					playerVO.setIs_yellow_year_vip(txUserVO.getIs_yellow_year_vip());
+					// playerVO.setIs_yellow_year_vip(1);
+					playerVO.setIs_yellow_high_vip(txUserVO.getIs_yellow_high_vip());
+				}
+			}
+		} catch (Exception e) {
+			logger.error("" + e.getMessage(), e);
+		}
+	}
+
+	/**
+	 * 断线重连
+	 * 
+	 * @param account
+	 * @param password
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void reLogin(PlayerLoginRequest request, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		try {
+
+			if (PlatformConstant.is9CBPlatform(request.getPlatform())) {
+				if (!Tool.validateMD5(request.getAccount() + PARTKEY, request.getPassword())) {
+					commandList.add(CommonCommand.LOGIN_EXCEPTION_MSG);
+					return;
+				}
+			}
+
+			PlayerVO playerVO = PlayerService.getPlayerVOByAccount(request.getAccount());
+
+			if (playerVO == null) {
+				commandList.add(CommonCommand.NO_USER_MSG); // 无此用户
+				return;
+			}
+
+			SyncLock syncLock = SyncUtil.getInstance().getLock(LockConstant.LOCK_PLAYERVO + playerVO.getPlayerId());
+			synchronized (syncLock) {
+
+				// if (NettyServerHandler.mode == NettyServerHandler.MODE_DEBUG
+				// &&
+				// playerVO.getPlayerId() >= 100) {
+				// logger.debug("系统维护");
+				// return;
+				// }
+
+				UserCached userCached = ServerHandler.getUserCached(playerVO.getPlayerId());
+				if (userCached == null) {
+					userCached = loadPlayerAllInfo(playerVO);
+
+				} else {
+					playerTimerService.flushKnaspack(userCached);
+					playerAccountService.freshPlayerPower(userCached);// 计算当前体力恢复
+					userCached.getPlayerVO().setLastLoginDate(new Date());
+					userCached.getPlayerVO().setLastLoginTime(userCached.getPlayerVO().getLastLoginDate().getTime());
+				}
+				if (userCached == null) {
+					commandList.add(CommonCommand.NO_USER_MSG);
+					return;
+				}
+				LoginEvent(true, userCached);
+				userCached.getPlayerVO().setPassword(request.getPassword());
+				userCached.getPlayerVO().setPfkey(request.getPfkey());
+				userCached.getPlayerVO().setBchannel(request.getPlatform());
+
+				userCached.setLastedAccessTime(System.currentTimeMillis());
+
+				if (!userCached.getChannel().equals(nettyMessageVO.getChannel())) {
+					userCached.getChannel().close();
+				}
+
+				userCached.setChannel(nettyMessageVO.getChannel());
+				ServerHandler.putUserCached(userCached.getPlayerId(), userCached);
+				ServerHandler.addPlayerChannel(userCached.getPlayerId(), nettyMessageVO.getChannel());
+				ServerHandler.addPlayerToLegionChannel(userCached.getPlayerVO().getLegionId(), nettyMessageVO.getChannel());
+
+				mailService.checkNewMail(userCached);
+				commandList.add(packagePlayAllInfoMessage(userCached));
+
+				// 前台推送
+				loadZqGame(userCached.getPlayerVO());
+				pushMsg(userCached, commandList);
+			}
+		} catch (GameException ge) {
+			logger.error("系统异常" + ge.getMessage(), ge);
+			throw ge;
+		} catch (Exception e) {
+			logger.error("系统异常", e);
+			commandList.add(CommonCommand.LOGIN_EXCEPTION_MSG);
+		}
+
+	}
+
+	private void pushMsg(UserCached userCached, List<NettyMessageVO> commandList) {
+		CommandUtil.packageYellowGiftInfo(userCached, commandList);
+		CommandUtil.packCheckDayDone(userCached, commandList);
+		CommandUtil.packWorldBoss(commandList);
+		CommandUtil.dayShare(userCached, commandList);
+		CommandUtil.packActy(userCached, commandList);
+		legionService.loginPushBaseLegionInfo(userCached, commandList);
+
+	}
+
+	/**
+	 * 加载用户数据
+	 * 
+	 * @param playerId
+	 * @return
+	 * @throws Exception
+	 */
+	public UserCached loadPlayerAllInfo(PlayerVO playerVO) throws Exception {
+		UserCached userCached = new UserCached();
+		userCached.setPlayerId(playerVO.getPlayerId());
+		playerService.loadPlayerInfo(userCached); // 角色
+		heroService.loadHeroList(userCached); // 英雄
+		knapsackService.loadPlayerKnapsackList(userCached); // 物品和装备
+		heroService.computerCombat(userCached); // 计算英雄战斗力
+		heroHangService.loadHeroHang(userCached); // 英雄挂机队列
+		mailService.loadMail(userCached); // 邮件
+		raidService.loadRaidList(userCached); // 副本
+		tasksService.loadPlayerTask(userCached);
+
+		playerAccountService.loadPlayerAccount(userCached); // 帐户
+		playerTimerService.loadPlayerTimer(userCached);
+		playerAccountService.freshPlayerPower(userCached);// 计算当前体力恢复
+		buildService.loadBuild(userCached);
+		shopService.loadPlayerShop(userCached); // 商城
+
+		streetService.loadPlayerStreet(userCached);// 加载玩家江湖
+		welfareService.loadWelfare(userCached);
+		gmService.loadPlayerGM(userCached);
+
+		// techService.loadTech(userCached);
+		// areaGroupService.loadPlayerCity(userCached);
+		Date nowDate = new Date();
+		if (!DateUtil.isSameDay(userCached.getPlayerVO().getLastLoginDate(), nowDate)) {
+			userCached.getPlayerVO().setScores(userCached.getPlayerVO().getScores() + 1 + 0); // 登陆天数
+			playerAccountService.clearPvp(userCached);
+			playerTimerService.dayFreshOnLogin(userCached.getUserTimer().getPlayerTimerVO());
+		}
+		// userCached.getPlayerVO().setLastLoginDate(nowDate);
+		friendService.LoadFriendList(userCached);
+		activityService.loadBoss(userCached);// 加载世界boss
+		activityService.loadPlayerActy(userCached);//
+		// playerService.updateLastLoginDate(userCached);
+		// legionService.loadLegion(userCached);
+		// 计算角色战斗力
+		if (CombatUtil.playerCombat(userCached)) {
+			playerService.updatePlayerVO(userCached.getPlayerVO());
+		}
+
+		return userCached;
+	}
+
+	private void LoginEvent(boolean isIn, UserCached userCached) {
+		if (isIn) {
+			userCached.getPlayerVO().setLastLoginDate(new Date());
+			userCached.getPlayerVO().setIs_online(1);
+			gmService.gmLogin(userCached);
+		} else {
+			userCached.getPlayerVO().setIs_online(0);
+			gmService.gmLoginOut(userCached);
+		}
+		playerService.updatePlayerVO(userCached.getPlayerVO());
+	}
+
+	/**
+	 * 产生随机名字
+	 * 
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void getRoleName(GetRoleNameRequest request, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		GetRoleNameResponse.Builder builder = GetRoleNameResponse.newBuilder();
+		String nick = NameRes.getInstance().createNick(request.getHeadIcon());
+		while (playerService.isExistsNick(nick)) {
+			nick = NameRes.getInstance().createNick(request.getHeadIcon());
+		}
+		builder.setName(nick);
+		CommandUtil.packageNettyMessage(CSCommandConstant.GET_ROLENAME, builder.build().toByteArray(), commandList);
+	}
+
+	/**
+	 * 校验角色名
+	 * 
+	 * @param request
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void checkRoleName(CheckRoleNameRequest request, List<NettyMessageVO> commandList) throws Exception {
+
+		String roleName = request.getRolename();
+
+		int llen = CommonUtils.calWordsLenth(roleName);
+		if (llen < ROLE_NAME_MIN_LEN) {
+			// 名字太短
+			commandList.add(CommonCommand.ROLENAMESHORT);
+			return;
+		}
+
+		if (llen > ROLE_NAME_MAX_LEN) {
+			// 名字太长
+			commandList.add(CommonCommand.ROLENAMELONG);
+			return;
+		}
+
+		boolean isBadname = BadWordsFilter.containBadWord(roleName);
+
+		if (isBadname) {
+			// 存在非法字符
+			throw new GameException(AlertEnum.COMMON_BADWORD);
+		}
+
+		if (playerService.isExistsNick(roleName)) {
+			commandList.add(CommonCommand.EXISTS_ROLENAME);
+		} else {
+			commandList.add(CommonCommand.NOEXISTS_ROLENAME);
+		}
+	}
+
+	/**
+	 * 用户离线
+	 * 
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void processLogout(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int offPlayerId = Tool.BytesToInt(nettyMessageVO.getData());
+		UserCached userCached = ServerHandler.getUserCached(offPlayerId);
+		if (userCached != null && userCached.getLastedAccessTime() != 0 && (System.currentTimeMillis() - userCached.getLastedAccessTime()) > PlayerLogoutThread.OFFLINETIME) {
+			if (userCached != null && userCached.getChannelGroup() != null) {
+				// areaGroupService.areaLeaveBroadcast(userCached.getChannelGroup(),
+				// userCached.getChannel(), offPlayerId);
+				// areaGroupService.clearChannel(userCached.getChannelGroup(),
+				// userCached.getChannel());
+
+				// 重置当前客户端 场景信息
+				// userCached.getPlayerStrongHoldVO().setPosx(AreaOperationHandler.START_POS_X);
+				// userCached.getPlayerStrongHoldVO().setPosy(AreaOperationHandler.START_POS_Y);
+				userCached.setChannelGroup(null);
+			}
+			// LoginEvent(false, userCached);
+			// 清理缓存
+			ServerHandler.removePlayerChannelByChannel(userCached.getChannel());
+			userCached.getChannel().close();
+			ServerHandler.removeUserCached(offPlayerId);
+		}
+	}
+
+	/**
+	 * 打包玩家数据
+	 * 
+	 * @param userCached
+	 * @return
+	 */
+	public static NettyMessageVO packagePlayAllInfoMessage(UserCached userCached) {
+		PlayerLoginResponse.Builder builder = PlayerLoginResponse.newBuilder();
+		PlayerProto.Builder playerProto = PlayerProto.newBuilder();
+		int now = (int) (System.currentTimeMillis() / 1000);
+		builder.setResult(EXIST_STATUS.PLAYER_EXIST);
+		playerProto.setMyPlayer(VOUtil.getPlayerInfo(userCached));
+		playerProto.setMyPlayerAccount(VOUtil.getPlayerAccount(userCached));
+		// 英雄
+		VOUtil.loadHeroList(userCached, playerProto);
+		// 物品
+		VOUtil.loadKnaspackList(userCached, playerProto);
+		VOUtil.loadMyKnapsack(userCached, playerProto); // 背包格子数等信息
+		VOUtil.loadBuildLevel(userCached, playerProto);
+		// 邮件
+		playerProto.setIsNewMail(userCached.getUserMail().isNewMail());
+		int daddyLimit = 0 + 0;
+		if (userCached.getUserStreet() != null) {
+			playerProto.setStreetStatus(userCached.getUserStreet().getStatus());
+			int daddy = userCached.getUserStreet().getStreetResById(StreetConstants.CENTER_GRID_NUM).getWhosyourdaddy();
+			daddyLimit = daddy == 0 ? 0 : (StreetConstants.RES_WHOSYOUDADDY - (now - daddy));
+		}
+		playerProto.setBufListInfo(BufListInfo.newBuilder().setDaddyLimit(daddyLimit));
+		playerProto.setGuide(ByteString.copyFrom(CodeTool.transCharsTobytes(userCached.getUserTimer().getPlayerTimerVO().getGuideArray())));
+		// 任务
+		VOUtil.loadTaskList(userCached, playerProto);
+		VOUtil.loadPlayerFriends(userCached, playerProto);
+		playerProto.setPowerBuyInfo(VOUtil.packBuyPower(userCached));
+
+		// 时间相关
+		playerProto.setNow(DateUtil.getNow());
+		builder.setPlayerProto(playerProto);
+		NettyMessageVO nettyMessageVO = new NettyMessageVO();
+		nettyMessageVO.setCommandCode(CSCommandConstant.USER_LOGIN);
+		nettyMessageVO.setData(builder.build().toByteArray());
+		return nettyMessageVO;
+	}
+
+	public void updateGuide(GuideUpReq req, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+		PlayerTimerVO timeVO = userCached.getUserTimer().getPlayerTimerVO();
+		int index = req.getIndex();
+		char[] guideArray = timeVO.getGuideArray();
+		if (index >= 0 && index < CommonConstants.GUIDE_NUM * 8) {
+			int div = index / 8;
+			int dis = index % 8;
+			char b = guideArray[div];
+			b = (char) (b | (CommonConstants.SLIDE_NUM << dis));
+			guideArray[div] = b;
+			timeVO.setGuide(CodeTool.encodeCharsToStr(guideArray));
+
+			playerTimerService.updateGuide(timeVO);
+		}
+	}
+
+	public static void printArray(char[] chars) {
+		System.out.println("start print chars");
+		for (int i = 0; i < chars.length; i++) {
+			System.out.println((int) (chars[i]));
+		}
+	}
+
+	public static void printByteArray(byte[] bytes) {
+		System.out.println("start print bytes");
+		for (int i = 0; i < bytes.length; i++) {
+			System.out.print(bytes[i]);
+		}
+	}
+
+	public static void main(String[] args) throws Exception {
+		String str = "中文12abc";
+		String pattern = "[\u4e00-\u9fa5\\w]+";
+
+		System.out.println(str.matches(pattern));
+	}
+}

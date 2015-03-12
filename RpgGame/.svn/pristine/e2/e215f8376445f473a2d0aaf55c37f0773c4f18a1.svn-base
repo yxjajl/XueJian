@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="com.dh.dao.BattleRecordMapper">
+	
+	<select id="getBattleRecord" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.BattleRecordVO">
+		SELECT
+		  `playerId`,
+		  `index`,
+		  `atktype`,
+		  `otherPlayerId`,
+		  `succ`,
+		  `rank`,`battleDate`
+		FROM `t_battle_record` order by  `battleDate`
+	</select>
+	
+	<insert id="saveBattleRecord" parameterType="com.dh.game.vo.user.BattleRecordVO">
+		INSERT INTO `t_battle_record`
+            (`playerId`,
+             `index`,
+             `atktype`,
+             `otherPlayerId`,
+             `succ`,
+             `rank`,`battleDate`)
+		VALUES (#{playerId},
+		        #{index},
+		        #{atktype},
+		        #{otherPlayerId},
+		        #{succ},
+		        #{rank},#{battleDate})
+		ON DUPLICATE KEY UPDATE 
+		  `atktype` = #{atktype},
+		  `otherPlayerId` = #{otherPlayerId},
+		  `succ` = #{succ},
+		  `rank` = #{rank},
+		  `battleDate` = #{battleDate}
+	</insert>
+	
+	
+</mapper>

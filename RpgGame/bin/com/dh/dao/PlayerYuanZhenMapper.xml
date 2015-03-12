@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="com.dh.dao.PlayerYuanZhenMapper">
+	
+	<select id="getPlayerYuanZhenVO" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.PlayerYuanZhenVO">
+		SELECT `playerId`, `index`, `otherId`, `status` FROM `t_player_yuanzhen` WHERE `playerId` = #{playerId}
+	</select>
+	
+	<update id="updatePlayerYuanZhenVO" parameterType="com.dh.game.vo.user.PlayerYuanZhenVO">
+		UPDATE `t_player_yuanzhen`
+		SET 
+		  `otherId` = #{otherId},
+		  `status` = #{status}
+		WHERE `playerId` = #{playerId}
+		    AND `index` = #{index}
+	</update>
+	
+	<delete id="delPlayerYuanZhenVO" parameterType="java.lang.Integer">
+		DELETE FROM `t_player_yuanzhen` WHERE `playerId` = #{playerId}
+	</delete>
+	
+	<insert id = "insertPlayerYuanZhenVO" parameterType="com.dh.game.vo.user.PlayerYuanZhenVO">
+		INSERT INTO `t_player_yuanzhen`
+            (`playerId`,
+             `index`,
+             `otherId`,
+             `status`)
+		VALUES (#{playerId},
+		        #{index},
+		        #{otherId},
+		        #{status})
+	</insert>
+		
+</mapper>

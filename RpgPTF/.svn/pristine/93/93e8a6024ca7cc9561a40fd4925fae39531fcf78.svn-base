@@ -1,0 +1,10 @@
+package com.dh.game.vo.item;
+
+message GoldIngotsRequest {
+	required int32 serialId = 1; // //商品流水id
+	required int32 count = 2; //
+}
+
+message GoldIngotsResponse {
+	required string urlparams = 1;
+}

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="com.dh.dao.PlayerFriendMapper">
+	
+	<select id="getFriendList" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.PlayerFriendVO">
+		SELECT `playerId`,`otherId`,`type`,`frDate`,`name` FROM `t_player_friends` where `playerId`=#{playerId}
+	</select>
+	
+	<update id="addFriend" parameterType="com.dh.game.vo.user.PlayerFriendVO">
+		REPLACE INTO `t_player_friends` (`playerId`,`otherId`,`type`,`frDate`,`name`) VALUES
+		(#{playerId}, #{otherId},#{type},#{frDate},#{name})
+	</update>
+	
+	<delete id="delFriend" parameterType="com.dh.game.vo.user.PlayerFriendVO">
+		delete from `t_player_friends` where `playerId` = #{playerId} and `otherId` = #{otherId}
+	</delete>
+	
+</mapper>

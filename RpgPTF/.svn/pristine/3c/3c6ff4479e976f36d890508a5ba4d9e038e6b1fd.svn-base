@@ -1,0 +1,10 @@
+package com.dh.game.vo.login;
+//用户注册
+message PlayerCreateRequest {
+	required string account = 1;
+	required string password = 2;
+	required int32 headIcon = 3;
+	required string nick = 4;
+}
+
+

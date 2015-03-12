@@ -1,0 +1,12 @@
+package com.dh.game.vo.activity;
+
+//单笔充值奖励　领取
+message OneRechargeReq {
+	required int32 type = 1; //0全部给 >0领取 500元宝1000元宝
+}
+
+// id 和 value的长度要一样
+message OneRechargeRep {
+	repeated int32 id = 1;
+	repeated int32 value = 2; //可领取次数
+}

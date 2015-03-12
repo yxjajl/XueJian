@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="src" path="scriptsrc"/>
+	<classpathentry kind="src" path="test"/>
+	<classpathentry kind="src" path="config"/>
+	<classpathentry kind="lib" path="lib/c3p0-0.9.1.1.jar"/>
+	<classpathentry kind="lib" path="lib/com.springsource.com.ibatis-2.3.4.726.jar"/>
+	<classpathentry kind="lib" path="lib/com.springsource.com.mchange.v2.c3p0-0.9.1.2.jar"/>
+	<classpathentry kind="lib" path="lib/com.springsource.net.sf.cglib-2.2.0.jar"/>
+	<classpathentry kind="lib" path="lib/com.springsource.org.aopalliance-1.0.0.jar"/>
+	<classpathentry kind="lib" path="lib/com.springsource.org.apache.commons.lang-2.4.0.jar"/>
+	<classpathentry kind="lib" path="lib/com.springsource.org.apache.commons.logging-1.1.1.jar"/>
+	<classpathentry kind="lib" path="lib/com.springsource.org.apache.commons.pool-1.5.3.jar"/>
+	<classpathentry kind="lib" path="lib/com.springsource.org.apache.log4j-1.2.15.jar"/>
+	<classpathentry kind="lib" path="lib/com.springsource.org.aspectj.weaver-1.6.8.RELEASE.jar"/>
+	<classpathentry kind="lib" path="lib/commons-cli-1.0.jar"/>
+	<classpathentry kind="lib" path="lib/commons-collections-3.1.jar"/>
+	<classpathentry kind="lib" path="lib/commons-dbcp.jar"/>
+	<classpathentry kind="lib" path="lib/commons-pool-1.5.6.jar"/>
+	<classpathentry kind="lib" path="lib/httpcore-4.1-alpha1.jar"/>
+	<classpathentry kind="lib" path="lib/jotm.jar"/>
+	<classpathentry kind="lib" path="lib/log4j.jar"/>
+	<classpathentry kind="lib" path="lib/mybatis-3.1.1.jar"/>
+	<classpathentry kind="lib" path="lib/mybatis-spring-1.1.2-SNAPSHOT.jar"/>
+	<classpathentry kind="lib" path="lib/mysql-connector-java-5.1.22-bin.jar"/>
+	<classpathentry kind="lib" path="lib/opencsv-2.3.jar"/>
+	<classpathentry kind="lib" path="lib/org.springframework.aop-3.0.1.RELEASE-A.jar"/>
+	<classpathentry kind="lib" path="lib/org.springframework.asm-3.0.1.RELEASE-A.jar"/>
+	<classpathentry kind="lib" path="lib/org.springframework.aspects-3.0.1.RELEASE-A.jar"/>
+	<classpathentry kind="lib" path="lib/org.springframework.beans-3.0.1.RELEASE-A.jar"/>
+	<classpathentry kind="lib" path="lib/org.springframework.context-3.0.1.RELEASE-A.jar"/>
+	<classpathentry kind="lib" path="lib/org.springframework.core-3.0.1.RELEASE-A.jar"/>
+	<classpathentry kind="lib" path="lib/org.springframework.expression-3.0.1.RELEASE-A.jar"/>
+	<classpathentry kind="lib" path="lib/org.springframework.instrument-3.0.1.RELEASE-A.jar"/>
+	<classpathentry kind="lib" path="lib/org.springframework.instrument.tomcat-3.0.1.RELEASE-A.jar"/>
+	<classpathentry kind="lib" path="lib/org.springframework.jdbc-3.0.1.RELEASE-A.jar"/>
+	<classpathentry kind="lib" path="lib/org.springframework.orm-3.0.1.RELEASE-A.jar"/>
+	<classpathentry kind="lib" path="lib/org.springframework.transaction-3.0.1.RELEASE-A.jar"/>
+	<classpathentry kind="lib" path="lib/persistence.jar"/>
+	<classpathentry kind="lib" path="lib/protobuf-java-2[1].4.jar"/>
+	<classpathentry kind="lib" path="lib/quartz-all-1.6.0.jar"/>
+	<classpathentry kind="lib" path="lib/slf4j-api-1.6.1.jar"/>
+	<classpathentry kind="lib" path="lib/slf4j-log4j12-1.7.5.jar"/>
+	<classpathentry kind="lib" path="lib/trove-3.0.3.jar"/>
+	<classpathentry kind="lib" path="lib/xapool.jar"/>
+	<classpathentry kind="lib" path="lib/org.springframework.context.support-3.1.2.RELEASE.jar"/>
+	<classpathentry kind="lib" path="lib/com.springsource.javax.transaction-1.1.0.jar"/>
+	<classpathentry kind="lib" path="lib/org.springframework.beans-3.1.0.RELEASE.jar"/>
+	<classpathentry kind="lib" path="lib/fastjson-1.0.4.jar"/>
+	<classpathentry kind="lib" path="lib/jedis-2.1.0.jar" sourcepath="lib/jedis-2.1.0-sources.jar"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/QQZIFU"/>
+	<classpathentry kind="lib" path="lib/org.eclipse.jface_3.7.0.I20110522-1430.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/jre8"/>
+	<classpathentry kind="lib" path="lib/netty-all-5.0.0.Alpha1.jar" sourcepath="F:/下载备份/netty-5.0.0.Alpha1/jar/all-in-one/netty-all-5.0.0.Alpha1-sources.jar">
+		<attributes>
+			<attribute name="source_encoding" value="UTF-8"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry combineaccessrules="false" kind="src" path="/RpgPTF"/>
+	<classpathentry kind="lib" path="lib/jreloader.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>

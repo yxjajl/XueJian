@@ -1,0 +1,418 @@
+package com.dh.game.vo.user;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import com.dh.game.vo.base.BaseGrowthVO;
+import com.dh.game.vo.base.BaseHeroInfoVO;
+import com.dh.game.vo.base.BaseLevelVO;
+import com.dh.game.vo.base.PassivesSkillVO;
+
+public class PlayerHeroVO {
+	private int id;
+	private int playerId;
+	private int cfgId;
+	private int level;
+	private int exp;
+	private int hungre;
+	private String name;
+
+	private int hp;
+	private int def;
+	private int mdef;
+	private int atk;
+	private int matk;
+	private int hit;
+	private int dodge;
+	private int cir_rate;
+	private String passivesSkill = "";
+	private int skillLevel;
+
+	private int final_hp;
+	private int final_def;
+	private int final_mdef;
+	private int final_atk;
+	private int final_matk;
+	private int final_hit;
+	private int final_dodge;
+	private int final_cir_rate;
+	private int combat = 0;
+
+	private int lineStatus;// 当前所在进攻或者防守队列[1-30:江湖资源点resId][101]
+	private int star;
+
+	private int yzhp = 0; // 远征血量
+	private int yzanger = 0;
+
+	private int hang_status = 0; // 0 正常 1挂机中
+	private transient BaseHeroInfoVO baseHeroInfoVO;
+	private transient BaseLevelVO baseLevelVO;
+	private transient BaseGrowthVO baseGrowthVO;
+	private transient List<PlayerKnapsackVO> equipList = new ArrayList<PlayerKnapsackVO>(6);
+	private transient PassivesSkillVO[] npassivesSkill = null;
+
+	/**
+	 * 查询同样一个部位的装备
+	 * 
+	 * @param equipmment
+	 * @return
+	 */
+	public PlayerKnapsackVO getSameTypeEquipment(PlayerKnapsackVO equipmment) {
+		for (PlayerKnapsackVO playerKnapsackVO : equipList) {
+			if (equipmment.getBaseItemVO().getSubType() == playerKnapsackVO.getBaseItemVO().getSubType()) {
+				return playerKnapsackVO;
+			}
+		}
+
+		return null;
+	}
+
+	public void addEquipment(PlayerKnapsackVO playerKnapsackVO) {
+		equipList.add(playerKnapsackVO);
+	}
+
+	public void removeEquipment(PlayerKnapsackVO playerKnapsackVO) {
+		equipList.remove(playerKnapsackVO);
+	}
+
+	/**
+	 * 是否有某项被动技能
+	 * 
+	 * @param psid
+	 * @return
+	 */
+	public PassivesSkillVO hasPassSkill(int psid) {
+		if (npassivesSkill != null && npassivesSkill.length > 0) {
+			for (PassivesSkillVO passivesSkillVO : npassivesSkill) {
+				if (passivesSkillVO != null && psid == passivesSkillVO.getId()) {
+					return passivesSkillVO;
+				}
+			}
+		}
+
+		return null;
+	}
+
+	public int getPassNum() {
+		int num = 0;
+		if (npassivesSkill != null && npassivesSkill.length > 0) {
+			for (PassivesSkillVO passivesSkillVO : npassivesSkill) {
+				if (passivesSkillVO != null) {
+					num++;
+				}
+			}
+		}
+		return num;
+	}
+
+	public void clear() {
+		equipList.clear();
+		baseGrowthVO = null;
+		baseLevelVO = null;
+		baseHeroInfoVO = null;
+	}
+
+	public int getSkillLevel() {
+		return skillLevel;
+	}
+
+	public void setSkillLevel(int skillLevel) {
+		this.skillLevel = skillLevel;
+	}
+
+	public int getId() {
+		return id;
+	}
+
+	public void setId(int id) {
+		this.id = id;
+	}
+
+	public int getPlayerId() {
+		return playerId;
+	}
+
+	public void setPlayerId(int playerId) {
+		this.playerId = playerId;
+	}
+
+	public int getCfgId() {
+		return cfgId;
+	}
+
+	public void setCfgId(int cfgId) {
+		this.cfgId = cfgId;
+	}
+
+	public int getLevel() {
+		return level;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public void setLevel(int level) {
+		this.level = level;
+	}
+
+	public int getExp() {
+		return exp;
+	}
+
+	public void setExp(int exp) {
+		this.exp = exp;
+	}
+
+	public int getFinal_hp() {
+		return final_hp;
+	}
+
+	public void setFinal_hp(int final_hp) {
+		this.final_hp = final_hp;
+	}
+
+	public int getFinal_def() {
+		return final_def;
+	}
+
+	public void setFinal_def(int final_def) {
+		this.final_def = final_def;
+	}
+
+	public int getFinal_mdef() {
+		return final_mdef;
+	}
+
+	public void setFinal_mdef(int final_mdef) {
+		this.final_mdef = final_mdef;
+	}
+
+	public int getFinal_atk() {
+		return final_atk;
+	}
+
+	public void setFinal_atk(int final_atk) {
+		this.final_atk = final_atk;
+	}
+
+	public int getFinal_matk() {
+		return final_matk;
+	}
+
+	public void setFinal_matk(int final_matk) {
+		this.final_matk = final_matk;
+	}
+
+	public int getFinal_hit() {
+		return final_hit;
+	}
+
+	public void setFinal_hit(int final_hit) {
+		this.final_hit = final_hit;
+	}
+
+	public int getFinal_dodge() {
+		return final_dodge;
+	}
+
+	public void setFinal_dodge(int final_dodge) {
+		this.final_dodge = final_dodge;
+	}
+
+	public int getFinal_cir_rate() {
+		return final_cir_rate;
+	}
+
+	public void setFinal_cir_rate(int final_cir_rate) {
+		this.final_cir_rate = final_cir_rate;
+	}
+
+	public int getCombat() {
+		return combat;
+	}
+
+	public void setCombat(int combat) {
+		this.combat = combat;
+	}
+
+	public BaseHeroInfoVO getBaseHeroInfoVO() {
+		return baseHeroInfoVO;
+	}
+
+	public void setBaseHeroInfoVO(BaseHeroInfoVO baseHeroInfoVO) {
+		this.baseHeroInfoVO = baseHeroInfoVO;
+	}
+
+	public BaseLevelVO getBaseLevelVO() {
+		return baseLevelVO;
+	}
+
+	public void setBaseLevelVO(BaseLevelVO baseLevelVO) {
+		this.baseLevelVO = baseLevelVO;
+	}
+
+	public BaseGrowthVO getBaseGrowthVO() {
+		return baseGrowthVO;
+	}
+
+	public void setBaseGrowthVO(BaseGrowthVO baseGrowthVO) {
+		this.baseGrowthVO = baseGrowthVO;
+	}
+
+	public List<PlayerKnapsackVO> getEquipList() {
+		return equipList;
+	}
+
+	public void setEquipList(List<PlayerKnapsackVO> equipList) {
+		this.equipList = equipList;
+	}
+
+	public int getHungre() {
+		return hungre;
+	}
+
+	public void setHungre(int hungre) {
+		this.hungre = hungre;
+	}
+
+	public int getHp() {
+		return hp;
+	}
+
+	public void setHp(int hp) {
+		this.hp = hp;
+	}
+
+	public int getDef() {
+		return def;
+	}
+
+	public void setDef(int def) {
+		this.def = def;
+	}
+
+	public int getMdef() {
+		return mdef;
+	}
+
+	public void setMdef(int mdef) {
+		this.mdef = mdef;
+	}
+
+	public int getAtk() {
+		return atk;
+	}
+
+	public void setAtk(int atk) {
+		this.atk = atk;
+	}
+
+	public int getMatk() {
+		return matk;
+	}
+
+	public void setMatk(int matk) {
+		this.matk = matk;
+	}
+
+	public int getHit() {
+		return hit;
+	}
+
+	public void setHit(int hit) {
+		this.hit = hit;
+	}
+
+	public int getDodge() {
+		return dodge;
+	}
+
+	public void setDodge(int dodge) {
+		this.dodge = dodge;
+	}
+
+	public int getCir_rate() {
+		return cir_rate;
+	}
+
+	public void setCir_rate(int cir_rate) {
+		this.cir_rate = cir_rate;
+	}
+
+	public int getHang_status() {
+		return hang_status;
+	}
+
+	public void setHang_status(int hang_status) {
+		this.hang_status = hang_status;
+	}
+
+	public PassivesSkillVO[] getNpassivesSkill() {
+		return npassivesSkill;
+	}
+
+	public void setNpassivesSkill(PassivesSkillVO[] npassivesSkill) {
+		this.npassivesSkill = npassivesSkill;
+		StringBuffer sb = new StringBuffer();
+		int i = 0;
+		for (PassivesSkillVO temp : npassivesSkill) {
+			if (i > 0) {
+				sb.append(",");
+			}
+			if (temp != null) {
+				sb.append(temp.getId());
+			} else {
+				sb.append("0");
+			}
+			i++;
+		}
+
+		this.passivesSkill = sb.toString();
+	}
+
+	public String getPassivesSkill() {
+		return passivesSkill;
+	}
+
+	public void setPassivesSkill(String passivesSkill) {
+		this.passivesSkill = passivesSkill;
+	}
+
+	public int getLineStatus() {
+		return lineStatus;
+	}
+
+	public void setLineStatus(int lineStatus) {
+		this.lineStatus = lineStatus;
+	}
+
+	public int getStar() {
+		return star;
+	}
+
+	public void setStar(int star) {
+		this.star = star;
+	}
+
+	public int getYzhp() {
+		return yzhp;
+	}
+
+	public void setYzhp(int yzhp) {
+		this.yzhp = yzhp;
+	}
+
+	public int getYzanger() {
+		return yzanger;
+	}
+
+	public void setYzanger(int yzanger) {
+		this.yzanger = yzanger;
+	}
+
+}

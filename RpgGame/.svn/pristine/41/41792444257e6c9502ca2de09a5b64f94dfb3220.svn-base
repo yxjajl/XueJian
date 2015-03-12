@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="com.dh.dao.PlayerGMMapper">
+	<update id="updatePlayerGM" parameterType="com.dh.game.vo.user.PlayerGMVO">UPDATE `t_player_gm` SET `loginRecord` = #{loginRecord},`ip`=#{ip} WHERE `playerId` =#{playerId};</update>
+	<select id="getPlayerGM" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.PlayerGMVO">SELECT `playerId`, `loginRecord` FROM `t_player_gm` where `playerId`=#{playerId}</select>
+	<select id="insertGM" parameterType="com.dh.game.vo.user.PlayerGMVO">INSERT INTO `t_player_gm` (`playerId`, `loginRecord`) VALUES (#{playerId}, #{loginRecord});</select>
+	
+</mapper>

@@ -1,0 +1,51 @@
+package com.dh.game.vo.user;
+
+public class BossLogVO implements Comparable<BossLogVO> {
+	private int playerId;
+	private String name;
+	private int hunt;
+	private int addtion;
+
+	public int getPlayerId() {
+		return playerId;
+	}
+
+	public void setPlayerId(int playerId) {
+		this.playerId = playerId;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public int getHunt() {
+		return hunt;
+	}
+
+	public void setHunt(int hunt) {
+		this.hunt = hunt;
+	}
+
+	public int getAddtion() {
+		return addtion;
+	}
+
+	public void setAddtion(int addtion) {
+		this.addtion = addtion;
+	}
+
+	@Override
+	public int compareTo(BossLogVO bossLogVO) {
+		return this.hunt - bossLogVO.hunt;
+	}
+
+	@Override
+	public boolean equals(Object arg0) {
+		return this.playerId == ((BossLogVO) arg0).getPlayerId();
+	}
+
+}

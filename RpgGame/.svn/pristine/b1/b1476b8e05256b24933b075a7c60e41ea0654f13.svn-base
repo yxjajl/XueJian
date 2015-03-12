@@ -1,0 +1,84 @@
+package com.dh.handler.welfare;
+
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.apache.log4j.Logger;
+import org.springframework.stereotype.Component;
+
+import com.dh.game.constant.CSCommandConstant;
+import com.dh.game.vo.activity.ActivityProto.RewardWelfareRequest;
+import com.dh.game.vo.activity.ActivityProto.WelfareRequest;
+import com.dh.handler.ICommandHandler;
+import com.dh.netty.NettyMessageVO;
+import com.dh.processor.WelfareProcessor;
+
+@Component
+public class WelfareHandler implements ICommandHandler {
+	private static Logger logger = Logger.getLogger(WelfareHandler.class);
+
+	@Resource
+	private WelfareProcessor welfareProcessor;
+
+	@Override
+	public void handleMessage(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		switch (nettyMessageVO.getCommandCode()) {
+		case CSCommandConstant.WELFARE_LIST:
+			// welfareProcessor.getWelfareResp(nettyMessageVO, commandList);
+			welfareList(nettyMessageVO, commandList);
+			break;
+		case CSCommandConstant.WELFARE_REWARD:
+			rewardWelfare(nettyMessageVO, commandList);
+			break;
+		case CSCommandConstant.REWARD_ONLINE:
+			rewardOnline(nettyMessageVO, commandList);
+			break;
+		case CSCommandConstant.REWARD_ONLINE_DETAIL:
+			rewardOnlineDetail(nettyMessageVO, commandList);
+			break;
+		case CSCommandConstant.REWARD_FEEDBACK_VIP: // 领取反馈
+			welfareProcessor.feedbackGiftGold(nettyMessageVO, commandList);
+			break;
+		case CSCommandConstant.GET_FEEDBACK_INFO: // 反馈礼金信息
+			welfareProcessor.freshFeedbackGiftGold(nettyMessageVO, commandList);
+			break;
+		default:
+			logger.error("error WelfareHandler Commandcode " + nettyMessageVO.getCommandCode());
+			break;
+		}
+
+	}
+
+	// 进入福利大厅
+	public void welfareList(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		WelfareRequest request = null;
+		try {
+			request = WelfareRequest.parseFrom(nettyMessageVO.getData());
+			welfareProcessor.getWelfareResp(request, nettyMessageVO, commandList);
+		} catch (Exception e) {
+			logger.error("数据解析异常", e);
+			throw e;
+		}
+	}
+
+	private void rewardOnlineDetail(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		welfareProcessor.rewardOnlineDetail(nettyMessageVO, commandList);
+	}
+
+	private void rewardOnline(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		welfareProcessor.rewardOnline(nettyMessageVO, commandList);
+	}
+
+	public void rewardWelfare(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		RewardWelfareRequest request = null;
+		try {
+			request = RewardWelfareRequest.parseFrom(nettyMessageVO.getData());
+			welfareProcessor.rewardWelfare(request, nettyMessageVO, commandList);
+		} catch (Exception e) {
+			logger.error("数据解析异常", e);
+			throw e;
+		}
+
+	}
+}

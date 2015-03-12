@@ -1,0 +1,215 @@
+package com.dh.main;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Properties;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import javax.annotation.Resource;
+
+import org.apache.log4j.Logger;
+import org.springframework.stereotype.Component;
+
+import com.dh.Cache.JedisTool;
+import com.dh.Cache.ServerHandler;
+import com.dh.constants.StreetConstants;
+import com.dh.constants.TXConstants;
+import com.dh.game.vo.user.PlayerVO;
+import com.dh.handler.HandlerRegister;
+import com.dh.netty.NettyMessageVO;
+import com.dh.netty.NettyServerHandler;
+import com.dh.processor.TimerProcessor;
+import com.dh.queue.ArrayCommandQueue;
+import com.dh.queue.ChatCommandQueue;
+import com.dh.queue.GMCommandQueue;
+import com.dh.queue.LocalCommandQueue;
+import com.dh.queue.LocalCommandRunnable;
+import com.dh.s2s.queue.BaseQueue;
+import com.dh.s2s.vo.ServerVO;
+import com.dh.service.ActivityService;
+import com.dh.service.ArenaService;
+import com.dh.service.BaseInfoService;
+import com.dh.service.GMService;
+import com.dh.service.HeroService;
+import com.dh.service.LegionService;
+import com.dh.service.MailService;
+import com.dh.service.NettyXMLServer;
+import com.dh.service.PlayerAccountService;
+import com.dh.service.PlayerService;
+import com.dh.service.RestoreService;
+import com.dh.service.ShopService;
+import com.dh.service.StreetService;
+import com.dh.sqlexe.SqlExeThread;
+import com.dh.sqlexe.SqlSaveThread;
+import com.dh.sqlexe.SqldirectExeThread;
+import com.dh.util.ProperytiesUtil;
+import com.dh.util.SqlBuild;
+
+@Component
+public class InitLoad {
+	private static final Logger logger = Logger.getLogger(InitLoad.class);
+	@Resource
+	private HandlerRegister handlerRegister;
+	@Resource
+	private BaseInfoService baseInfoService;
+	@Resource
+	private PlayerService playerService;
+	@Resource
+	private ShopService shopService;
+	@Resource
+	private ArenaService arenaService;
+	@Resource
+	private RestoreService restoreService;
+	@Resource
+	private SqlSaveThread sqlSaveThread;
+	@Resource
+	private SqlExeThread sqlExeThread;
+	@Resource
+	private SqldirectExeThread sqldirectExeThread;
+	@Resource
+	private TimerProcessor timerProcessor;
+	@Resource
+	private HeroService heroService;
+	@Resource
+	private MailService mailService;
+	@Resource
+	private ActivityService activityService;
+	@Resource
+	private GMService gmService;
+	@Resource
+	private LegionService legionService;
+	@Resource
+	private StreetService streetService;
+	@Resource
+	private PlayerAccountService playerAccountService;
+	@Resource
+	private NettyXMLServer nettyXMLServer;
+	@Resource
+	private SqlBuild sqlBuild;
+	public static boolean DEBUG_BETA = false;
+	public static boolean DEBUG_OFF_GUIDE = false;
+
+	public void init() throws Exception {
+		System.setProperty("java.rmi.server.hostname ", "203.195.173.232");
+		if (System.getProperty("os.name").equalsIgnoreCase("Windows 7") && System.getProperty("user.name").equalsIgnoreCase("dingqu-pc100")) {// 本地开启时才
+			DEBUG_OFF_GUIDE = true;
+			DEBUG_BETA = true;
+		}
+		// PlayerVO pv = new PlayerVO();
+		// pv.setPlayerId(1);
+		// long d1 = System.currentTimeMillis();
+		// JedisTool.set("aaa", "0");
+		// for (int i = 0; i < 1000; i++) {
+		// sqlSaveThread.putSql(sqlBuild.getSql("com.dh.dao.PlayerMapper.registerPlayer",
+		// pv));
+		// }
+		// System.out.println("use " + (System.currentTimeMillis() - d1));
+		initS2sSocket();
+
+		// SecurityXMLServer.startXMLServer();
+		new Thread(nettyXMLServer).start();
+		// new Thread().start();
+		// 本地指令处理线程
+		int nThread = 0;
+		for (BaseQueue<NettyMessageVO> baseQueue : ArrayCommandQueue.arrQueue) {
+			ServerHandler.businessThreadList.add(new LocalCommandRunnable(baseQueue, "常规线程" + (nThread++)));
+		}
+		ServerHandler.businessThreadList.add(new LocalCommandRunnable(LocalCommandQueue.getInstance(), "LocalCommandQueue常规线程"));
+		ServerHandler.businessThreadList.add(new LocalCommandRunnable(ChatCommandQueue.getInstance(), "聊天常规线程"));
+		ServerHandler.businessThreadList.add(new LocalCommandRunnable(GMCommandQueue.getInstance(), "GM规线程"));
+
+		// new Thread(new LocalCommandRunnable(MoveCommandQueue.getInstance(),
+		// "场景线程"), "场景线程").start();
+		// new Thread(new LocalCommandRunnable(LoginCommandQueue.getInstance(),
+		// "登陆线程"), "登陆线程").start();
+		// 外部服务器线程s
+
+		// 基础配置文件初始化
+		restoreService.loadBaseDataFromDB();
+		playerService.initPlayerGMData();
+		List<PlayerVO> playerVOList = playerService.getAllPlayerVO();
+		playerService.loadAllPlayer(playerVOList);
+		playerAccountService.loadAllAccount(playerVOList);
+		baseInfoService.loadBaseData();
+		baseInfoService.loadGameRecord();
+		shopService.refreshShop();
+		arenaService.loadAllPlayerArenaVO();
+		handlerRegister.registerCommandHandlers();
+		playerService.prepareUserCaches();
+		playerService.prepareUserCaches();
+
+		// mailService.insertMailForTest();
+		timerProcessor.arenaRefresh();
+		heroService.loadAllPlayerHeros(playerVOList);
+		mailService.initMail2Redis(playerVOList);
+		activityService.freshBoss(null);
+		activityService.loadBossMaxKill();
+		activityService.loadChargeTop20();
+		legionService.initLoalLegion();
+		streetService.loadAllPlayerStreet(playerVOList);
+		gmService.loadBlacks();
+
+		StreetConstants.RobotsGenerator();
+		for (LocalCommandRunnable localCommandRunnable : ServerHandler.businessThreadList) {
+			new Thread(localCommandRunnable, localCommandRunnable.getThreadName()).start();
+		}
+		sqlSaveThread.start();
+		sqlExeThread.start();
+		ExecutorService exec = Executors.newCachedThreadPool();
+		exec.execute(sqldirectExeThread);
+		// .start();
+		System.err.println("==========================================init===========================================================end");
+		NettyServerHandler.System_status = 0;
+	}
+
+	public void initS2sSocket() {
+		HashMap<String, ServerVO> map = new HashMap<String, ServerVO>();
+		try {
+			String strpro = null;
+			String osName = System.getProperty("os.name");
+			if (osName.startsWith("Windows")) {
+				strpro = "config\\server.properties";
+			} else {
+				strpro = "server.properties";
+			}
+			Properties properties = ProperytiesUtil.loadProperties(strpro);
+
+			JedisTool.serverip = (String) properties.get("redis_server_ip");
+			JedisTool.TSTPSW = (String) properties.get("redis_server_pwd");
+			JedisTool.dbIndex = Integer.valueOf((String) properties.get("redis_server_db"));
+			TXConstants.tx_zone_id = (String) properties.get("tx_zone_id");
+			TXConstants.my_server_id = Integer.valueOf((String) properties.get("my_server_id"));
+
+			// map.put("centerServer", new
+			// ServerVO(properties.getProperty("centerServer.host"),
+			// Integer.parseInt(properties.getProperty("centerServer.port"))));
+			// map.put("socialServer", new
+			// ServerVO(properties.getProperty("socialServer.host"),
+			// Integer.parseInt(properties.getProperty("socialServer.port"))));
+			// commandProcessThread.start(map);
+		} catch (Exception e) {
+			logger.error("无法连接远程服务器", e);
+		} finally {
+			map.clear();
+			map = null;
+		}
+
+		// connectCenterServer();
+
+	}
+
+	// public void connectCenterServer() {
+	// ServerRegisterRequest.Builder builder =
+	// ServerRegisterRequest.newBuilder();
+	// builder.setServerId(1);
+	// builder.setServerType(SERVERTYPE.GATE);
+	//
+	// NettyMessageVO nettyMessageVO = new NettyMessageVO();
+	// nettyMessageVO.setUserid(0);
+	// nettyMessageVO.setData(builder.build().toByteArray());
+	// nettyMessageVO.setCommandCode(ShareCommandConstant.GATE_WAY_COMMAND);
+	// CommandQueue.getInstance().put(nettyMessageVO);
+	// }
+
+}

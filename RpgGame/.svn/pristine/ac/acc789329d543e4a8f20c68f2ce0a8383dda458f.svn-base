@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dh.dao.PlayerMailMapper">
+	
+	<select id="getMailList" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.MailVO">
+		SELECT `id`, `playerid`, `title`, `content`, `recvtime`, `rewards`, `is_read` as isRead,
+		`is_reward` as isReward, `sender_name` as senderName, `sender_id` as senderId FROM
+		`t_mail` WHERE playerid = #{playerId} AND `is_valid`=0
+	</select>
+	
+	<select id="reloadMails" parameterType="com.dh.game.vo.user.MailVO" resultType="com.dh.game.vo.user.MailVO">
+		SELECT `id`, `playerid`, `title`, `content`, `recvtime`, `rewards`, `is_read` as isRead,
+		`is_reward` as isReward, `sender_name` as senderName, `sender_id` as senderId FROM
+		`t_mail` WHERE playerid = #{playerId} AND `id`>#{id}
+	</select>
+	
+	<select id="getMailById" parameterType="com.dh.game.vo.user.MailVO" resultType="com.dh.game.vo.user.MailVO">
+		SELECT `id`, `playerid`, `title`, `content`, `recvtime`, `rewards`, `is_read`, `is_reward`,
+		`sender_name`, `sender_id` FROM `t_mail` where `playerid`=#{playerId} and `id`=#{id}
+		and `is_valid`=1
+	</select>
+	
+	<insert id="insertMail" parameterType="com.dh.game.vo.user.MailVO">
+		INSERT INTO `t_mail`(`id`,`playerid`,`title`,`content`,`recvtime`,`rewards`,`is_read`,`is_reward`,`is_valid`,`sender_name`,`sender_id`)
+		VALUES (#{id},#{playerId},#{title},#{content},#{recvTime},#{rewards},#{isRead},#{isReward},0,#{senderName},#{senderId})
+	</insert>
+	
+	<update id="updateMail" parameterType="com.dh.game.vo.user.MailVO">
+		UPDATE `t_mail` SET `title`=#{title}, `content`=#{content}, `recvTime`=#{recvTime},
+		`rewards`=#{rewards}, `is_read`=#{isRead}, `is_reward`=#{isReward}, `is_valid`=#{isValid},
+		`sender_name`=#{senderName} where `playerid`=#{playerId} and `id`=#{id}
+	</update>
+	
+	<update id="markMailRead" parameterType="com.dh.game.vo.user.MailVO">UPDATE `t_mail` SET  `is_read`=1 where `playerid`=#{playerId} and `id`=#{id}</update>
+	
+	<update id="markMailReward" parameterType="com.dh.game.vo.user.MailVO">
+		UPDATE `t_mail` SET `is_read`=1,`is_reward`=1,`is_valid`=1 where `playerid`=#{playerId}
+		and `id`=#{id}
+	</update>
+	
+	<update id="markMailValid" parameterType="com.dh.game.vo.user.MailVO">UPDATE `t_mail` SET `is_valid`=1 where `playerid`=#{playerId} and `id`=#{id}</update>
+	
+	<delete id="delMail" parameterType="com.dh.game.vo.user.MailVO">delete from `t_mail` where `playerid`=#{playerId} and `id`=#{id}</delete>
+	<delete id="delInvalidMail" parameterType="java.lang.Integer">
+		delete from `t_mail` where `is_valid`=1 and to_days(now())-to_days(recvTime) &gt;=#{lifeDay};
+	</delete>
+	
+	<select id="getMaxMailId" parameterType="java.lang.Integer" resultType="java.lang.Integer">select IFNULL(MAX(id),0) from t_mail where playerid=#{playerId}</select>
+	<select id="getMaxMailIds" resultType="HashMap">select playerId,max(id) as maxId from t_mail group by playerid</select>
+</mapper>

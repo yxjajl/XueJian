@@ -1,0 +1,11 @@
+package com.dh.constants;
+
+public class RMBConstants {
+
+	// -------------------
+	// 建筑升级加速
+	public final static int BUILD_UPLEVEL_ACC = 5;
+	// 清理俸禄cd
+	public final static int CLEARSALARYCD = 5;
+
+}

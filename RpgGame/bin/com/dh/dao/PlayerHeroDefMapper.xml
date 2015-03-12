@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="com.dh.dao.PlayerHeroDefMapper">
+	<select id="getHeroDefList" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.PlayerHeroDefVO">
+		SELECT `id`, `playerId`, `cfgid`, `level`, `star`, `hp`, `def`, `mdef`, `atk`, `matk`,  `hit`,  `dodge`,  `cir_rate`,`combat`,`passivesSkill`,skillLevel,`name` FROM `t_player_hero_defance`
+		where playerId = #{playerId}
+	</select>
+	
+	<update id="updateHeroDef" parameterType="com.dh.game.vo.user.PlayerHeroDefVO">
+		UPDATE `t_player_hero_defance`
+		SET 
+		  `cfgid` = #{cfgId},
+		  `level` = #{level},
+		  `star` = #{star},
+		  `hp` = #{hp},
+		  `def` = #{def},
+		  `mdef` = #{mdef},
+		  `atk` = #{atk},
+		  `matk` = #{matk},
+		  `hit` = #{hit},
+		  `dodge` = #{dodge},
+		  `cir_rate` = #{cir_rate},
+		   combat = #{combat},
+		`passivesSkill` = #{passivesSkill},
+		skillLevel = #{skillLevel},
+		`name` = #{name}
+		WHERE `id` = #{id}
+		    AND `playerid` = #{playerId}
+	</update>
+	
+	
+	<delete id="delHeroDef" parameterType="java.lang.Integer">
+		DELETE FROM `t_player_hero_defance`
+		WHERE `playerid` = #{playerId}
+	</delete>
+	
+	<insert id= "insertHeroDef" parameterType="com.dh.game.vo.user.PlayerHeroDefVO">
+		INSERT INTO `t_player_hero_defance`
+            (`id`,
+             `playerid`,
+             `cfgid`,
+             `level`,
+             `star`,
+             `hp`,
+             `def`,
+             `mdef`,
+             `atk`,
+             `matk`,
+             `hit`,
+             `dodge`,
+             `cir_rate`,combat,
+			`passivesSkill`,
+		skillLevel,
+		`name`)
+		VALUES (#{id},
+		        #{playerId},
+		        #{cfgId},
+		        #{level},
+		        #{star},
+		        #{hp},
+		        #{def},
+		        #{mdef},
+		        #{atk},
+		        #{matk},
+		        #{hit},
+		        #{dodge},
+		        #{cir_rate},#{combat},
+				#{passivesSkill},
+				#{skillLevel},
+				#{name}
+		)
+	</insert>
+	
+	
+	<select id="getYuanZhenHeroDefList" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.PlayerHeroDefVO">
+		SELECT `id`, `playerId`, `cfgid`, `level`, `star`, `hp`, `def`, `mdef`, `atk`, `matk`,  `hit`,  `dodge`,  `cir_rate`,`combat`,`passivesSkill`,skillLevel,`name`,`yzhp`, `yzanger` FROM `t_player_hero_yuanzhen`
+		where playerId = #{playerId}
+	</select>
+	
+	<update id="updateYuanZhenHeroDef" parameterType="com.dh.game.vo.user.PlayerHeroDefVO">
+		UPDATE `t_player_hero_yuanzhen`
+		SET 
+		  `cfgid` = #{cfgId},
+		  `level` = #{level},
+		  `star` = #{star},
+		  `hp` = #{hp},
+		  `def` = #{def},
+		  `mdef` = #{mdef},
+		  `atk` = #{atk},
+		  `matk` = #{matk},
+		  `hit` = #{hit},
+		  `dodge` = #{dodge},
+		  `cir_rate` = #{cir_rate},
+		   combat = #{combat},
+		`passivesSkill` = #{passivesSkill},
+		skillLevel = #{skillLevel},
+		`name` = #{name},
+		`yzhp` = #{yzhp},
+		`yzanger` = #{yzanger}
+		WHERE `id` = #{id}
+		    AND `playerid` = #{playerId}
+	</update>
+	
+	
+	<delete id="deleYuanZhenHeroDef" parameterType="java.lang.Integer">
+		DELETE FROM `t_player_hero_yuanzhen`
+		WHERE `playerid` = #{playerId}
+	</delete>
+	
+	<insert id= "insertYuanZhenHeroDef" parameterType="com.dh.game.vo.user.PlayerHeroDefVO">
+		INSERT INTO `t_player_hero_yuanzhen`
+            (`id`,
+             `playerid`,
+             `cfgid`,
+             `level`,
+             `star`,
+             `hp`,
+             `def`,
+             `mdef`,
+             `atk`,
+             `matk`,
+             `hit`,
+             `dodge`,
+             `cir_rate`,combat,
+			`passivesSkill`,
+		skillLevel,
+		`name`,`yzhp`, `yzanger`)
+		VALUES (#{id},
+		        #{playerId},
+		        #{cfgId},
+		        #{level},
+		        #{star},
+		        #{hp},
+		        #{def},
+		        #{mdef},
+		        #{atk},
+		        #{matk},
+		        #{hit},
+		        #{dodge},
+		        #{cir_rate},#{combat},
+				#{passivesSkill},
+				#{skillLevel},
+				#{name},#{yzhp}, #{yzanger}
+		)
+	</insert>
+	
+	
+</mapper>

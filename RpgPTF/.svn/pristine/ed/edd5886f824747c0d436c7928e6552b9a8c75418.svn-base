@@ -1,0 +1,9 @@
+compiler.compileProtoFiles=true
+compiler.enableProjectSettings=true
+compiler.javaCodeGenerationEnabled=true
+compiler.javaOutputDirectory=src
+compiler.protocFilePath=C\:\\Program Files\\Java\\jdk1.8.0_05\\bin\\protoc.exe
+compiler.useProtocInCustomPath=true
+compiler.useProtocInSystemPath=false
+eclipse.preferences.version=1
+general.enableProjectSettings=true

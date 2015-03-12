@@ -1,0 +1,59 @@
+package com.dh.game.vo.user;
+
+public class RechargeInfoVO {
+	private String tokenid;
+	private int playerId;
+	private int goldingot;
+	private String urlparam;
+	private String txurl;
+	private int state;
+
+	public String getTokenid() {
+		return tokenid;
+	}
+
+	public void setTokenid(String tokenid) {
+		this.tokenid = tokenid;
+	}
+
+	public int getPlayerId() {
+		return playerId;
+	}
+
+	public void setPlayerId(int playerId) {
+		this.playerId = playerId;
+	}
+
+	public int getGoldingot() {
+		return goldingot;
+	}
+
+	public void setGoldingot(int goldingot) {
+		this.goldingot = goldingot;
+	}
+
+	public String getUrlparam() {
+		return urlparam;
+	}
+
+	public void setUrlparam(String urlparam) {
+		this.urlparam = urlparam;
+	}
+
+	public String getTxurl() {
+		return txurl;
+	}
+
+	public void setTxurl(String txurl) {
+		this.txurl = txurl;
+	}
+
+	public int getState() {
+		return state;
+	}
+
+	public void setState(int state) {
+		this.state = state;
+	}
+
+}

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dh.dao.PlayerCityMapper">
+	
+	<select id="getPlayerCity" resultType="com.dh.game.vo.user.PlayerStrongHoldVO">
+		SELECT `playerid`, `posy`, `posx`, `stronghold`, `opencity` FROM `t_player_stronghold`
+		WHERE `playerid` = #{playerId}
+	</select>
+	
+	<update id="updatePlayerCity" parameterType="com.dh.game.vo.user.PlayerStrongHoldVO">
+		UPDATE `t_player_stronghold` SET `posy` = #{posy}, `posx` = #{posx}, `stronghold`
+		= #{stronghold}, `opencity` = #{opencity} WHERE `playerid` = #{playerid}
+	</update>
+	<insert id="insertStrongHold" parameterType="com.dh.game.vo.user.PlayerStrongHoldVO">
+		INSERT INTO `t_player_stronghold` (`playerid`,`posy`,`posx`,`stronghold`,`opencity`) 
+		VALUES (#{playerid},#{posy},#{posx},#{stronghold},#{opencity});
+	</insert>
+	
+	
+</mapper>

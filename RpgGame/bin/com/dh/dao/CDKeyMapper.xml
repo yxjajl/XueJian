@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="com.dh.dao.CDKeyMapper">
+	<insert id="insertCdKey" parameterType="com.dh.game.vo.base.BaseCdKeyVO">
+		INSERT INTO `rechargedb`.`t_key` (`keyId`, `state`, `type`,`history`)
+	    VALUES (#{keyId}, #{state}, #{type}, '')
+	</insert>
+	
+	<update id="updateBaseCdKey" parameterType="com.dh.game.vo.base.BaseCdKeyVO">
+		UPDATE `rechargedb`.`t_key`
+		SET  `state` = #{state},history = #{history}
+		WHERE `keyId` = #{keyId}
+	</update>
+	
+	<select id="getBaseCdKey" parameterType="java.lang.String" resultType="com.dh.game.vo.base.BaseCdKeyVO">
+		SELECT `keyId`, `state`, `type` FROM `rechargedb`.`t_key` WHERE keyId = #{keyId}		
+	</select>
+	
+</mapper>

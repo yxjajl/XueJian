@@ -1,0 +1,538 @@
+package com.dh.service;
+
+import java.util.Calendar;
+import java.util.Collection;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.apache.log4j.Logger;
+import org.springframework.stereotype.Service;
+
+import com.dh.Cache.RedisMap;
+import com.dh.Cache.ServerHandler;
+import com.dh.constants.ActivityConstant;
+import com.dh.constants.MailConstants;
+import com.dh.dao.PlayerActyMapper;
+import com.dh.dao.PlayerBossMapper;
+import com.dh.dao.YunZhiFuMapper;
+import com.dh.game.constant.CSCommandConstant;
+import com.dh.game.vo.activity.ActivityProto.ActyStatusNotice;
+import com.dh.game.vo.activity.ActivityProto.DayChangeResp;
+import com.dh.game.vo.activity.ActivityProto.PushScoreResp;
+import com.dh.game.vo.activity.WorldBossProto.BOSS_STATUS;
+import com.dh.game.vo.activity.WorldBossProto.BossDetailUpdate;
+import com.dh.game.vo.activity.WorldBossProto.BossStatusResp;
+import com.dh.game.vo.base.BaseDayDoneVO;
+import com.dh.game.vo.base.Reward;
+import com.dh.game.vo.gm.GMProto.ActyAnsReq;
+import com.dh.game.vo.gm.GMProto.WorldBossStartReq;
+import com.dh.game.vo.user.BossLogVO;
+import com.dh.game.vo.user.PlayerActyVO;
+import com.dh.game.vo.user.PlayerBossVO;
+import com.dh.game.vo.user.PlayerTimerVO;
+import com.dh.game.vo.user.PlayerVO;
+import com.dh.game.vo.user.RechargeInfoVO;
+import com.dh.netty.NettyMessageVO;
+import com.dh.resconfig.BossRewardRes;
+import com.dh.resconfig.DayChangeRewardRes;
+import com.dh.resconfig.DayDoneRes;
+import com.dh.resconfig.RewardRes;
+import com.dh.sqlexe.SqlSaveThread;
+import com.dh.timer.ActyTimer;
+import com.dh.util.DateUtil;
+import com.dh.util.SqlBuild;
+import com.dh.util.VOUtil;
+import com.dh.vo.WorldBossVO;
+import com.dh.vo.user.UserCached;
+
+@Service
+public class ActivityService {
+	private final static Logger logger = Logger.getLogger(ActivityService.class);
+	@Resource
+	private SqlBuild sqlBuild;
+	@Resource
+	private SqlSaveThread sqlSaveThread;
+	@Resource
+	private PlayerBossMapper playerBossMapper;
+	@Resource
+	private MailService mailService;
+	@Resource
+	private PlayerTimerService playerTimerService;
+	@Resource
+	private YunZhiFuMapper yunZhiFuMapper;
+	@Resource
+	private PlayerActyMapper playerActyMapper;
+
+	public void addDayDone(UserCached userCached, int index, List<NettyMessageVO> commandList) {
+		try {
+			PlayerTimerVO pt = userCached.getUserTimer().getPlayerTimerVO();
+			pt.getDayDoneArray()[index - 1]++;
+			BaseDayDoneVO dayDoneVO = DayDoneRes.getInstance().getDayDoneById(index);
+			if (pt.getDayDoneArray()[index - 1] == dayDoneVO.getNumber()) {// 达到完成次数.push包
+				int dayScore = pt.getDayDoneScore() + dayDoneVO.getIntegral();
+				dayScore = Math.min(ActivityConstant.DAY_DONE_LIMIT, dayScore);
+				pt.setDayDoneScore(dayScore);
+				NettyMessageVO messageVO = new NettyMessageVO();
+				messageVO.setCommandCode(CSCommandConstant.ACTIVITY_DAY_DONE_UPDATE);
+				messageVO.setData(PushScoreResp.newBuilder().setScore(pt.getDayDoneScore()).setRewards(pt.getDayDoneRewards()).build().toByteArray());
+				commandList.add(messageVO);
+			}
+			playerTimerService.updateDayDone(pt);
+		} catch (Exception e) {
+			logger.error("增加活跃度失败:" + e.getCause(), e);
+		}
+	}
+
+	/**
+	 * 加载玩家boss数据
+	 */
+	public void loadBoss(UserCached userCached) {
+		PlayerBossVO playerBossVO = playerBossMapper.getPlayerBoss(userCached.getPlayerId());
+		if (playerBossVO == null) {
+			return;
+		}
+		BossLogVO bossLogVO = new BossLogVO();
+		bossLogVO.setAddtion(playerBossVO.getAddtion());
+		bossLogVO.setHunt(playerBossVO.getHunt());
+		bossLogVO.setName(userCached.getPlayerVO().getName());
+		playerBossVO.setName(bossLogVO.getName());
+		bossLogVO.setPlayerId(playerBossVO.getPlayerId());
+		playerBossVO.setBossLogVO(bossLogVO);
+		userCached.getUserActivity().setPlayerBossVO(playerBossVO);
+	}
+
+	/** 加载玩家活动 */
+	public void loadPlayerActy(UserCached userCached) {// 登录时加载
+		PlayerActyVO playerActyVO = playerActyMapper.getPlayerActy(userCached.getPlayerId());
+		if (playerActyVO == null) {// 兼容以前没有活动数据
+			playerActyVO = new PlayerActyVO();
+			playerActyVO.setPlayerid(userCached.getPlayerId());
+			userCached.getUserActivity().setPlayerActyVO(playerActyVO);
+			sqlSaveThread.putSql(sqlBuild.getSql("com.dh.dao.PlayerActyMapper.insertPlayerActy", playerActyVO));
+		} else {
+			userCached.getUserActivity().setPlayerActyVO(playerActyVO);
+		}
+	}
+
+	public PlayerBossVO getPlayerBossVO(UserCached userCached) {
+		PlayerBossVO playerBossVO = userCached.getUserActivity().getPlayerBossVO();
+		if (playerBossVO == null) {
+			playerBossVO = new PlayerBossVO();
+			playerBossVO.setStartTime(0);
+			playerBossVO.setAddtion(0);
+			playerBossVO.setToday(new Date());
+			playerBossVO.setHunt(0);
+			playerBossVO.setName(userCached.getPlayerVO().getName());
+			BossLogVO bossLogVO = new BossLogVO();
+			bossLogVO.setName(userCached.getPlayerVO().getName());
+			bossLogVO.setPlayerId(userCached.getPlayerId());
+			bossLogVO.setAddtion(0);
+			bossLogVO.setHunt(0);
+			playerBossVO.setBossLogVO(bossLogVO);
+			playerBossVO.setPlayerId(bossLogVO.getPlayerId());
+			userCached.getUserActivity().setPlayerBossVO(playerBossVO);
+			sqlSaveThread.putSql(sqlBuild.getSql("com.dh.dao.PlayerBossMapper.insertPlayerBoss", playerBossVO));
+		} else if (!DateUtil.isSameDay(playerBossVO.getToday()) || playerBossVO.getProcess() < WorldBossVO.getInstance().getProcess()) {
+			playerBossVO.setStartTime(0);
+			playerBossVO.setHunt(0);
+			playerBossVO.setAddtion(0);
+			playerBossVO.getBossLogVO().setHunt(0);
+			playerBossVO.getBossLogVO().setAddtion(0);
+			playerBossVO.setProcess(WorldBossVO.getInstance().getProcess());
+			playerBossVO.setToday(new Date());
+			BossLogVO bossLogVO = new BossLogVO();
+			bossLogVO.setName(userCached.getPlayerVO().getName());
+			bossLogVO.setPlayerId(userCached.getPlayerId());
+			bossLogVO.setAddtion(0);
+			bossLogVO.setHunt(0);
+			playerBossVO.setBossLogVO(bossLogVO);
+			updatePlayerBoss(playerBossVO);
+		}
+		return playerBossVO;
+	}
+
+	public void updatePlayerBoss(PlayerBossVO playerBossVO) {
+		sqlSaveThread.putSql(sqlBuild.getSql("com.dh.dao.PlayerBossMapper.updatePlayerBoss", playerBossVO));
+	}
+
+	public void updatePlayerActy(PlayerActyVO playerActyVO) {
+		sqlSaveThread.putSql(sqlBuild.getSql("com.dh.dao.PlayerActyMapper.updatePlayerActy", playerActyVO));
+	}
+
+	/**
+	 * 战斗后扣血
+	 * 
+	 * @param userCached
+	 * @param hunt
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void subBossHp(UserCached userCached, int hunt, List<NettyMessageVO> commandList) throws Exception {
+		WorldBossVO instance = WorldBossVO.getInstance();
+		if (instance.isBattle()) {
+			int hp = instance.subHp(hunt);
+			NettyMessageVO nettyMessageVO = new NettyMessageVO();
+			BossDetailUpdate.Builder resp = BossDetailUpdate.newBuilder();
+			resp.setHp(hp + 0);
+			PlayerBossVO playerBossVO = getPlayerBossVO(userCached);
+			playerBossVO.getBossLogVO().setHunt(playerBossVO.getBossLogVO().getHunt() + hunt);
+			playerBossVO.setStartTime(DateUtil.getNow());
+			playerBossVO.setToday(new Date());
+			playerBossVO.setHunt(playerBossVO.getBossLogVO().getHunt());
+			updatePlayerBoss(playerBossVO);
+			resp.setHuntLogInfo(VOUtil.packBossLog(playerBossVO.getBossLogVO()));
+			resp.setCountDown(playerBossVO.getCountDown());
+			instance.addBossLog(playerBossVO.getBossLogVO());
+			nettyMessageVO.setData(resp.build().toByteArray());
+			nettyMessageVO.setCommandCode(CSCommandConstant.ACTIVITY_BOSS_BATTLE_UPDATE);
+			commandList.add(nettyMessageVO);
+
+			NettyMessageVO noticeMsg = new NettyMessageVO();
+			noticeMsg.setCommandCode(CSCommandConstant.ACTIVITY_BOSS_NOTICE);
+			BossDetailUpdate.Builder noticeResp = BossDetailUpdate.newBuilder().setHp(hp);
+			if (instance.isInBoard(userCached.getPlayerId())) {// boss未死,则前10名广播
+				noticeResp.setHuntLogInfo(VOUtil.packBossLog(playerBossVO.getBossLogVO()));
+			}
+			noticeMsg.setData(noticeResp.build().toByteArray());
+			ServerHandler.broadcastBossPlayer(noticeMsg);
+
+			if (hp == 0) {// boss被打败
+				NettyMessageVO overMsg = new NettyMessageVO();
+				BossStatusResp.Builder overResp = BossStatusResp.newBuilder();
+				overResp.setStatus(BOSS_STATUS.OVER);
+				overResp.setHp(hp);
+				overMsg.setData(overResp.build().toByteArray());
+				overMsg.setCommandCode(CSCommandConstant.ACTIVITY_BOSS_OVER);
+				ServerHandler.broadcastBossPlayer(overMsg);
+				bossOver(userCached);
+			}
+		} else {
+			NettyMessageVO endMsg = new NettyMessageVO();
+			BossStatusResp.Builder overResp = BossStatusResp.newBuilder();
+			overResp.setStatus(BOSS_STATUS.OVER);
+			overResp.setHp(WorldBossVO.getInstance().getHp());
+			endMsg.setData(overResp.build().toByteArray());
+			endMsg.setCommandCode(CSCommandConstant.ACTIVITY_BOSS_OVER);
+			commandList.add(endMsg);
+		}
+
+	}
+
+	public void bossOver(UserCached userCached) throws Exception {
+		WorldBossVO instance = WorldBossVO.getInstance();
+		String bossName = instance.getBaseMonsterVO().getName();
+		ChatService.sendSysMsg(ChatService.sendWorldBossKill(bossName, userCached.getPlayerVO().getName()), ChatService.TAGS[0]);
+		instance.over();
+		boolean isFirst = instance.getProcess() == 2;
+		List<Reward> killReward = BossRewardRes.getInstance().getBossReward(12, isFirst);
+		mailService.addNewMail(userCached, userCached.getPlayerId(), "致命一击奖励", ChatService.sendBossKillerMail(bossName), MailConstants.MAIL_SENDER_WORLD_BOSS, 0, killReward);
+		rewardKillBossReward(true);
+		ServerHandler.clearBossChannels();
+	}
+
+	public void bossEnd() throws Exception {
+		WorldBossVO instance = WorldBossVO.getInstance();
+		if (!instance.isBattle()) {
+			return;
+		}
+		ChatService.sendSysMsg(ChatService.sendWorldBossEnd(), ChatService.TAGS[0]);
+		instance.end();
+		NettyMessageVO endMsg = new NettyMessageVO();
+		BossStatusResp.Builder overResp = BossStatusResp.newBuilder();
+		overResp.setStatus(BOSS_STATUS.END);
+		overResp.setHp(instance.getHp());
+		endMsg.setData(overResp.build().toByteArray());
+		endMsg.setCommandCode(CSCommandConstant.ACTIVITY_BOSS_OVER);
+		ServerHandler.broadcastBossPlayer(endMsg);
+
+		rewardKillBossReward(false);
+		ServerHandler.clearBossChannels();
+	}
+
+	public void bossStart(WorldBossVO instance, int cfgId) {
+		if (instance.isBattle()) {// 开启后就不在开启
+			return;
+		}
+		instance.init(cfgId);
+		NettyMessageVO startMsg = new NettyMessageVO();
+		BossStatusResp.Builder overResp = BossStatusResp.newBuilder();
+		overResp.setStatus(BOSS_STATUS.BATTLING);
+		overResp.setHp(instance.getHp());
+		startMsg.setData(overResp.build().toByteArray());
+		startMsg.setCommandCode(CSCommandConstant.ACTIVITY_BOSS_OVER);
+		ServerHandler.sendToAllOnlinePlayer(startMsg);
+	}
+
+	private void rewardKillBossReward(boolean isOver) throws Exception {
+		WorldBossVO instance = WorldBossVO.getInstance();
+		List<BossLogVO> rank = instance.getRANK();
+		Iterator<BossLogVO> it = rank.iterator();
+		int i = 0;
+		boolean isFirst = instance.getProcess() == 2;
+		List<Reward> allRewards = BossRewardRes.getInstance().getBossReward(11, isFirst);
+
+		String bossName = instance.getBaseMonsterVO().getName();
+		String allContent_over = ChatService.sendAllBossPlayerMailOver(bossName);
+		String allContent_end = ChatService.sendAllBossPlayerMailEnd(bossName);
+		while (it.hasNext()) {
+			BossLogVO bossLogVO = it.next();
+			if (i == 0 && instance.isMax(bossLogVO.getHunt(), instance.isFirst())) {// 第一名与历史数据相比较
+				PlayerBossVO maxKillInfo = new PlayerBossVO();
+				maxKillInfo.setAddtion(bossLogVO.getAddtion());
+				maxKillInfo.setHunt(bossLogVO.getHunt());
+				maxKillInfo.setPlayerId(instance.isFirst() ? -1 : -2);
+				maxKillInfo.setProcess(0);
+				maxKillInfo.setStartTime(0);
+				maxKillInfo.setToday(new Date());
+				maxKillInfo.setName(bossLogVO.getName());
+				BossLogVO target = new BossLogVO();
+				target.setAddtion(bossLogVO.getAddtion());
+				target.setHunt(bossLogVO.getHunt());
+				target.setName(bossLogVO.getName());
+				maxKillInfo.setBossLogVO(target);
+				target.setPlayerId(maxKillInfo.getPlayerId());
+				instance.updateMaxKill(maxKillInfo, instance.isFirst());
+				updatePlayerBoss(maxKillInfo);
+			}
+			if (i < 10) {
+				List<Reward> bossRewards = BossRewardRes.getInstance().getBossReward(i + 1, isFirst);
+				mailService.addNewMail(null, bossLogVO.getPlayerId(), "世界boss排名奖励", ChatService.sendBossRankMail(bossName, bossLogVO.getHunt(), i + 1), MailConstants.MAIL_SENDER_WORLD_BOSS, 0,
+						bossRewards);
+			}
+			i++;
+		}
+
+		Collection<BossLogVO> players = instance.getRANK_ALL().values();
+		String content = null;
+		List<Reward> rewardLst = null;
+		if (isOver) {
+			content = allContent_over;
+			rewardLst = allRewards;
+		} else {
+			content = allContent_end;
+			rewardLst = allRewards;
+		}
+		for (BossLogVO bossLogVO2 : players) {
+			mailService.addNewMail(null, bossLogVO2.getPlayerId(), "世界boss参与奖励", content, MailConstants.MAIL_SENDER_WORLD_BOSS, 0, rewardLst);
+		}
+	}
+
+	public void freshBoss(WorldBossStartReq req) throws Exception {
+		WorldBossVO instance = WorldBossVO.getInstance();
+		if (req == null || req.getOpenBoss() == 0) {
+			int hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
+			if (hour < WorldBossVO.START_TIMES[0]) {
+				instance.morningClear();
+			} else if (hour >= WorldBossVO.START_TIMES[0] && hour < WorldBossVO.START_TIMES[1]) {
+				bossStart(instance, WorldBossVO.BOSS_ONE_CFGID);
+			} else if (hour >= WorldBossVO.START_TIMES[1] && hour < WorldBossVO.START_TIMES[2]) {
+				if (instance.getProcess() == 0) {// 避免中途服务器
+					bossStart(instance, WorldBossVO.BOSS_ONE_CFGID);
+				}
+				bossEnd();
+			} else if (hour >= WorldBossVO.START_TIMES[2] && hour < WorldBossVO.START_TIMES[3]) {
+				bossStart(instance, WorldBossVO.BOSS_TWO_CFGID);
+			} else if (hour >= WorldBossVO.START_TIMES[3]) {
+				if (instance.getProcess() == 0) {
+					bossStart(instance, WorldBossVO.BOSS_TWO_CFGID);
+				}
+				bossEnd();
+			}
+		} else {
+			if (req.getOpenBoss() == 1) {
+				bossStart(instance, WorldBossVO.BOSS_ONE_CFGID);
+			} else if (req.getOpenBoss() == 2) {
+				if (instance.getProcess() == 0) {// 避免中途服务器
+					bossStart(instance, WorldBossVO.BOSS_ONE_CFGID);
+				}
+				bossEnd();
+			} else if (req.getOpenBoss() == 3) {
+				bossStart(instance, WorldBossVO.BOSS_TWO_CFGID);
+			} else if (req.getOpenBoss() == 4) {
+				if (instance.getProcess() == 0) {// 避免中途服务器
+					bossStart(instance, WorldBossVO.BOSS_ONE_CFGID);
+				}
+				bossEnd();
+			}
+		}
+
+	}
+
+	public void loadChargeTop20() {
+		return;
+		// List<RechargeInfoVO> recharges =
+		// yunZhiFuMapper.getTop20Recharge(TXConstants.my_server_id);
+		// int need = ActivityConstant.CHARGE_LIST_SIZE - recharges.size();
+		// if (recharges.size() > 0) {
+		// for (RechargeInfoVO rechargeInfoVO : recharges) {
+		// rechargeInfoVO.setName(RedisMap.getPlayerVObyId(rechargeInfoVO.getPlayerId()).getName());
+		// ActivityConstant.addCharge(rechargeInfoVO);
+		// }
+		// }
+		// if (need > 0) {
+		// int[] nums = { 100, 500, 1000, 5000, 20000, };
+		// Random random = new Random(System.currentTimeMillis());
+		// for (int i = 0; i < need; i++) {
+		// RechargeInfoVO rechargeInfoVO = new RechargeInfoVO();
+		// rechargeInfoVO.setName(NameRes.getInstance().createRandomNick());
+		// rechargeInfoVO.setGoldingot(nums[random.nextInt(nums.length)]);
+		// ActivityConstant.addCharge(rechargeInfoVO);
+		// }
+		// }
+	}
+
+	public void addChangeList(UserCached userCached, int num) {
+		try {
+			RechargeInfoVO rechargeInfoVO = new RechargeInfoVO();
+			rechargeInfoVO.setPlayerId(userCached.getPlayerId());
+			rechargeInfoVO.setName(userCached.getPlayerVO().getName());
+			rechargeInfoVO.setGoldingot(num);
+			ActivityConstant.addCharge(rechargeInfoVO);
+		} catch (Exception e) {
+			logger.error("增加充值展示列表异常" + e.getCause(), e);
+		}
+	}
+
+	public void loadBossMaxKill() {
+		PlayerBossVO playerBossVO1 = playerBossMapper.getMaxKillLog1();
+		PlayerBossVO playerBossVO2 = playerBossMapper.getMaxKillLog2();
+		if (playerBossVO1 == null) {
+			playerBossVO1 = new PlayerBossVO();
+			playerBossVO1.setAddtion(0);
+			playerBossVO1.setHunt(100090);
+			playerBossVO1.setPlayerId(-1);
+			playerBossVO1.setProcess(0);
+			playerBossVO1.setStartTime(0);
+			playerBossVO1.setToday(new Date());
+			playerBossVO1.setName("猥琐的朱二智");
+			BossLogVO target = new BossLogVO();
+			target.setAddtion(0);
+			target.setHunt(100090);
+			target.setName("猥琐的朱二智");
+			target.setPlayerId(-1);
+			playerBossVO1.setBossLogVO(target);
+			sqlSaveThread.putSql(sqlBuild.getSql("com.dh.dao.PlayerBossMapper.insertPlayerBoss", playerBossVO1));
+		} else {
+			BossLogVO bossLogVO = new BossLogVO();
+			bossLogVO.setAddtion(playerBossVO1.getAddtion());
+			bossLogVO.setHunt(playerBossVO1.getHunt());
+			bossLogVO.setName(playerBossVO1.getName());
+			bossLogVO.setPlayerId(playerBossVO1.getPlayerId());
+			playerBossVO1.setBossLogVO(bossLogVO);
+		}
+		if (playerBossVO2 == null) {
+			playerBossVO2 = new PlayerBossVO();
+			playerBossVO2.setAddtion(0);
+			playerBossVO2.setHunt(100190);
+			playerBossVO2.setPlayerId(-2);
+			playerBossVO2.setProcess(0);
+			playerBossVO2.setStartTime(0);
+			playerBossVO2.setToday(new Date());
+			playerBossVO2.setName("银棍范");
+			BossLogVO target = new BossLogVO();
+			target.setAddtion(playerBossVO2.getAddtion());
+			target.setHunt(playerBossVO2.getHunt());
+			target.setName(playerBossVO2.getName());
+			target.setPlayerId(playerBossVO2.getPlayerId());
+			playerBossVO2.setBossLogVO(target);
+			sqlSaveThread.putSql(sqlBuild.getSql("com.dh.dao.PlayerBossMapper.insertPlayerBoss", playerBossVO2));
+		} else {
+			BossLogVO bossLogVO = new BossLogVO();
+			bossLogVO.setAddtion(playerBossVO2.getAddtion());
+			bossLogVO.setHunt(playerBossVO2.getHunt());
+			bossLogVO.setName(playerBossVO2.getName());
+			bossLogVO.setPlayerId(playerBossVO2.getPlayerId());
+			playerBossVO2.setBossLogVO(bossLogVO);
+		}
+		WorldBossVO.getInstance().loadMaxKill(playerBossVO1, playerBossVO2);
+	}
+
+	/**
+	 * boss战凌晨刷新
+	 */
+	public void morningFreshBoss() {
+		WorldBossVO instance = WorldBossVO.getInstance();
+		instance.morningClear();
+	}
+
+	/**
+	 * 充值额 每日充值
+	 */
+	public void dayChange(int num, UserCached userCached, List<NettyMessageVO> commandList) {
+		try {
+			if (num > 10) {// 充值金额大于一定值
+				PlayerTimerVO pt = userCached.getUserTimer().getPlayerTimerVO();
+				if (pt.getDayChange() == 0) {// 如果首冲未激活
+					pt.setDayChange(1);
+					playerTimerService.updateDayChange(pt);
+					NettyMessageVO nettyMessageVO = new NettyMessageVO();
+					nettyMessageVO.setCommandCode(CSCommandConstant.ACTIVITY_DAY_CHARGE);
+					nettyMessageVO.setData(DayChangeResp.newBuilder().setChangeStatus(1).setRewardId(DayChangeRewardRes.getInstance().getRewardIndex()).build().toByteArray());
+					commandList.add(nettyMessageVO);
+				}
+			}
+		} catch (Exception e) {
+			logger.error("每日充值骚扰异常" + e.getCause(), e);
+		}
+	}
+
+	/**
+	 * 答题活动开启
+	 */
+	public void actyAnsFresh(ActyAnsReq req) throws Exception {
+		boolean isNeedOpen = false;
+		if (req == null) {// 启动时调用
+			isNeedOpen = Calendar.getInstance().get(Calendar.HOUR_OF_DAY) == ActyTimer.ANS_START_TIMES[0];
+		} else if (req.getStatus() == 1) {
+			isNeedOpen = true;
+		} else if (req.getStatus() == 0) {
+			actyAnsEnd();
+			return;
+		}
+		if (isNeedOpen) {
+			actyAnsOpen();
+		}
+	}
+
+	// 活动开始
+	public void actyAnsOpen() {
+		ActivityConstant.initAnswers();
+		ActivityConstant.startActy(0);
+		pushActyStatus();
+	}
+
+	// 推送活动状态
+	public void pushActyStatus() {
+		NettyMessageVO msg = new NettyMessageVO();
+		msg.setCommandCode(CSCommandConstant.ACTIVITY_STATUS_NOTICE);
+		ActyStatusNotice.Builder resp = ActyStatusNotice.newBuilder().setStatus(ActivityConstant.getActyStatus());
+		msg.setData(resp.build().toByteArray());
+		ServerHandler.sendToAllOnlinePlayer(msg);// 通知前台开启
+	}
+
+	private final String mailTitle = "金榜题名奖励";
+	private final static String[] content = { "恭喜你在金榜题名活动中勇夺", "头衔，以下是你的额外奖励，请注意查收" };
+	private final static String[] title = { "状元", "榜眼", "探花" };
+	private final static int[] rewardArray = { 26223, 26224, 26225 };
+
+	// 答题活动结束
+	public void actyAnsEnd() throws Exception {
+		ActivityConstant.endActy(0);
+		List<PlayerActyVO> top3List = ActivityConstant.getTop3AnsList();
+		PlayerActyVO actyVO = null;
+		PlayerVO playerVO = null;
+		String[] names = new String[3];
+		for (int i = 0; i < top3List.size(); i++) {
+			actyVO = top3List.get(i);
+			mailService.addNewMail(null, actyVO.getPlayerid(), mailTitle, content[0] + title[i] + content[1], MailConstants.MAIL_SENDER_ACTY_ANS, 0,
+					RewardRes.getInstance().getRewardRateGroup(rewardArray[i]));
+			playerVO = RedisMap.getPlayerVObyId(actyVO.getPlayerid());
+			names[i] = playerVO.getName();
+		}
+		pushActyStatus();
+		ChatService.sendSysMsg(ChatService.createAnsEndNotice(names), ChatService.TAGS[0]);
+	}
+}

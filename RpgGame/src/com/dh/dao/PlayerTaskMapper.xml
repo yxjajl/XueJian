@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+ <mapper namespace="com.dh.dao.PlayerTaskMapper">
+<select id="getPlayerTaskList" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.PlayerTaskVO">
+	SELECT `taskId`,  `playerId`, `taskType`, `status`,  `finishNum` FROM t_player_task 
+	WHERE playerId=#{playerId}
+	<![CDATA[ AND `status` < 3  ]]>
+</select>
+
+<select id="getPlayerTaskCount" parameterType="java.lang.Integer" resultType="java.lang.Integer">
+	SELECT count(*) FROM t_player_task WHERE playerId=#{playerId}
+</select>
+
+<insert id="createTask" parameterType="com.dh.game.vo.user.PlayerTaskVO">
+		INSERT INTO `t_player_task`
+            (`taskId`,
+             `playerId`,
+             `taskType`,
+             `status`,
+             `finishNum`)
+	VALUES (#{taskId},
+	        #{playerId},
+	        #{taskType},
+	        #{status},
+	        #{finishNum})
+</insert>
+	
+<update id="changeTaskStatus" parameterType="com.dh.game.vo.user.PlayerTaskVO">
+		UPDATE `t_player_task` SET `finishNum`=#{finishNum},
+		`status`=#{status} where `playerid`=#{playerId} and `taskId`=#{taskId}
+</update>
+
+<update id="changeTaskNumById" parameterType="com.dh.game.vo.user.PlayerTaskVO">
+		UPDATE `t_player_task` SET
+		`finishNum`=#{finishNum} where `playerid`=#{playerId} and `taskId`=#{taskId}
+</update>
+	
+ </mapper>

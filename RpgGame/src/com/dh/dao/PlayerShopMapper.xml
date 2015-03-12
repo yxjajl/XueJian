@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dh.dao.PlayerShopMapper">
+	
+	<sql id="queryByKeyPlayeShop">WHERE  `playerId` = #{playerId} AND lastUpdateDate = #{lastUpdateDate}</sql>
+	
+	
+	<select id="getPlayerShop" parameterType="com.dh.game.vo.user.PlayerShopVO" resultType="com.dh.game.vo.user.PlayerShopVO">
+		SELECT `playerId`, `itemId`, `num`, `lastUpdateDate` FROM `t_player_shop` 
+		<include refid="queryByKeyPlayeShop"/>
+	</select>
+	
+	<delete id="delPlayerShop" parameterType="com.dh.game.vo.user.PlayerShopVO">
+		DELETE FROM `t_player_shop`
+		WHERE  `playerId` = #{playerId} AND lastUpdateDate <![CDATA[ < ]]> #{lastUpdateDate}
+	</delete>
+	
+	<delete id= "deleteAllPlayerShop" parameterType = "java.lang.String">
+		DELETE FROM `t_player_shop`
+		WHERE lastUpdateDate <![CDATA[ < ]]> #{lastUpdateDate}
+	</delete>
+	
+	<insert id="insertPlayerShop" parameterType="com.dh.game.vo.user.PlayerShopVO">
+		INSERT INTO `t_player_shop`   (`playerId`, `itemId`, `num`, `lastUpdateDate` ) 
+		VALUES (#{playerId},#{itemId},#{num},#{lastUpdateDate}) 
+		ON DUPLICATE KEY UPDATE `num` = #{num}
+	</insert>
+	
+</mapper>

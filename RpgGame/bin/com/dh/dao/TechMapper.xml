@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dh.dao.TechMapper">
+	<update id="updateTech">
+		update `t_player_technology` set `level`=#{level},`cd_time`=#{cdTime} where `player_id`=#{playerId}
+		and `index`=#{index}
+	</update>
+	<select id="getTechs" resultType="java.util.HashMap" parameterType="java.lang.Integer">
+		select `player_id`,`index`,`level`,`cd_time` from `t_player_technology` where `player_id`=#{playerId}
+	</select>
+	<insert id="insertTech">
+		insert into `t_player_technology`(`player_id`,`index`,`level`,`cd_time`) values(#{playerId},#{index},0,#{cdTime})
+		on duplicate key update `level`=0,`cd_time`=#{cdTime}
+	</insert>
+	<insert id="insertPlayerBuild" parameterType="com.dh.game.vo.user.PlayerBuildVO">
+		INSERT INTO `t_player_building` (`playerId`,`b1`,`b2`,`b3`)VALUES (#{playerId}, #{b1},#{b2},#{b3});
+	</insert>
+</mapper>

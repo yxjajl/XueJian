@@ -1,0 +1,172 @@
+package com.dh.resconfig;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import org.apache.log4j.Logger;
+
+import com.dh.constants.ItemConstants;
+import com.dh.game.vo.base.BaseItemVO;
+import com.dh.game.vo.user.PlayerKnapsackVO;
+import com.dh.util.CodeTool;
+import com.dh.util.Tool;
+
+public class ItemRes extends BaseRes<BaseItemVO> {
+	private static final Logger LOGGER = Logger.getLogger(ItemRes.class);
+	public static final String Path = filePath + "csv/cfg_item.csv";
+	Map<Integer, BaseItemVO> gemMap = new HashMap<Integer, BaseItemVO>(); // 宝石
+	Map<Integer, BaseItemVO> equipMap = new HashMap<Integer, BaseItemVO>(); // 装备
+	Map<Integer, BaseItemVO> heroCardMap = new HashMap<Integer, BaseItemVO>(); // 英雄卡
+	Map<Integer, BaseItemVO> eqssMap = new HashMap<Integer, BaseItemVO>(); // 装备碎片 英雄碎片
+	Map<Integer, BaseItemVO> qqMap = new HashMap<Integer, BaseItemVO>();
+	Map<Integer, BaseItemVO> heroSPMap = new HashMap<Integer, BaseItemVO>(); // 英雄碎片
+
+	private ItemRes() {
+		classz = BaseItemVO.class;
+	}
+
+	private static ItemRes INSTANCE = new ItemRes();
+
+	public static ItemRes getInstance() {
+		return INSTANCE;
+	}
+
+	public void otherInit() {
+		LOGGER.info("ItemRes.otherInit");
+		for (BaseItemVO baseItemVO : this.getDataList()) {
+			if (ItemConstants.ITEM_TYPE_GEMS == baseItemVO.getType()) {
+				gemMap.put(baseItemVO.getCfgId(), baseItemVO);
+			} else if (ItemConstants.ITEM_TYPE_EQPI == baseItemVO.getType()) {
+				equipMap.put(baseItemVO.getCfgId(), baseItemVO);
+			} else if (ItemConstants.ITEM_TYPE_CARD == baseItemVO.getType()) {
+				heroCardMap.put(baseItemVO.getCfgId(), baseItemVO);
+			} else if (ItemConstants.ITEM_TYPE_EQSS == baseItemVO.getType()) {
+				eqssMap.put(baseItemVO.getCfgId(), baseItemVO);
+				if (ItemConstants.ITEM_SUBTYPE_HEROPIECE == baseItemVO.getSubType()) {
+					heroSPMap.put(baseItemVO.getPvalue(), baseItemVO);
+				}
+			} else if (ItemConstants.ITEM_TYPE_GOLDINGOT == baseItemVO.getType()) {
+				qqMap.put(baseItemVO.getCfgId(), baseItemVO);
+			}
+
+			if (CodeTool.isNotEmpty(baseItemVO.getGemType())) {
+				int[] arr = Tool.strToIntArr(baseItemVO.getGemType(), ";");
+				baseItemVO.setArrGempType(arr);
+			}
+
+		}
+
+	}
+
+	public void loadGem(PlayerKnapsackVO playerKnapsackVO) {
+		playerKnapsackVO.getGem()[0] = getGemByCfgId(playerKnapsackVO.getGem1());
+		playerKnapsackVO.getGem()[1] = getGemByCfgId(playerKnapsackVO.getGem2());
+		playerKnapsackVO.getGem()[2] = getGemByCfgId(playerKnapsackVO.getGem3());
+		playerKnapsackVO.getGem()[3] = getGemByCfgId(playerKnapsackVO.getGem4());
+	}
+
+	/**
+	 * 拿宝石数据
+	 * 
+	 * @param cfgId
+	 * @return
+	 */
+	public BaseItemVO getGemByCfgId(int cfgId) {
+		if (cfgId <= 0) {
+			return null;
+		}
+		return gemMap.get(cfgId);
+	}
+
+	/**
+	 * 找装备碎片
+	 * 
+	 * @param cfgId
+	 * @return
+	 */
+	public BaseItemVO getEQSSByCfgId(int cfgId) {
+		if (cfgId <= 0) {
+			return null;
+		}
+		return eqssMap.get(cfgId);
+	}
+
+	/**
+	 * 装备数据
+	 * 
+	 * @param cfgId
+	 * @return
+	 */
+	public BaseItemVO getEquipByCfgId(int cfgId) {
+		if (cfgId <= 0) {
+			return null;
+		}
+		return equipMap.get(cfgId);
+	}
+
+	/**
+	 * 英雄卡
+	 * 
+	 * @param cfgId
+	 * @return
+	 */
+	public BaseItemVO getHeroCardByCfgId(int cfgId) {
+		if (cfgId <= 0) {
+			return null;
+		}
+		return heroCardMap.get(cfgId);
+	}
+
+	public BaseItemVO getQQGoldIngotByCfgId(int cfgId) {
+		if (cfgId <= 0) {
+			return null;
+		}
+		return qqMap.get(cfgId);
+	}
+
+	/**
+	 * 8星装备碎片
+	 * 
+	 * @param cfgId
+	 * @return
+	 */
+	public BaseItemVO getHeroSPByCfgId(int cfgId) {
+		if (cfgId <= 0) {
+			return null;
+		}
+		return heroSPMap.get(cfgId);
+	}
+
+	/**
+	 * 查等级数据
+	 * 
+	 * @param level
+	 * @return
+	 */
+	public BaseItemVO getBaseItemVO(int cfgId) {
+		for (BaseItemVO BaseItemVO : ItemRes.getInstance().getDataList()) {
+			if (BaseItemVO.getCfgId() == cfgId) {
+				return BaseItemVO;
+			}
+		}
+		return null;
+	}
+
+	public void clear() {
+		super.clear();
+		gemMap.clear();
+		equipMap.clear();
+		heroCardMap.clear();
+		eqssMap.clear();
+		qqMap.clear();
+		heroSPMap.clear();
+	}
+
+	public static void main(String[] args) throws Exception {
+		ItemRes.getInstance().loadFile(ItemRes.Path);
+		// for (BaseItemVO baseItemVO : ItemRes.getInstance().getDataList()) {
+		// System.out.println(baseItemVO.getCfgId() + "," + baseItemVO.getDesc());
+		// }
+		System.out.println(ItemRes.getInstance().getQQGoldIngotByCfgId(28000).getName());
+	}
+}

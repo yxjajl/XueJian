@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="com.dh.dao.StreetMapper">
+	
+	<insert id="insertPlayerStreet" parameterType="com.dh.vo.user.UserStreet">
+		INSERT INTO `t_player_street`(`PLAYER_ID`,`GRID_STR`,`factory_fz`,`factory_m`)VALUES(#{playerId},#{gridStr},#{factoryFz},#{factoryM})
+	</insert>
+	<update id="updatePlayerStreet" parameterType="com.dh.vo.user.UserStreet">
+		UPDATE `t_player_street` SET `GRID_STR`=#{gridStr}, `box_fresh_time`=#{boxFreshTime},
+		`monster_fresh_time`=#{monsterFreshTime},`fz_ids`=#{fzIds},`machines`=#{machines},
+		`factory_fz`=#{factoryFz},`factory_m`=#{factoryM} where `player_id`=#{playerId}
+	</update>
+	<select id="getUserStreet" parameterType="java.lang.Integer" resultType="com.dh.vo.user.UserStreet">
+		SELECT `player_id` as playerId,`grid_str` as gridStr,`box_fresh_time` as boxFreshTime,`monster_fresh_time`
+		as monsterFreshTime,`fz_ids` as fzIds,`machines`,`factory_fz` as factoryFz,`factory_m`
+		as factoryM from `t_player_street` where `player_id`=#{playerId}
+	</select>
+	
+	<insert id="insertStreetRes" parameterType="com.dh.game.vo.user.StreetResVO" >
+		INSERT INTO `T_STREET_RES`(`PLAYER_ID`,`ID`,`CFG_ID`)values(#{playerId},#{id},#{cfgId})
+	</insert>
+	<update id="updateStreetRes" parameterType="com.dh.game.vo.user.StreetResVO">
+		update `t_street_res` set `cfg_id`=#{cfgId}, `begin_time`=#{beginTime}, `cal_time`=#{calTime},
+		`cfg_time`=#{cfgTime}, `fz_id`=#{fzId}, `machine_line`=#{machineLine}, `rewards`=#{rewards},`whosyourdaddy`=#{whosyourdaddy}
+		where `player_id`=#{playerId} and `id`=#{id}
+	</update>
+	<select id="getUserStreetRes" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.StreetResVO">
+		SELECT `id`,`cfg_id` as cfgId,`player_id` as playerId,`begin_time` as beginTime,`cal_time`
+		as calTime ,`cfg_time` as cfgTime,`fz_id` as fzId,`machine_line` as machineLine,`rewards`,`whosyourdaddy`
+		from `t_street_res` where `player_id`=#{playerId}
+	</select>
+	
+	<insert id="insertStreetBox" parameterType="com.dh.game.vo.user.StreetBoxVO">
+		INSERT INTO `t_street_box_monster`(`PLAYER_ID`,`ID`,`CFG_ID`,`TYPE`)VALUES(#{playerId},#{id},#{cfgId},1)
+	</insert>
+	<select id="getStreetBox" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.StreetBoxVO">
+		SELECT `id`,`player_id` as playerId,`cfg_id` as cfgId,`type` from `t_street_box_monster`
+		where `player_id`=#{playerId} and `type`=1
+	</select>
+	<select id="getStreetMonster" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.StreetMonsterVO">
+		SELECT `id`,`player_id` as playerId,`cfg_id` as cfgId,`type` from `t_street_box_monster`
+		where `player_id`=#{playerId} and `type`=0
+	</select>
+	
+	<insert id="insertStreetMonster" parameterType="com.dh.game.vo.user.StreetMonsterVO">
+		INSERT INTO `T_STREET_BOX_MONSTER`(`PLAYER_ID`,`ID`,`CFG_ID`,`TYPE`)VALUES(#{playerId},#{id},#{cfgId},0)
+	</insert>
+	<delete id="delStreetBox" parameterType="com.dh.game.vo.user.StreetBoxVO" >DELETE FROM `t_street_box_monster` WHERE `PLAYER_ID`=#{playerId} AND `ID`=#{id}</delete>
+	
+	<delete id="delStreetMonster" parameterType="com.dh.game.vo.user.StreetMonsterVO">DELETE FROM `t_street_box_monster` WHERE `PLAYER_ID`=#{playerId} AND `ID`=#{id}</delete>
+	<insert id="insertStreetDefendLog" parameterType="com.dh.game.vo.user.StreetDefendLogVO">
+		INSERT INTO `t_street_defend_log`(`id`,`player_id`,`enemy_id`,`enemy_name`,`atk_time`,`res_id`,`is_succ`,`rewards`,`money`,`expc`,`isAtk`,`isReward`)values(#{id},#{playerId},#{enemyId},
+		#{enemyName},#{atkTime},#{resId},#{isSucc},#{rewards},#{money},#{expc},#{isAtk},#{isReward})
+	</insert>
+	<update id="updateStreetDefLog" parameterType="com.dh.game.vo.user.StreetDefendLogVO">
+		UPDATE `t_street_defend_log` SET `enemy_id` = #{enemyId}, `enemy_name` = #{enemyName},
+		`atk_time` = #{atkTime}, `res_id` = #{resId}, `is_succ` = #{isSucc}, `rewards` =
+		#{rewards}, `expc` = #{expc}, `money` = #{money}, `isAtk` = #{isAtk}, `isReward`=#{isReward}
+		WHERE `id` = #{id} AND `player_id` = #{playerId};
+	</update>
+	<delete id="deleteStreetDefendLog" parameterType="com.dh.game.vo.user.StreetDefendLogVO">DELETE FROM `t_street_defend_log` WHERE `PLAYER_ID`=#{playerId} AND `ID`=#{id}</delete>
+	
+	<select id="getDefendLogs" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.StreetDefendLogVO">
+		select `id`,`player_id` as playerId,`enemy_id` as enemyId,`enemy_name` as enemyName,`atk_time`
+		as atkTime,`res_id` as resId,`is_succ` as isSucc,`rewards`,`money`,`expc`,`isAtk`,`isReward`
+		from `t_street_defend_log` where `player_id`=#{playerId}
+	</select>
+	<insert id="insertEnemy" parameterType="com.dh.game.vo.user.StreetEnemyVO">
+		INSERT INTO `T_STREET_ENEMY`(`player_id`,`enemy_id`,`name`,`head_icon`,`level`,`atk_time`,`is_revenge`)
+		values(#{playerId},#{enemyId},#{name},#{headIcon},#{level},#{atkTime},#{isRevenge})
+	</insert>
+	<select id="getEnemies" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.StreetEnemyVO">
+		SELECT `player_id` as playerId,`enemy_id` as enemyId,`name`,`head_icon` as headIcon,`level`,`atk_time`
+		as atkTime ,`is_revenge` as isRevenge from `t_street_enemy` where `player_id` =#{playerId}
+	</select>
+	<update id="updateEnemy" parameterType="com.dh.game.vo.user.StreetEnemyVO">
+		UPDATE `T_STREET_ENEMY` SET `name`=#{name},`head_icon`=#{headIcon},`level`=#{level},`atk_time`=#{atkTime},`is_revenge`=#{isRevenge}
+		WHERE `player_id`=#{playerId} AND `enemy_id`=#{enemyId}
+	</update>
+	<delete id="deleteEnemy" parameterType="com.dh.game.vo.user.StreetEnemyVO">
+		delete from `t_street_enemy` where `player_id`=#{playerId} and `enemy_id`=#{enmeyId}
+	</delete>
+	
+	
+</mapper>

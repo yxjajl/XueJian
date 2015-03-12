@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="com.dh.dao.GMMapper">
+	<insert id="inserGMListVO" parameterType="com.dh.game.vo.base.BaseGMListVO" >INSERT INTO `t_gm_list` (`mac`, `ip`, `type`, `reason`) VALUES (#{mac},#{ip},#{type},
+		#{reason})</insert>
+	<select id="loadBlacks" resultType="com.dh.game.vo.base.BaseGMListVO">SELECT  `mac`,`ip`,`type`,`reason` FROM `t_gm_list`</select>
+	<delete id="delGMListVO" parameterType="com.dh.game.vo.base.BaseGMListVO">delete from `t_gm_list` where `mac`=#{mac}</delete>
+	
+	<select id="getOnlineByHour" parameterType="com.dh.vo.gm.GMOnlineVO" resultType="com.dh.vo.gm.GMOnlineVO">select * from t_gm_online where `hour`=#{hour}</select>
+	<select id="getOnlineCount" resultType="java.lang.Integer">select count(*) from `t_player` where `is_online`=1;</select>
+	<insert id="insertOnlineInfo" parameterType="com.dh.vo.gm.GMOnlineVO">insert into `t_gm_online`(`gid`,`sid`,`hour`,`count`) values(0,0,#{hour},#{count})</insert>
+	<update id="updateOnlineCount" parameterType="com.dh.vo.gm.GMOnlineVO">update `t_gm_online` set `count`=#{count} where `hour`=#{hour}</update>
+	<insert id="addGMIOVO" parameterType="com.dh.vo.gm.GMIOVO">insert into `t_gm_io`(`playerid`,`usage`,`io`,`value`,`type`,`content`,`num`,`optdate`,`name`,`price`) values(#{playerid},#{usage},#{io},#{value},#{type},#{content},#{num},#{optdate},#{name},#{price})</insert>
+</mapper>

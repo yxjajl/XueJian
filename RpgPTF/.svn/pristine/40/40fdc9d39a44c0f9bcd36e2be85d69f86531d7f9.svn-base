@@ -1,0 +1,106 @@
+package com.dh.game.vo.user;
+
+import java.util.HashMap;
+
+public class RechargeInfoVO {
+	private String tokenid;
+	private int playerId;
+	private int goldingot;
+	private String urlparam;
+	private String txurl;
+	private int state;
+	private String openid;
+	private String platform;
+	private transient HashMap<String, String> mapParam;
+	private transient int repeated = 0;
+	private String name;// 玩家名字
+
+	public String getTokenid() {
+		return tokenid;
+	}
+
+	public void setTokenid(String tokenid) {
+		this.tokenid = tokenid;
+	}
+
+	public int getPlayerId() {
+		return playerId;
+	}
+
+	public void setPlayerId(int playerId) {
+		this.playerId = playerId;
+	}
+
+	public int getGoldingot() {
+		return goldingot;
+	}
+
+	public void setGoldingot(int goldingot) {
+		this.goldingot = goldingot;
+	}
+
+	public String getUrlparam() {
+		return urlparam;
+	}
+
+	public void setUrlparam(String urlparam) {
+		this.urlparam = urlparam;
+	}
+
+	public String getTxurl() {
+		return txurl;
+	}
+
+	public void setTxurl(String txurl) {
+		this.txurl = txurl;
+	}
+
+	public int getState() {
+		return state;
+	}
+
+	public void setState(int state) {
+		this.state = state;
+	}
+
+	public String getOpenid() {
+		return openid;
+	}
+
+	public void setOpenid(String openid) {
+		this.openid = openid;
+	}
+
+	public HashMap<String, String> getMapParam() {
+		return mapParam;
+	}
+
+	public void setMapParam(HashMap<String, String> mapParam) {
+		this.mapParam = mapParam;
+	}
+
+	public int getRepeated() {
+		return repeated;
+	}
+
+	public void setRepeated(int repeated) {
+		this.repeated = repeated;
+	}
+
+	public String getPlatform() {
+		return platform;
+	}
+
+	public void setPlatform(String platform) {
+		this.platform = platform;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+}

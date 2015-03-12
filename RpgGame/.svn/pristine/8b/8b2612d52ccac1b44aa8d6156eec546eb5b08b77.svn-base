@@ -1,0 +1,762 @@
+package com.dh.service;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Set;
+
+import javax.annotation.Resource;
+
+import org.apache.log4j.Logger;
+import org.springframework.stereotype.Component;
+
+import com.alibaba.fastjson.JSON;
+import com.dh.Cache.JedisTool;
+import com.dh.Cache.RedisList;
+import com.dh.Cache.RedisMap;
+import com.dh.Cache.RedisSortSet;
+import com.dh.constants.ArenaConstants;
+import com.dh.constants.GameRecordConstants;
+import com.dh.dao.BattleRecordMapper;
+import com.dh.dao.PlayerArenaMapper;
+import com.dh.dao.PlayerHeroDefMapper;
+import com.dh.dao.PlayerHeroMapper;
+import com.dh.game.constant.CSCommandConstant;
+import com.dh.game.constant.RedisKey;
+import com.dh.game.vo.base.BaseJJCRankVO;
+import com.dh.game.vo.base.GameRecordVO;
+import com.dh.game.vo.item.ArenaProto.AnernaDetailResponse;
+import com.dh.game.vo.item.ArenaProto.BattleRecord;
+import com.dh.game.vo.item.ArenaProto.EmenAnernaInfo;
+import com.dh.game.vo.item.ArenaProto.MyAnernaInfo;
+import com.dh.game.vo.item.ArenaProto.OtherAnernaInfo;
+import com.dh.game.vo.item.ArenaProto.RECORDSUCC;
+import com.dh.game.vo.item.ArenaProto.RECORDTYPE;
+import com.dh.game.vo.user.BattleRecordVO;
+import com.dh.game.vo.user.PlayerArenaVO;
+import com.dh.game.vo.user.PlayerHeroDefVO;
+import com.dh.game.vo.user.PlayerHeroVO;
+import com.dh.game.vo.user.PlayerVO;
+import com.dh.handler.arena.ArenaRedisTool;
+import com.dh.netty.NettyMessageVO;
+import com.dh.resconfig.JJCRankRes;
+import com.dh.resconfig.JJCSuccRes;
+import com.dh.sqlexe.SqlSaveThread;
+import com.dh.sync.LockConstant;
+import com.dh.sync.SyncLock;
+import com.dh.sync.SyncUtil;
+import com.dh.util.CodeTool;
+import com.dh.util.CommandUtil;
+import com.dh.util.DateUtil;
+import com.dh.util.GameUtil;
+import com.dh.util.SqlBuild;
+import com.dh.util.Tool;
+import com.dh.vo.user.UserCached;
+
+@Component
+public class ArenaService {
+	private static Logger logger = Logger.getLogger(ArenaService.class);
+	// List<PlayerHeroDefVO>
+	public final static int RMBVPVP = 20; // 元宝兑换竞技值 10:30
+	public final static int COSTEXPVP = 10; // 打一场竞技扣３０竞技值
+	public final static int SHOPADDPVP = 50; // 元宝购宝竞技值
+	public final static int JJCRMB = 5; // 主动刷新对手消耗RMB
+	public final static int ENEMCD = 600; // 主动刷新对手CD 10分钟 = 600 (单位秒)
+	public final static int FAILCD = 300; // 战斗冷确CD 10分钟 = 600 (单位秒)
+	public final static int COUQUENEMNUM = 4; // 抽取对手数量
+	public final static long DAUINTERVAL = 24 * 3600 * 1000L;
+	public static long nextFreshTime1 = 0L; // 下次结算时间
+	public final static int MAX_RECORED_LEN = 20; // 战报保存数
+	public static List<OtherAnernaInfo.Builder> OtherAnernaInfoList = new ArrayList<OtherAnernaInfo.Builder>(3);
+	public static String CURDAYPERIOD;
+	public final static int ARENA_REQ_LEVEL = 17;
+	public static GameRecordVO CCGameRecordVO; // 最高连胜记录
+	public static String minLine = "";
+
+	@Resource
+	private PlayerArenaMapper playerArenaMapper;
+	@Resource
+	private SqlBuild sqlBuild;
+	@Resource
+	private SqlSaveThread sqlSaveThread;
+	@Resource
+	private BattleRecordMapper battleRecordMapper;
+	@Resource
+	private PlayerHeroDefMapper playerHeroDefMapper;
+	@Resource
+	private PlayerHeroMapper playerHeroMapper;
+	@Resource
+	private BaseInfoService baseInfoService;
+
+	public void loadAllPlayerArenaVO() throws Exception {
+		CCGameRecordVO = BaseInfoService.getGameRecordVO(GameRecordConstants.CC3INGAMERECORD);
+		int cachedSize = getPlayerArenaCountFromRedis();
+		List<PlayerArenaVO> list = playerArenaMapper.getAllPlayerArena();
+		if (cachedSize != list.size()) {
+
+			for (PlayerArenaVO playerArenaVO : list) {
+				ArenaConstants.put(playerArenaVO.getPlayerId(), playerArenaVO.getCombat());
+			}
+
+			if (list != null) {
+				RedisSortSet.addArenaList(list);
+				RedisMap.addArenaList(list);
+				int order = 0;
+				for (PlayerArenaVO playerArenaVO : list) {
+					if (order < 3) {
+						PlayerVO playerVO = RedisMap.getPlayerVOById(playerArenaVO.getPlayerId());
+						OtherAnernaInfo.Builder builder = OtherAnernaInfo.newBuilder();
+						builder.setNick(playerVO.getName());
+						builder.setOrder(order + 1);
+						OtherAnernaInfoList.add(builder);
+						order++;
+					} else {
+						break;
+					}
+				}
+			}
+
+		} else {
+
+			for (PlayerArenaVO playerArenaVO : list) {
+				ArenaConstants.put(playerArenaVO.getPlayerId(), playerArenaVO.getCombat());
+			}
+
+			Set<String> setString = getPlayerArenaByRangeFromRedis(1, 3);
+
+			if (setString != null && setString.size() > 0) {
+				for (String strPlayerId : setString) {
+					PlayerArenaVO arenaVO = getPlayerArenaVOFromRedis(strPlayerId);
+					PlayerVO playerVO = RedisMap.getPlayerVOById(arenaVO.getPlayerId());
+					OtherAnernaInfo.Builder builder = OtherAnernaInfo.newBuilder();
+					builder.setNick(playerVO.getName());
+					builder.setOrder(arenaVO.getOrdernum());
+					OtherAnernaInfoList.add(builder);
+				}
+			}
+
+		}
+
+		loadHeroDef(list);
+		list.clear();
+		minLine = ArenaConstants.findMinCombat();
+		loadBattleRecord(); // 加载战报
+	}
+
+	/**
+	 * 加载战报
+	 */
+	public void loadBattleRecord() {
+		List<BattleRecordVO> list = battleRecordMapper.getBattleRecord();
+		RedisList.addArenaBattleRecord(list);
+	}
+
+	public void loadHeroDef(List<PlayerArenaVO> list) {
+		if (list == null || list.size() == 0) {
+			return;
+		}
+		for (PlayerArenaVO playerArenaVO : list) {
+			if (playerArenaVO.getPlayerId() == 1626014) {
+				System.out.println("=======" + playerArenaVO.getPlayerId());
+			}
+			List<PlayerHeroDefVO> hlist = playerHeroDefMapper.getHeroDefList(playerArenaVO.getPlayerId());
+			if (hlist == null || hlist.size() == 0) {
+				List<PlayerHeroVO> heroList = playerHeroMapper.getTop5Heros(playerArenaVO.getPlayerId());
+				if (heroList != null && heroList.size() > 0) {
+					// hlist = new ArrayList<PlayerHeroDefVO>();
+					// for (PlayerHeroVO playerHeroVO : heroList) {
+					// hlist.add(ArenaRedisTool.playerToHeroDefVO(playerHeroVO));
+					// }
+					//
+					// this.savePlayerHeroDefVO(playerId);
+
+					ArenaRedisTool.savePlayerHeroVO(playerArenaVO.getPlayerId(), heroList);
+					savePlayerHeroDefVO(playerArenaVO.getPlayerId(), heroList);
+				}
+
+			} else {
+
+				if (hlist != null && hlist.size() > 0) {
+					ArenaRedisTool.savePlayerHeroDefVO(playerArenaVO.getPlayerId(), hlist);
+				}
+			}
+
+		}
+	}
+
+	private final static int sstep = 200;
+
+	// 单日结算
+	public synchronized void jiesuan() {
+		logger.info("===================jiesuan================");
+
+		int start = 0;
+		int end = 0;
+		int count = 0;
+		int reward0 = 0;
+		OtherAnernaInfoList.clear();
+		for (BaseJJCRankVO baseJJCRankVO : JJCRankRes.getInstance().getUpRankSet()) {
+			count = (int) RedisSortSet.zcount(RedisKey.ARENA_SORTLIST, baseJJCRankVO.getUpper(), baseJJCRankVO.getLower());
+			if (count == 0) {
+				break;
+			}
+
+			reward0 = baseJJCRankVO.getUpper();
+			if (count > sstep) {
+				// 分批
+				int pagesize = count / sstep;
+				if (count % sstep > 0) {
+					pagesize++;
+				}
+
+				for (int i = 0; i < pagesize; i++) {
+					start = baseJJCRankVO.getUpper() - 1 + i * sstep;
+					end = start + sstep - 1;
+					end = Math.min(end, baseJJCRankVO.getLower() - 1);
+					// System.out.println("start = " + start + " end = " + end);
+					// start = baseJJCRankVO.getUpper() - 1 + i*sstep;
+					jiesuanComputer(start, end, reward0);
+				}
+
+			} else {
+				jiesuanComputer(baseJJCRankVO.getUpper() - 1, baseJJCRankVO.getLower() - 1, reward0);
+			}
+
+		}
+
+	}
+
+	public void jiesuanComputer(int start, int end, int reward0) {
+		Set<String> setString = RedisSortSet.zrange(RedisKey.ARENA_SORTLIST, start, end);
+		if (setString != null && setString.size() > 0) {
+			List<PlayerArenaVO> arenList = RedisMap.hgetPlayerArenaVOList(setString);
+			for (PlayerArenaVO playerArenaVO : arenList) {
+
+				playerArenaVO.setReward0(reward0);
+				playerArenaVO.setLastdayrank1(playerArenaVO.getOrdernum());
+
+				playerArenaVO.setReward3(0);
+				playerArenaVO.setCcwin(0);
+				playerArenaVO.setCc3win(0);
+
+				if (start >= 0 && start <= 2) {
+					PlayerVO playerVO;
+					try {
+						playerVO = RedisMap.getPlayerVOById(playerArenaVO.getPlayerId());
+						OtherAnernaInfo.Builder builder = OtherAnernaInfo.newBuilder();
+						builder.setNick(playerVO.getName());
+						builder.setOrder(start + 1);
+						OtherAnernaInfoList.add(builder);
+						System.err.println("playerVO.getName() = " + playerVO.getName() + ",order = " + builder.getOrder());
+					} catch (Exception e) {
+						logger.error("", e);
+					}
+
+				}
+
+			}
+			updatePlayerArenaVOCachedAndDBList(arenList);
+
+		}
+	}
+
+	/**
+	 * 取竞技场数据
+	 * 
+	 * @param userCached
+	 * @return
+	 */
+	public synchronized PlayerArenaVO getPlayerArenaVO(UserCached userCached) {
+		PlayerArenaVO playerArenaVO = getPlayerArenaVOFromRedis(String.valueOf(userCached.getPlayerId()));
+		if (playerArenaVO == null) {
+			playerArenaVO = new PlayerArenaVO();
+			playerArenaVO.setPlayerId(userCached.getPlayerId());
+			playerArenaVO.setOrdernum(getPlayerArenaCountFromRedis() + 1);
+			playerArenaVO.setWin(0);// 总胜利场次
+			playerArenaVO.setLost(0); // 失败场次
+			playerArenaVO.setCc3win(0); // 周期内　最高连胜场次
+			playerArenaVO.setCcwin(0); // 周期内　当前连胜场次
+			playerArenaVO.setCcwinhis(0); // 历史最高连胜场次
+			playerArenaVO.setFailEndTime(new Date());
+			playerArenaVO.setReward0(0); // 每日奖励
+			playerArenaVO.setReward3(0);// 周期连胜奖励
+			playerArenaVO.setDuobaoline("");
+			List<PlayerHeroVO> atkHeroList = userCached.getUserHero().getAtkHeroList();
+			if (atkHeroList == null || atkHeroList.size() == 0) {
+				logger.error("没有英雄放到竞技场 : getPlayerArenaVO ");
+			}
+			int combat = 0;
+			for (PlayerHeroVO playerHeroVO : atkHeroList) {
+				combat += playerHeroVO.getCombat();
+			}
+			playerArenaVO.setCombat(combat);
+			ArenaRedisTool.savePlayerHeroVO(userCached.getPlayerId(), atkHeroList);
+
+			// playerArenaVO.setDefline(userCached.getUserHero().getHeroTeamVO().getRaidLine());//
+			// 防守阵形
+			playerArenaVO.setEnemline(getEnem(playerArenaVO, true));
+			playerArenaVO.setEnemyremainTime(DateUtil.beforeSec(new Date(), ENEMCD));
+			// refreshEmenAnernaInfo(playerArenaVO, false);
+			insertPlayerArenaVOCachedAndDB(playerArenaVO);
+
+			ArenaConstants.put(userCached.getPlayerId(), combat);
+		}
+
+		// else {
+		// if (refreshEmenAnernaInfo(playerArenaVO, false)) {
+		// updatePlayerArenaVOCachedAndDB(playerArenaVO);
+		// }
+		// }
+
+		if (ArenaService.nextFreshTime1 < System.currentTimeMillis()) {
+			try {
+				GameRecordVO gameRecordVO = BaseInfoService.getGameRecordVO(GameRecordConstants.ARENAEVERYDAYBLANCE);
+				Date lastUpdateDate = DateUtil.str2Date(gameRecordVO.getStrv1(), DateUtil.DAY_FORMAT_STRING);
+				ArenaService.nextFreshTime1 = GameUtil.computerNextReFreshTime2(lastUpdateDate.getTime(), ArenaService.DAUINTERVAL);
+			} catch (Exception e) {
+				logger.error("gameRecordVO传换时间异常", e);
+			}
+		}
+
+		return playerArenaVO;
+	}
+
+	/**
+	 * 我的胜利或失败　
+	 * 
+	 * @param winner
+	 * @param loster
+	 * @throws Exception
+	 */
+	public void mywinner(int winnerId, int losterId) throws Exception {
+		PlayerArenaVO winner = null;
+		PlayerArenaVO loster = null;
+		int oldernum = 0;
+		SyncLock syncLock = SyncUtil.getInstance().getLock(LockConstant.LOCK_ARENA + winnerId);
+		synchronized (syncLock) {
+			winner = ArenaService.getPlayerArenaVOFromRedis(String.valueOf(winnerId));
+			loster = ArenaService.getPlayerArenaVOFromRedis(String.valueOf(losterId));
+			winner.setWin(winner.getWin() + 1);// 总胜利场次
+			winner.setCcwin(winner.getCcwin() + 1); // 周期内　当前连胜场次
+			if (winner.getCcwin() > winner.getCc3win()) {
+				winner.setCc3win(winner.getCcwin());
+			}
+			if (winner.getCcwin() > winner.getCcwinhis()) {
+				winner.setCcwinhis(winner.getCcwin());
+			}
+			winner.setFailEndTime(DateUtil.afterSec(new Date(), FAILCD));
+
+			if (loster.getOrdernum() < winner.getOrdernum()) {
+				oldernum = winner.getOrdernum();
+				winner.setOrdernum(loster.getOrdernum());
+				loster.setOrdernum(oldernum);
+
+				winner.setToporder(winner.getOrdernum());
+			}
+
+			// if (winner.getOrdernum() < winner.getToporder()) {
+			//
+			// }
+
+			logger.debug("我赢了竞技: 历史阵容: " + winner.getEnemline());
+			winner.setEnemline(getEnem(winner));
+			logger.debug("我赢了竞技: 更新阵容: " + winner.getEnemline());
+
+			this.updatePlayerArenaVOCachedAndDB(winner, true);
+			this.updatePlayerArenaVOCachedAndDB(loster, true);
+		}
+
+		if (winner.getCcwin() > CCGameRecordVO.getValue1()) {
+			PlayerVO playerVO = RedisMap.getPlayerVOById(winnerId);
+			CCGameRecordVO.setStrv1(playerVO.getName());
+			CCGameRecordVO.setValue1(winner.getCcwin());
+
+			baseInfoService.updateGameRecordVO(CCGameRecordVO);
+		}
+
+		syncLock = SyncUtil.getInstance().getLock(LockConstant.LOCK_ARENA + losterId);
+		synchronized (syncLock) {
+			loster = ArenaService.getPlayerArenaVOFromRedis(String.valueOf(losterId));
+			if (loster.getOrdernum() < oldernum) {
+				loster.setOrdernum(oldernum);
+			}
+		}
+
+		appendBattleRecord(RECORDTYPE.ATK_VALUE, winner, loster.getPlayerId(), RECORDSUCC.SUCC_VALUE);
+		appendBattleRecord(RECORDTYPE.DEF_VALUE, loster, winner.getPlayerId(), RECORDSUCC.FAIL_VALUE);
+	}
+
+	public void myloster(int myId, int otherId) throws Exception {
+		PlayerArenaVO my = null;
+		PlayerArenaVO other = null;
+
+		SyncLock syncLock = SyncUtil.getInstance().getLock(LockConstant.LOCK_ARENA + myId);
+		synchronized (syncLock) {
+			my = ArenaService.getPlayerArenaVOFromRedis(String.valueOf(myId));
+			other = ArenaService.getPlayerArenaVOFromRedis(String.valueOf(otherId));
+			my.setCcwin(0); // 周期内　当前连胜场次
+			my.setLost(my.getLost() + 1); // 失败场次
+			my.setFailEndTime(DateUtil.afterSec(new Date(), FAILCD));
+			this.updatePlayerArenaVOCachedAndDB(my, true);
+		}
+
+		appendBattleRecord(RECORDTYPE.ATK_VALUE, my, other.getPlayerId(), RECORDSUCC.FAIL_VALUE);
+		appendBattleRecord(RECORDTYPE.DEF_VALUE, other, my.getPlayerId(), RECORDSUCC.SUCC_VALUE);
+	}
+
+	// 修 改最高战力
+	public void updatePlayerArenaCombat(int playerId, int combat) {
+		SyncLock syncLock = SyncUtil.getInstance().getLock(LockConstant.LOCK_ARENA + playerId);
+		synchronized (syncLock) {
+			PlayerArenaVO playerArenaVO = ArenaService.getPlayerArenaVOFromRedis(String.valueOf(playerId));
+			playerArenaVO.setCombat(combat);
+			updatePlayerArenaVOCachedAndDB(playerArenaVO, false);
+		}
+		// 江湖需要使用最高战斗力
+
+	}
+
+	public void savePlayerHeroDefVO(int playerId, List<PlayerHeroVO> list) {
+		// List<PlayerHeroDefVO> list = ArenaRedisTool.getPlayerHeroDefList(playerId);
+		sqlSaveThread.putSql(playerId,sqlBuild.getSql("com.dh.dao.PlayerHeroDefMapper.delHeroDef", playerId));
+		for (PlayerHeroVO playerHeroVO : list) {
+			sqlSaveThread.putSql(playerId,sqlBuild.getSql("com.dh.dao.PlayerHeroDefMapper.insertHeroDef", ArenaRedisTool.playerToHeroDefVO(playerHeroVO)));
+		}
+	}
+
+	/**
+	 * 添加战报
+	 * 
+	 * @param playerId
+	 * @param atkType
+	 *            1进攻　0防守
+	 * @param otherPlayerId
+	 * @param succ
+	 *            1胜利 0失败
+	 */
+	public void appendBattleRecord(int atkType, PlayerArenaVO my, int otherPlayerId, int succ) {
+		BattleRecordVO battleRecordVO = new BattleRecordVO();
+		battleRecordVO.setPlayerId(my.getPlayerId());
+		battleRecordVO.setAtktype(atkType);
+		battleRecordVO.setOtherPlayerId(otherPlayerId);
+		battleRecordVO.setIndex(getBattleRecordIndex(my.getPlayerId()));
+		battleRecordVO.setRank(my.getOrdernum());
+		battleRecordVO.setSucc(succ);
+		battleRecordVO.setBattleDate(new Date());
+		RedisList.rpush(RedisKey.BATTLE_RECORED + my.getPlayerId(), JSON.toJSONString(battleRecordVO));
+		saveBattleRecord(battleRecordVO);
+	}
+
+	public int getBattleRecordIndex(int playerId) {
+		int index = 0;
+		SyncLock syncLock = SyncUtil.getInstance().getLock(LockConstant.LOCK_ARENA_RECORD + playerId);
+		synchronized (syncLock) {
+			String key = RedisKey.BATTLE_RECORED + playerId;
+
+			int len = (int) RedisList.llen(key);
+			if (len >= MAX_RECORED_LEN) {
+				String strJson = RedisList.lpop(key);
+				BattleRecordVO battleRecordVO = JSON.parseObject(strJson, BattleRecordVO.class);
+				index = battleRecordVO.getIndex();
+			} else {
+				index = len;
+			}
+		}
+		return index;
+	}
+
+	/**
+	 * 前三名的信息
+	 * 
+	 * @param response
+	 */
+	public void getOtherAnernaInfo(AnernaDetailResponse.Builder response) {
+		for (OtherAnernaInfo.Builder builder : OtherAnernaInfoList) {
+			response.addOtherAnernaInfo(builder);
+		}
+	}
+
+	public void getArenaDetail(UserCached userCached, List<NettyMessageVO> commandList) throws Exception {
+		AnernaDetailResponse.Builder response = AnernaDetailResponse.newBuilder();
+
+		getOtherAnernaInfo(response);
+		getMyAnernaInfo(userCached, response);
+		// GameRecordVO gameRecordVO =
+		// BaseInfoService.getGameRecordVO(GameRecordConstants.CC3INGAMERECORD);
+		response.setWin3DayRoleName(CCGameRecordVO.getStrv1());
+		response.setWin3DayTimes(CCGameRecordVO.getValue1());
+		response.setCostPvp(ArenaService.COSTEXPVP);
+		response.setBalanceDate(DateUtil.formatDate(new Date(ArenaService.nextFreshTime1)));
+		BattleRecord.Builder battleRecord = BattleRecord.newBuilder();
+
+		List<String> list = RedisList.lrange(userCached.getPlayerId(), -1, -1);// 取全部记录
+		if (CodeTool.isNotEmpty(list)) {
+			for (String strJson : list) {
+				BattleRecordVO temp = JSON.parseObject(strJson, BattleRecordVO.class);
+				battleRecord.setType(temp.getAtktype() == RECORDTYPE.ATK_VALUE ? RECORDTYPE.ATK : RECORDTYPE.DEF);
+				battleRecord.setOrderNum(temp.getRank());
+				PlayerVO otherPlayerVO = RedisMap.getPlayerVOById(temp.getOtherPlayerId());
+				if (otherPlayerVO == null) {
+					throw new Exception("未加载数据PlayerVO  playerId = " + otherPlayerVO);
+				}
+				battleRecord.setName(otherPlayerVO.getName());
+				battleRecord.setResult(temp.getSucc() == RECORDSUCC.FAIL_VALUE ? RECORDSUCC.FAIL : RECORDSUCC.SUCC);
+				battleRecord.setBattleTime(DateUtil.formatDate(temp.getBattleDate()));
+				response.setBattleRecord(battleRecord);
+				break;
+			}
+		}
+
+		CommandUtil.packageNettyMessage(CSCommandConstant.ARENA_DETAIL, response.build().toByteArray(), commandList);
+
+	}
+
+	/**
+	 * 个人信息
+	 * 
+	 * @param userCached
+	 * @param response
+	 */
+	public void getMyAnernaInfo(UserCached userCached, AnernaDetailResponse.Builder response) throws Exception {
+		MyAnernaInfo.Builder builder = MyAnernaInfo.newBuilder();
+		PlayerArenaVO playerArenaVO = getPlayerArenaVO(userCached);
+		builder.setToporder(playerArenaVO.getToporder());// 历史最高排名
+		builder.setTopcwin(playerArenaVO.getCcwinhis());// 历史最高连胜
+		builder.setCurorder(playerArenaVO.getOrdernum());// 当前排名
+		builder.setCurcwin(playerArenaVO.getCcwin());// 当前连胜
+		builder.setCurc3Win(playerArenaVO.getCc3win());// 本期最高连胜
+
+		long curTime = System.currentTimeMillis();
+		builder.setChallengeReMainTime(GameUtil.getRemainTime(curTime, playerArenaVO.getFailEndTime()));// 挑战失败剩余时间（秒）
+		builder.setEnemRemainTime(GameUtil.getRemainTime(curTime, playerArenaVO.getEnemyremainTime())); // 剩余刷新时间
+		// repeated EmenAnernaInfo emenAnernaInfo = 9; //对手信息
+
+		String str = playerArenaVO.getEnemline(); // 防守阵容
+		logger.debug("我的排名 + " + playerArenaVO.getOrdernum() + ": getMyAnernaInfo: " + str);
+
+		if (CodeTool.isEmpty(str)) {
+			playerArenaVO.setEnemline(getEnem(playerArenaVO));
+			str = playerArenaVO.getEnemline();
+			updatePlayerArenaVOCachedAndDB(playerArenaVO, false);
+		}
+
+		if (CodeTool.isNotEmpty(str)) {
+			int[] arr = Tool.strToIntArr(str);
+			for (int otherPlayerId : arr) {
+				builder.addEmenAnernaInfo(getEmenAnernaInfo(otherPlayerId));
+			}
+		}
+
+		// str = playerArenaVO.getDefline(); // 防守阵容
+		List<PlayerHeroVO> defHeros = userCached.getUserHero().getAtkHeroList();
+		for (PlayerHeroVO playerHeroVO : defHeros) {
+			builder.addDefHeroIds(playerHeroVO.getId());
+		}
+
+		if (playerArenaVO.getReward0() > 0) { // 当前可以领取的排名奖励
+			builder.setRewardid1(playerArenaVO.getReward0());
+			builder.setReward1RemainTime(0);// 单日奖励剩余时间
+			builder.setLastRank(playerArenaVO.getLastdayrank1());
+
+		} else { // 未来可以领取的排名奖励
+
+			int reward1 = JJCRankRes.getInstance().getRewardIdByPlayerRank(playerArenaVO.getOrdernum());
+			builder.setRewardid1(reward1);
+			builder.setReward1RemainTime(GameUtil.getRemainTime(curTime, nextFreshTime1));// 单日奖励剩余时间
+			builder.setLastRank(playerArenaVO.getOrdernum());
+		}
+
+		int reward3 = JJCSuccRes.getInstance().getNextRewardId(playerArenaVO.getReward3(), playerArenaVO.getCc3win());
+		builder.setRewardid3(reward3);
+		if (reward3 > 0) {
+			builder.setReward3RemainTime(0);
+		} else {
+			builder.setReward3RemainTime(GameUtil.getRemainTime(curTime, nextFreshTime1));
+		}
+		builder.setLastSuccWin(playerArenaVO.getCc3win());
+
+		response.setMyAnernaInfo(builder);
+	}
+
+	/**
+	 * 取对手信息
+	 * 
+	 * @param otherPlayerId
+	 * @return
+	 * @throws Exception
+	 */
+	public EmenAnernaInfo.Builder getEmenAnernaInfo(int otherPlayerId) throws Exception {
+		PlayerVO otherPlayerVO = RedisMap.getPlayerVOById(otherPlayerId);
+		EmenAnernaInfo.Builder emenAnernaInfo = EmenAnernaInfo.newBuilder();
+		emenAnernaInfo.setPlayerid(otherPlayerVO.getPlayerId());
+		emenAnernaInfo.setNick(otherPlayerVO.getName());
+		emenAnernaInfo.setLevel(otherPlayerVO.getLevel());
+		emenAnernaInfo.setHeadIcon(otherPlayerVO.getHeadIcon());
+		PlayerArenaVO otherPlayerArenaVO = getPlayerArenaVOFromRedis(String.valueOf(otherPlayerId));
+		emenAnernaInfo.setOrdernum(otherPlayerArenaVO.getOrdernum());
+		logger.debug("otherPlayerArenaVO.getOrdernum() = " + otherPlayerArenaVO.getOrdernum());
+		emenAnernaInfo.setCombat(otherPlayerArenaVO.getCombat());
+		return emenAnernaInfo;
+	}
+
+	/**
+	 * 刷新对手列表
+	 * 
+	 * @param playerArenaVO
+	 * @param isresfresh
+	 * @return
+	 */
+	public boolean refreshEmenAnernaInfo(PlayerArenaVO playerArenaVO, boolean isresfresh) {
+		long curTime = System.currentTimeMillis();
+		if (isresfresh || curTime >= playerArenaVO.getEnemyremainTime().getTime()) {
+			playerArenaVO.setEnemline(getEnem(playerArenaVO));
+			playerArenaVO.setEnemyremainTime(DateUtil.afterSec(new Date(), ENEMCD));
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
+	 * 找4个对手
+	 * 
+	 * @param playerArenaVO
+	 * @return
+	 */
+	public static String getEnem(int min, int max, int myorder) {
+		StringBuffer str = new StringBuffer();
+		List<Integer> list = GameUtil.getRandomString(min, max, COUQUENEMNUM, myorder);
+
+		int i = 0;
+		for (int index : list) {
+			logger.debug("getEnem index = " + index);
+			Set<String> set = getPlayerArenaByRangeFromRedis(index, index);
+			if (i > 0) {
+				str.append(",");
+			}
+			String rr = CodeTool.getSetValue(set, 0);
+			logger.debug("getEnem rr = " + rr);
+			str.append(rr);
+			i++;
+		}
+
+		return str.toString();
+	}
+
+	public String getEnem(PlayerArenaVO playerArenaVO) {
+		return getEnem(playerArenaVO, false);
+	}
+
+	public String getEnem(PlayerArenaVO playerArenaVO, boolean isFirst) {
+		int count = getPlayerArenaCountFromRedis();
+		int start = 0;
+		int end = 50;
+		int dis = 5;
+		if (playerArenaVO.getOrdernum() > 1000) {
+			dis = 200;
+		} else if (playerArenaVO.getOrdernum() > 500 && playerArenaVO.getOrdernum() <= 1000) {
+			dis = 100;
+		} else if (playerArenaVO.getOrdernum() > 50 && playerArenaVO.getOrdernum() <= 500) {
+			dis = 50;
+		} else {
+			dis = 4;
+		}
+
+		if (isFirst) {
+			return minLine;
+		}
+
+		end = playerArenaVO.getOrdernum() - 1;
+		start = playerArenaVO.getOrdernum() - dis;
+
+		end = Math.min(end, count);
+		start = Math.max(1, start);
+
+		if (end < COUQUENEMNUM) {
+			end = COUQUENEMNUM + 1;
+		}
+		return getEnem(start, end, playerArenaVO.getOrdernum());
+	}
+
+	// ---------------------redis-------------------------------
+
+	// public static List<PlayerHeroDefVO> getPlayerHeroDefListFromRedis(int
+	// playerId) {
+	// String strJson = RedisMap.hget(RedisKey.HERO_DEF_MAP,
+	// String.valueOf(playerId));
+	// List<PlayerHeroDefVO> heroDefList = null;
+	// heroDefList = JSON.parseArray(strJson, PlayerHeroDefVO.class);
+	// return heroDefList;
+	// }
+
+	// public static PlayerHeroDefVO getPlayerHeroDefVOFromRedis(int playerId,
+	// int heroId) {
+	// String strJson = RedisMap.hget(JedisTool.createCombinedKey(RedisKey.PH,
+	// playerId), String.valueOf(heroId));
+	// return JSON.parseObject(strJson, PlayerHeroDefVO.class);
+	// }
+
+	public static PlayerArenaVO getPlayerArenaVOFromRedis(String strPlayerId) {
+		String strArenaJson = RedisMap.hget(RedisKey.ARENA_MAP, strPlayerId);
+		PlayerArenaVO playerArenaVO = null;
+		playerArenaVO = JSON.parseObject(strArenaJson, PlayerArenaVO.class);
+		return playerArenaVO;
+	}
+
+	public static int getPlayerArenaCountFromRedis() {
+		return (int) RedisMap.hlen(RedisKey.ARENA_MAP);
+	}
+
+	public static void addPlayerArenaVOFromRedis(PlayerArenaVO playerArenaVO) {
+		String strJson = JSON.toJSONString(playerArenaVO);
+		RedisMap.hset(RedisKey.ARENA_MAP, String.valueOf(playerArenaVO.getPlayerId()), strJson);
+		RedisSortSet.zadd(RedisKey.ARENA_SORTLIST, playerArenaVO.getOrdernum(), String.valueOf(playerArenaVO.getPlayerId()));
+	}
+
+	public static Set<String> getPlayerArenaByRangeFromRedis(int start, int end) {
+		Set<String> set = RedisSortSet.zrange(RedisKey.ARENA_SORTLIST, start - 1, end - 1);
+		return set;
+	}
+
+	/**
+	 * 添加
+	 * 
+	 * @param playerHeroDefVO
+	 */
+	public void addPlayerDefHero(PlayerHeroVO playerHeroVO) {
+		String heroStr = JSON.toJSONString(playerHeroVO);
+		RedisMap.hset(JedisTool.createCombinedKey(RedisKey.PLAYER_HERO, playerHeroVO.getPlayerId()), String.valueOf(playerHeroVO.getId()), heroStr);
+		sqlSaveThread.putSql(playerHeroVO.getPlayerId(),sqlBuild.getSql("com.dh.dao.PlayerHeroMapper.updatePlayerHero", playerHeroVO));
+	}
+
+	// // -----PlayerArenaVO------
+	public void insertPlayerArenaVOCachedAndDB(PlayerArenaVO playerArenaVO) {
+		sqlSaveThread.putSql(playerArenaVO.getPlayerId(),sqlBuild.getSql("com.dh.dao.PlayerArenaMapper.insertPlayerArena", playerArenaVO));
+		addPlayerArenaVOFromRedis(playerArenaVO);
+	}
+
+	public void updatePlayerArenaVOCachedAndDB(PlayerArenaVO playerArenaVO, boolean updateOrder) {
+		String strArena = JSON.toJSONString(playerArenaVO);
+		RedisMap.hset(RedisKey.ARENA_MAP, String.valueOf(playerArenaVO.getPlayerId()), strArena);
+
+		if (updateOrder) {
+			RedisSortSet.zrank(RedisKey.ARENA_SORTLIST, String.valueOf(playerArenaVO.getPlayerId()));// (RedisKey.ARENA_SORTLIST,
+																										// playerArenaVO.getOrdernum(),
+																										// playerArenaVO.getOrdernum());
+			RedisSortSet.zadd(RedisKey.ARENA_SORTLIST, playerArenaVO.getOrdernum(), String.valueOf(playerArenaVO.getPlayerId()));
+		}
+		sqlSaveThread.putSql(playerArenaVO.getPlayerId(),sqlBuild.getSql("com.dh.dao.PlayerArenaMapper.updatePlayerArena", playerArenaVO));
+	}
+
+	public void updatePlayerArenaVOCachedAndDBList(List<PlayerArenaVO> playerArenaVOList) {
+		RedisMap.hgetPlayerArenaVOList(playerArenaVOList);
+		for (PlayerArenaVO playerArenaVO : playerArenaVOList) {
+			sqlSaveThread.putSql(playerArenaVO.getPlayerId(),sqlBuild.getSql("com.dh.dao.PlayerArenaMapper.updatePlayerArena", playerArenaVO));
+		}
+	}
+
+	public void saveBattleRecord(BattleRecordVO battleRecordVO) {
+		sqlSaveThread.putSql(battleRecordVO.getPlayerId(),sqlBuild.getSql("com.dh.dao.BattleRecordMapper.saveBattleRecord", battleRecordVO));
+	}
+
+}

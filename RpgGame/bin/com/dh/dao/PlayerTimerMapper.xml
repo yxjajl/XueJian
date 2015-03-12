@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dh.dao.PlayerTimerMapper">
+	<sql id="queryByKeyPlayerTimer">WHERE `playerid` = #{playerId}</sql>
+	<select id="getPlayerTimer" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.PlayerTimerVO">
+		SELECT `playerId`, `zmD1`, `zmD2`, `zmD3`, `zmD4`, `zmFirst1`, `zmFirst2`, `zmFirst3`,
+		`zmFirst4`,`salaryD`,`salaryStep`, `buildD1`, `buildD2`, `buildD3`, `knpsackTime`,`powerD`,
+		`herorestD`, `herorestTime`,`exploitShop`,`exploitShopTime`,`grabline`, `grabTime`,`vipReward`,
+		`vipRewardDate`,`guide`,`online_count` as onlineCount,`online_time` as onlineTime,`MRaidDate`,
+		`MRaidCount`,`MRaidBuyCount`,`ERaidDate`,`ERaidCount`,`ERaidBuyCount`,`MERaidFreshDate`,
+		`firstGrab`,yzTimes,yzDate,`buyPowerCount`,`jjcBuyTimes`,`dayChange`, `yellowNewGift`,`yellowDayGift`,`eliRaidBuyTimes`,`dayDoneStr`,`dayDoneScore`,`dayDoneRewards`,`donateReward`,`dayLegionReward`
+		,money10,dayShare,cdkeyField
+		FROM `t_player_timer`
+		<include refid="queryByKeyPlayerTimer"/>
+	</select>
+	
+	<update id="updatePlayerTimer" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer`
+		<trim prefix="SET" suffixOverrides=",">
+			zmFirst1 = #{zmFirst1}, zmFirst2 = #{zmFirst2}, zmFirst3 = #{zmFirst3}, zmFirst4 =
+			#{zmFirst4},money10 = #{money10},
+			<if test="zmD1 != null">zmD1 = #{zmD1},</if>
+			<if test="zmD2 != null">zmD2 = #{zmD2},</if>
+			<if test="zmD3 != null">zmD3 = #{zmD3},</if>
+			<if test="zmD4 != null">zmD4 = #{zmD4}</if>
+		</trim>
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	<update id="freshTimerEveryDay" >
+		UPDATE `t_player_timer` set `online_count` = 0 , `online_time` = 0,`buyPowerCount`=0,`jjcBuyTimes`=0,`dayChange`=0,`yellowDayGift`
+		=0,`eliRaidBuyTimes`=0,`dayDoneRewards`=0,`dayDoneStr`='0,0,0,0,0,0,0,0,0,0,0,0,0,',`dayDoneScore`=0,`dayLegionReward`=0,money10 = 0,dayShare=0
+	</update>
+	
+	<update id="dayFreshOnLogin" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer` set `online_count` = 0 , `online_time` = 0,`buyPowerCount`=0,`dayChange`=0,`jjcBuyTimes`=0,`yellowDayGift`
+		=0,`eliRaidBuyTimes` = 0,`dayDoneRewards`=0,`dayDoneStr`='0,0,0,0,0,0,0,0,0,0,0,0,0,',`dayDoneScore`=0,`dayLegionReward`=0,money10 = 0,dayShare=0
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	
+	
+	<update id="updateYIPlayerTimer" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer`
+		<trim prefix="SET" suffixOverrides=",">
+			<if test="buildD1 != null">buildD1 = #{buildD1},</if>
+			<if test="buildD2 != null">buildD2 = #{buildD2},</if>
+			<if test="buildD3 != null">buildD3 = #{buildD3}</if>
+		</trim>
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	
+	<update id="updateDayShare" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer` set dayShare = #{dayShare} 
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	
+	<update id="updateHeroHungryTime" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer`
+		<trim prefix="SET" suffixOverrides=",">
+			<if test="herorestD != null">herorestD = #{herorestD},</if>
+			`herorestTime` = #{herorestTime}
+		</trim>
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	
+	<update id="updatePowerTimer" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer` set powerD = #{powerD}
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	<update id="updateGuide" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer` set `guide` = #{guide}
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	<update id="updateknpsackTime" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer` set knpsackTime = #{knpsackTime}
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	
+	
+	<update id="updateSalaryTime" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer` set salaryD = #{salaryD},salaryStep = #{salaryStep}
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	
+	<update id="updateCDKEY" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer` set `cdkeyField` = #{cdkeyField}
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	
+	
+	
+	<update id="updateGrabTime" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer` set `grabline` = #{grabline}, `grabTime`=#{grabTime}
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	<update id="updateMERaid" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer` set `ERaidDate` = #{ERaidDate}, `MRaidCount`=#{MRaidCount},`MRaidBuyCount`
+		= #{MRaidBuyCount}, `MRaidDate`=#{MRaidDate},`ERaidCount` = #{ERaidCount}, `ERaidBuyCount`=#{ERaidBuyCount},`MERaidFreshDate`=#{MERaidFreshDate}
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	
+	<update id="updateVipReward" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer` set `vipReward` = #{vipReward}, `vipRewardDate` = #{vipRewardDate}
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	<update id="updateDayChange" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer` set `dayChange` = #{dayChange}
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	<update id="updateOnlineReward" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer` set `online_count` = #{onlineCount} , `online_time` = #{onlineTime}
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	
+	<update id="updateExploitShop" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer` set `exploitShop` = #{exploitShop} , `exploitShopTime` = #{exploitShopTime}
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	
+	<select id="getBuild" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.PlayerBuildVO">
+		SELECT `playerId`,`b1`, `b2`, `b3` FROM `t_player_building`
+		<include refid="queryByKeyPlayerTimer"/>
+	</select>
+	
+	<update id="updateBuild" parameterType = "com.dh.game.vo.user.PlayerBuildVO">
+		UPDATE `t_player_building` SET `b1` = #{b1}, `b2` = #{b2}, `b3` = #{b3} WHERE `playerId`
+		= #{playerId}
+	</update>
+	<update id="updateFirstGrab" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer` set `firstGrab` = #{firstGrab}
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	
+	<update id="updateBuyPowerCount" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer` set `buyPowerCount` = #{buyPowerCount}
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	
+	
+	<update id="updatejjcBuyTimes" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer` set `jjcBuyTimes` = #{jjcBuyTimes}
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	
+	<update id="updateYZInfo" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer` set `yzTimes` = #{yzTimes},`yzDate` = #{yzDate}
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	
+	<update id="updateYellowNewGift" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer` set `yellowNewGift` = #{yellowNewGift}
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	
+	<update id="updateYellowDayGift" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer` set `yellowDayGift` = #{yellowDayGift}
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	
+	<update id="updateEliRaidBuyTimes" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer` set `eliRaidBuyTimes` = #{eliRaidBuyTimes}
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	<update id="updateDayDoneReward" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer` set `dayDoneRewards` = #{dayDoneRewards}
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	
+	<update id="updateDayDone" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer` set `dayDoneRewards` = #{dayDoneRewards},`dayDoneStr`=#{dayDoneStr},`dayDoneScore`=#{dayDoneScore}
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	<update id="updateDayDoneScore" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer` set `dayDoneScore`=#{dayDoneScore}
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	<update id="updateLegionTime" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer` set `donateReward`=#{donateReward},`dayLegionReward`=#{dayLegionReward}
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	<update id="updateDayDoneStr" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		UPDATE `t_player_timer` set `dayDoneStr`=#{dayDoneStr}
+		<include refid="queryByKeyPlayerTimer"/>
+	</update>
+	
+	<insert id="insertPlayerTimeVO" parameterType="com.dh.game.vo.user.PlayerTimerVO">
+		INSERT INTO `t_player_timer` (`playerId`, `zmD1`, `zmD2`, `zmD3`, `zmD4`, `zmFirst1`,
+		`zmFirst2`, `zmFirst3`, `zmFirst4`, `powerD`, `knpsackTime`,`herorestD`, `herorestTime`,`online_count`,`online_time`,`firstGrab`,`buyPowerCount`)
+		VALUES (#{playerId},#{zmD1},#{zmD2},#{zmD3},#{zmD4}, #{zmFirst1},#{zmFirst2}, #{zmFirst3},#{zmFirst4},
+		#{powerD},#{knpsackTime},#{herorestD},#{herorestTime},#{onlineCount},#{onlineTime},#{firstGrab},#{buyPowerCount});
+	</insert>
+	
+</mapper>

@@ -1,0 +1,71 @@
+package com.dh.main;
+
+import java.util.Properties;
+
+import org.apache.log4j.Logger;
+import org.apache.log4j.PropertyConfigurator;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.FileSystemXmlApplicationContext;
+
+import com.dh.Cache.JedisTool;
+import com.dh.constants.TXConstants;
+import com.dh.netty.NettyServer;
+import com.dh.util.MyClassLoaderUtil;
+import com.dh.util.ProperytiesUtil;
+
+public class GateWayMain1 {
+	private static Logger logger = Logger.getLogger(GateWayMain1.class);
+	public static ApplicationContext ctx = null;
+
+	public static void main(String[] args) throws Exception {
+		String osName = System.getProperty("os.name");
+		NettyServer nettyServer = null;
+
+		if (osName.startsWith("Windows")) {
+			PropertyConfigurator.configure("config/log4j.properties");
+			ctx = new FileSystemXmlApplicationContext("config/applicationContext.xml");
+		} else {
+			PropertyConfigurator.configure("log4j.properties");
+			ctx = new FileSystemXmlApplicationContext("applicationContext.xml");
+
+		}
+
+		initS2sSocket();
+
+		MyClassLoaderUtil.getInstance().loadApplicationContext(ctx);
+		// MyClassLoaderUtil.getInstance().getTaskCheck().init(ctx);
+		nettyServer = (NettyServer) ctx.getBean("nettyServer");
+		try {
+			logger.info("=============server start===============1=");
+			nettyServer.run(TXConstants.netty_port);
+			logger.info("=============server start===============2=");
+		} catch (Exception e) {
+			e.printStackTrace();
+
+		}
+	}
+
+	public static void initS2sSocket() {
+		try {
+			String strpro = null;
+			String osName = System.getProperty("os.name");
+			if (osName.startsWith("Windows")) {
+				strpro = "config\\server.properties";
+			} else {
+				strpro = "server.properties";
+			}
+			Properties properties = ProperytiesUtil.loadProperties(strpro);
+
+			JedisTool.serverip = (String) properties.get("redis_server_ip");
+			JedisTool.TSTPSW = (String) properties.get("redis_server_pwd");
+			JedisTool.dbIndex = Integer.valueOf((String) properties.get("redis_server_db"));
+			TXConstants.tx_zone_id = (String) properties.get("tx_zone_id");
+			TXConstants.my_server_id = Integer.valueOf((String) properties.get("my_server_id"));
+			TXConstants.netty_port = Integer.valueOf((String) properties.get("server.port"));
+		} catch (Exception e) {
+			logger.error("无法连接远程服务器", e);
+		} finally {
+		}
+		// connectCenterServer();
+	}
+}

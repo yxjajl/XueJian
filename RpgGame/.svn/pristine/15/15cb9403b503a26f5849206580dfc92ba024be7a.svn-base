@@ -1,0 +1,813 @@
+package com.dh.service;
+
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.apache.log4j.Logger;
+import org.springframework.stereotype.Component;
+
+import com.alibaba.fastjson.JSON;
+import com.dh.Cache.JedisTool;
+import com.dh.Cache.RedisMap;
+import com.dh.Cache.RedisSortSet;
+import com.dh.constants.ActivityConstant;
+import com.dh.constants.CommonConstants;
+import com.dh.constants.HeroConstants;
+import com.dh.constants.RegisterRoleConstant;
+import com.dh.dao.PlayerMapper;
+import com.dh.exception.GameException;
+import com.dh.game.constant.AlertEnum;
+import com.dh.game.constant.CSCommandConstant;
+import com.dh.game.constant.RedisKey;
+import com.dh.game.constant.TaskConstant;
+import com.dh.game.vo.base.BaseGrowthVO;
+import com.dh.game.vo.base.BaseHeroInfoVO;
+import com.dh.game.vo.base.BaseLevelVO;
+import com.dh.game.vo.gm.GMProto.Users;
+import com.dh.game.vo.login.PlayerCreateProto.PlayerCreateRequest;
+import com.dh.game.vo.login.PlayerLoginProto.PLAYER_PROPERTY;
+import com.dh.game.vo.login.PlayerLoginProto.PLAYER_UNIT_TYPE;
+import com.dh.game.vo.task.PlayerTask.TaskInfoResponse;
+import com.dh.game.vo.user.PlayerAccountVO;
+import com.dh.game.vo.user.PlayerActyVO;
+import com.dh.game.vo.user.PlayerBuildVO;
+import com.dh.game.vo.user.PlayerGMVO;
+import com.dh.game.vo.user.PlayerHeroHangVO;
+import com.dh.game.vo.user.PlayerHeroVO;
+import com.dh.game.vo.user.PlayerKnapsackVO;
+import com.dh.game.vo.user.PlayerRaidVO;
+import com.dh.game.vo.user.PlayerTaskVO;
+import com.dh.game.vo.user.PlayerTimerVO;
+import com.dh.game.vo.user.PlayerVO;
+import com.dh.game.vo.user.PlayerWelfareVO;
+import com.dh.netty.NettyMessageVO;
+import com.dh.queue.LocalCommandQueue;
+import com.dh.resconfig.HeroGrowthRes;
+import com.dh.resconfig.HeroRes;
+import com.dh.resconfig.ItemRes;
+import com.dh.resconfig.LevelRes;
+import com.dh.resconfig.PlayerLevelRes;
+import com.dh.sqlexe.SqlExeThread;
+import com.dh.sqlexe.SqlSaveThread;
+import com.dh.sync.LockConstant;
+import com.dh.sync.SyncLock;
+import com.dh.sync.SyncUtil;
+import com.dh.util.CodeTool;
+import com.dh.util.CommandUtil;
+import com.dh.util.DateUtil;
+import com.dh.util.MyClassLoaderUtil;
+import com.dh.util.SqlBuild;
+import com.dh.util.VOUtil;
+import com.dh.vo.user.UserCached;
+import com.dh.vo.user.UserGM;
+import com.dh.vo.user.UserHero;
+import com.dh.vo.user.UserKnapsack;
+
+/**
+ * @author dingqu-pc100
+ * 
+ */
+@Component
+public class PlayerService {
+	private final static Logger logger = Logger.getLogger(PlayerService.class);
+	@Resource
+	private PlayerMapper playerMapper;
+	@Resource
+	private SqlBuild sqlBuild;
+	@Resource
+	private SqlSaveThread sqlSaveThread;
+	@Resource
+	private SqlExeThread sqlExeThread;
+	@Resource
+	private PlayerAccountService playerAccountService;
+	@Resource
+	private TasksService tasksService;
+	@Resource
+	private KnapsackService knapsackService;
+
+	/** 由于服务器意关机,将所有玩家在线状态更新 */
+	public void initPlayerGMData() {
+		playerMapper.initAllPlayerOnline();
+	}
+
+	public List<PlayerVO> getAllPlayerVO() {
+		return playerMapper.getAllPlayerVO();
+	}
+
+	public int getOnlineNum() {
+		return playerMapper.getOnlineNum();
+	}
+
+	public void loadAllPlayer(List<PlayerVO> list) {
+		if (JedisTool.IS_DEBUG_RELOAD || RedisMap.hlen(RedisKey.PLAYERVO_MAP) == 0) {
+			RedisMap.addPlayerList(list);
+		}
+	}
+
+	public void loadPlayerVO(PlayerVO playerVO) {
+		RedisMap.hset(RedisKey.PLAYERVO_MAP, String.valueOf(playerVO.getPlayerId()), JSON.toJSONString(playerVO));
+		RedisMap.hset(RedisKey.NAME_MAP, playerVO.getUserName(), String.valueOf(playerVO.getPlayerId()));
+		RedisSortSet.zadd(RedisKey.PLAYERLEVEL_SORTLIST, playerVO.getLevel(), String.valueOf(playerVO.getPlayerId()));
+		RedisMap.hset(RedisKey.NICK_MAP, playerVO.getName(), String.valueOf(playerVO.getPlayerId()));
+	}
+
+	public void loadPlayerInfo(UserCached userCached) throws Exception {
+		PlayerVO playerVO = RedisMap.getPlayerVOById(userCached.getPlayerId());
+		userCached.setPlayerVO(playerVO);
+		userCached.setLastedAccessTime(System.currentTimeMillis()); // 最近一次的访问时间
+		BaseLevelVO baseLevelVO = PlayerLevelRes.getInstance().getBaseLevelVO(userCached.getPlayerVO().getLevel());
+		userCached.getPlayerVO().setBaseLevelVO(baseLevelVO);
+
+		// 这里涉及到　在线时间刷新　背包等功能，不要改位置
+		userCached.getPlayerVO().setLastLoginTime(new Date().getTime());
+	}
+
+	public void updateLastLoginDate(UserCached userCached) throws Exception {
+		updatePlayerVO(userCached.getPlayerVO());
+	}
+
+	public boolean isExistsAccount(String account) throws Exception {
+		String str = RedisMap.hget(RedisKey.NAME_MAP, account);
+		return str != null;
+	}
+
+	public boolean isExistsNick(String nick) throws Exception {
+		nick = nick.trim();
+		String str = RedisMap.hget(RedisKey.NICK_MAP, nick);
+		return str != null && str.trim().length() > 0;
+	}
+
+	public static PlayerVO getPlayerVOByAccount(String account) throws Exception {
+		String strPlayerId = RedisMap.hget(RedisKey.NAME_MAP, account);
+		if (CodeTool.isEmpty(strPlayerId)) {
+			return null;
+		}
+		String text = RedisMap.hget(RedisKey.PLAYERVO_MAP, strPlayerId);
+
+		return JSON.parseObject(text, PlayerVO.class);
+	}
+
+	public static int getPlayerVOByNick(String nick) {
+		// System.out.println("添加人姓名: " + nick);
+		String text = RedisMap.hget(RedisKey.NICK_MAP, nick);
+		if (text == null) {
+			return 0;
+		}
+		return Integer.valueOf(text);
+	}
+
+	public static int getPlayerVOByName(String name) {
+		// System.out.println("添加人姓名: " + nick);
+		String text = RedisMap.hget(RedisKey.NAME_MAP, name);
+		if (text == null) {
+			return 0;
+		}
+		return Integer.valueOf(text);
+	}
+
+	public PlayerVO getPlayerVObyIdFromDB(int playerId) {
+		return playerMapper.getPlayerVOById(playerId);
+	}
+
+	public int getPlayerIdByAccountFromDB(String username) {
+		return playerMapper.getPlayerIdByAccount(username);
+	}
+
+	// public void updatePlayerSkill(PlayerVO playerVO) {
+	// // playerMapper.updatePlayerSkill(playerVO);
+	// sqlSaveThread.putSql(sqlBuild.getSql("com.dh.dao.PlayerMapper.updatePlayerSkill",
+	// playerVO));
+	// }
+
+	public void updatePlayerVO(PlayerVO playerVO) {
+		RedisMap.hset(RedisKey.PLAYERVO_MAP, String.valueOf(playerVO.getPlayerId()), JSON.toJSONString(playerVO));
+		sqlSaveThread.putSql(playerVO.getPlayerId(),sqlBuild.getSql("com.dh.dao.PlayerMapper.updatePlayer", playerVO));
+	}
+
+	public void updatePlayerOnline(PlayerVO playerVO) {
+		RedisMap.hset(RedisKey.PLAYERVO_MAP, String.valueOf(playerVO.getPlayerId()), JSON.toJSONString(playerVO));
+		sqlSaveThread.putSql(playerVO.getPlayerId(),sqlBuild.getSql("com.dh.dao.PlayerMapper.updatePlayerOnline", playerVO));
+	}
+
+	/**
+	 * 更新玩家特权
+	 * 
+	 * @param playerVO
+	 */
+	public void updatePlayerGM(PlayerVO playerVO) {
+		RedisMap.hset(RedisKey.PLAYERVO_MAP, String.valueOf(playerVO.getPlayerId()), JSON.toJSONString(playerVO));
+		sqlSaveThread.putSql(playerVO.getPlayerId(),sqlBuild.getSql("com.dh.dao.PlayerMapper.updatePlayerGM", playerVO));
+	}
+
+	/**
+	 * 给角色加经验
+	 * 
+	 * @param userCached
+	 * @param exp
+	 * @throws Exception
+	 */
+	public void addPlayerExp(UserCached userCached, int exp, List<NettyMessageVO> commandList) throws Exception {
+		if (exp < 0) {
+			exp = 0;
+		}
+		SyncLock syncLock = SyncUtil.getInstance().getLock(LockConstant.LOCK_PLAYERVO + userCached.getPlayerId());
+		synchronized (syncLock) {
+			int tempExp = userCached.getPlayerVO().getExp() + exp;
+			int level = userCached.getPlayerVO().getLevel();
+			int oldLevel = level;
+
+			BaseLevelVO baseLevelVO = userCached.getPlayerVO().getBaseLevelVO();
+			if (baseLevelVO == null) {
+				return;
+			}
+
+			while (tempExp >= baseLevelVO.getExp()) {
+				level++;
+				tempExp = tempExp - baseLevelVO.getExp();
+				BaseLevelVO tempBaseLevelVO = PlayerLevelRes.getInstance().getBaseLevelVO(level);
+
+				if (tempBaseLevelVO == null) {
+					tempExp = 0;
+					level--;
+					break;
+				}
+				baseLevelVO = tempBaseLevelVO;
+			}
+			userCached.getPlayerVO().setBaseLevelVO(baseLevelVO);
+			userCached.getPlayerVO().setLevel(level);
+			userCached.getPlayerVO().setExp(tempExp);
+			userCached.getPlayerVO().setHp(0);
+			this.updatePlayerVO(userCached.getPlayerVO());
+
+			// 升了级
+			if (oldLevel != level) {
+				// 玩家升级是推送满足条件的任务
+				// NettyMessageVO tempMessage =
+				// CommandUtil.packageNextTask(userCached, oldLevel, level);
+				// if (tempMessage != null) {
+				// commandList.add(tempMessage);
+				// }
+
+				// redis等级更新
+				RedisSortSet.zadd(RedisKey.PLAYERLEVEL_SORTLIST, userCached.getPlayerVO().getLevel(), String.valueOf(userCached.getPlayerId()));
+				// 升级增加体力
+				playerAccountService.addCurrency(PLAYER_PROPERTY.PROPERTY_POWER, (level - oldLevel) * 3, userCached.getPlayerAccountVO(), commandList, "升级加体力");
+				commandList.add(CommandUtil.packagePlayerVO(userCached));
+				MyClassLoaderUtil.getInstance().getTaskCheck().changTaskByReQType(userCached, TaskConstant.TASK_ROLE_UPLEVEL, 0, level, commandList);// 指挥官等级达到num级
+				tasksService.addNewTask(userCached, oldLevel, level, commandList);
+				// tasksService.changTask(userCached,
+				// TaskConstant.TASK_PLAYER_LEVEL, level);// 指挥官等级达到num级
+
+				MyClassLoaderUtil.getInstance().getTaskCheck().specProcess(userCached, oldLevel, level, commandList);
+
+				refreshTaskList(userCached, oldLevel, level, commandList);
+			} else {
+				commandList.add(CommandUtil.packageAnyProperties(PLAYER_UNIT_TYPE.UNIT_PLAYER, userCached.getPlayerId(), PLAYER_PROPERTY.PROPERTY_EXP, tempExp));
+			}
+		}
+	}
+
+	public void refreshTaskList(UserCached userCached, int oldLevel, int newlevel, List<NettyMessageVO> commandList) {
+		try {
+			TaskInfoResponse.Builder taskList = TaskInfoResponse.newBuilder();
+			for (PlayerTaskVO playerTaskVO : userCached.getTaskList()) {
+				if (playerTaskVO.getBaseTaskVO().getType() == TaskConstant.TASK_TYPE_MAIN || (playerTaskVO.getBaseTaskVO().getLevel() > oldLevel && playerTaskVO.getBaseTaskVO().getLevel() < newlevel)) {
+					taskList.addMyTask(VOUtil.getTask(playerTaskVO));
+				}
+			}
+
+			CommandUtil.packageNettyMessage(CSCommandConstant.TASK_UPDATE, taskList.build().toByteArray(), commandList);
+		} catch (Exception e) {
+			logger.error("" + e.getMessage(), e);
+		}
+	}
+
+	public UserCached singleRegPlayer(PlayerCreateRequest playerCreateRequest) throws Exception {
+		long begin = System.currentTimeMillis();
+		if (RegisterRoleConstant.currentNum.get() == RegisterRoleConstant.HUNGRY_NUM) {// 当前没有生产,数目小于最低要求
+			LocalCommandQueue.getInstance().put(RegisterRoleConstant.NETTYMESSAGEVO);
+		}
+		UserCached userCache = RegisterRoleConstant.preBornPlayers.poll();
+
+		synchronized (LockConstant.LOCK_USERACCOUNT) {
+			if (isExistsAccount(playerCreateRequest.getAccount())) {
+				throw new GameException(AlertEnum.ACCOUNT_RE_REG);
+			}
+
+			if (isExistsNick(playerCreateRequest.getNick())) {
+				throw new GameException(AlertEnum.NICK_ALREADY_USE);
+			}
+
+			RegisterRoleConstant.currentNum.getAndDecrement();
+			PlayerVO nPlayer = userCache.getPlayerVO();
+			nPlayer.setUserName(playerCreateRequest.getAccount());
+			nPlayer.setPassword(playerCreateRequest.getPassword());
+			nPlayer.setHeadIcon(playerCreateRequest.getHeadIcon());
+			nPlayer.setName(playerCreateRequest.getNick());
+			nPlayer.setPfkey(playerCreateRequest.getPfkey());
+			nPlayer.setBchannel(playerCreateRequest.getPlatform());
+			nPlayer.setRegisterdate(new Date());
+			nPlayer.setLastLoginDate(new Date());
+		}
+
+		pushToDB(userCache);
+		loadPlayerVO(userCache.getPlayerVO());
+		logger.info("注册用时" + (System.currentTimeMillis() - begin));
+		return userCache;
+	}
+
+	// public UserCached registerPlayer(String account, String password, String
+	// nick, int headIcon) throws Exception {
+	// long begin = System.currentTimeMillis();
+	// if (RegisterRoleConstant.currentNum.get() <=
+	// RegisterRoleConstant.HUNGRY_NUM) {// 当前没有生产,数目小于最低要求
+	// logger.info("是否制造:"+creating.get()+"当前数目"+currentNum.get());
+	//
+	// // prepareUserCaches();
+	// //SYS_APPEND_REGISTERROLE
+	// }
+	// PlayerVO nPlayer = null;
+	// UserCached userCache=null;
+	// userCache = RegisterRoleConstant.preBornPlayers.poll();
+	// }
+	// if (userCache != null) {
+	// RegisterRoleConstant.currentNum.getAndDecrement();
+	// nPlayer = userCache.getPlayerVO();
+	// nPlayer.setUserName(account);
+	// nPlayer.setPassword(password);
+	// nPlayer.setHeadIcon(headIcon);
+	// nPlayer.setName(nick);
+	// pushToDB(userCache);
+	// logger.info("注册用时" + (System.currentTimeMillis() - begin));
+	// return userCache;
+	// } else {
+	// throw new GameException(AlertEnum.REG_SERVER_BUSY);
+	// }
+	// }
+
+	/**
+	 * 异步:保存到数据库
+	 */
+	public void pushToDB(UserCached userCached) {
+		long begin = System.currentTimeMillis();
+		List<String> sqlList = new ArrayList<String>();
+		logger.debug("registerPlayer " + userCached.getPlayerVO().getPlayerId());
+		sqlList.add(sqlBuild.getSql("com.dh.dao.PlayerMapper.registerPlayer", userCached.getPlayerVO()));
+		sqlList.add(sqlBuild.getSql("com.dh.dao.PlayerAccountMapper.insertPlayerAccountVO", userCached.getPlayerAccountVO()));
+		sqlList.add(sqlBuild.getSql("com.dh.dao.PlayerTimerMapper.insertPlayerTimeVO", userCached.getUserTimer().getPlayerTimerVO()));
+		sqlList.add(sqlBuild.getSql("com.dh.dao.TechMapper.insertPlayerBuild", userCached.getUserTimer().getPlayerBuildVO()));
+		sqlList.add(sqlBuild.getSql("com.dh.dao.WelfareMapper.insertPlayerWelfareVO", userCached.getUserActivity().getPlayerWelfareVO()));
+		sqlList.add(sqlBuild.getSql("com.dh.dao.PlayerGMMapper.insertGM", userCached.getUserGM().getPlayerGMVO()));
+		sqlList.add(sqlBuild.getSql("com.dh.dao.PlayerActyMapper.insertPlayerActy", userCached.getUserActivity().getPlayerActyVO()));
+
+		List<PlayerHeroVO> heros = userCached.getUserHero().getHeroList();
+		if (heros.size() == 0) {
+			logger.error("当前注册没有获得英雄");
+		}
+		logger.info("###############注册英雄数量>>>>" + heros.size() + "##################");
+		for (PlayerHeroVO playerHeroVO : heros) {
+			RedisMap.addPlayerHero(playerHeroVO);
+			sqlList.add(sqlBuild.getSql("com.dh.dao.PlayerHeroMapper.addPlayerHero", playerHeroVO));
+		}
+		for (PlayerHeroHangVO playerHeroHangVO : userCached.getUserHero().getHeroHangList()) {
+			sqlList.add(sqlBuild.getSql("com.dh.dao.PlayerHeroHangMapper.addPlayerHang", playerHeroHangVO));
+		}
+		for (PlayerRaidVO playerRaidVO : userCached.getUserRaid().getRaidList()) {
+			sqlList.add(sqlBuild.getSql("com.dh.dao.PlayerRaidMapper.addRaid", playerRaidVO));
+		}
+		// sqlSaveThread.putSql(sqlBuild.getSql("com.dh.dao.PlayerCityMapper.insertStrongHold",
+		// userCached.getPlayerStrongHoldVO()));
+		for (PlayerKnapsackVO playerKnapsackVO : userCached.getUserKnapsack().getKnapsackList()) {
+			sqlList.add(sqlBuild.getSql("com.dh.dao.PlayerKnapsackMapper.insertPlayerKnapsackVO", playerKnapsackVO));
+		}
+
+		logger.info("pushtoDB耗时:" + (System.currentTimeMillis() - begin) + "ms");
+
+		sqlExeThread.putSqlList(sqlList);
+	}
+
+	public void prepareUserCaches() {
+		long begin = System.currentTimeMillis();
+		List<UserCached> list = new ArrayList<UserCached>();
+		for (int i = 0; i < RegisterRoleConstant.HUNGRY_NUM; i++) {
+
+			list.add(createUserCache());
+		}
+		RegisterRoleConstant.preBornPlayers.addAll(list);
+		RegisterRoleConstant.currentNum.getAndAdd(RegisterRoleConstant.HUNGRY_NUM);
+		logger.info("玩家缓存准备完成,用时" + (System.currentTimeMillis() - begin) + ",当前数:" + RegisterRoleConstant.currentNum.get() + ",当前队列数:" + RegisterRoleConstant.preBornPlayers.size());
+	}
+
+	public UserCached createUserCache() {
+		UserCached userCached = new UserCached();
+		Date now = new Date();
+
+		int playerId = JedisTool.incr(RedisKey.MAX_PLAYER_ID);
+		PlayerVO playerVO = new PlayerVO();
+		playerVO.setPlayerId(playerId);
+		playerVO.setLoginRecord("1:1:0:0;2:0:0:0;3:0:0:0;4:0:0:0;5:0:0:0");
+		playerVO.setNewGuide(1);
+		playerVO.setFunctionGuide("1-1");
+		playerVO.setHp(5000);
+		playerVO.setLevel(1);
+		playerVO.setBaseLevelVO(PlayerLevelRes.getInstance().getBaseLevelVO(playerVO.getLevel()));
+		// playerVO.setLastLoginDate(now);
+		// playerVO.setRegisterdate(now);
+		playerVO.setIs_online(1);
+		playerVO.setScores(1);
+		userCached.setPlayerVO(playerVO);
+		userCached.setPlayerId(playerId);
+
+		PlayerAccountVO playerAccountVO = new PlayerAccountVO();
+		playerAccountVO.setPlayerId(playerId);
+		playerAccountVO.setGmMoney(0);
+		playerAccountVO.setGmRmb(0);
+		playerAccountVO.setGiftgod(0);
+		playerAccountVO.setExploit(0);
+		playerAccountVO.setPower(CommonConstants.POWER_UP_LIMIT);
+		playerAccountVO.setPvp(100);
+		playerAccountVO.setExpc(playerVO.getBaseLevelVO().getMaxExpc());
+		playerAccountVO.setKnapsack(32);
+		userCached.setPlayerAccountVO(playerAccountVO);
+
+		//
+		PlayerTimerVO playerTimerVO = new PlayerTimerVO();
+		playerTimerVO.setPlayerId(playerId);
+		Date bb = DateUtil.add(now, Calendar.MONTH, -1);
+		playerTimerVO.setZmD1(bb);
+		playerTimerVO.setZmD2(bb);
+		playerTimerVO.setZmD3(bb);
+		playerTimerVO.setZmD4(bb);
+		playerTimerVO.setZmFirst1((short) 0);
+		playerTimerVO.setZmFirst2((short) 0);
+		playerTimerVO.setZmFirst3((short) 0);
+		playerTimerVO.setZmFirst4((short) 0);
+		playerTimerVO.setPowerD(now);
+		playerTimerVO.setKnpsackTime(60000);
+		playerTimerVO.setHerorestD(now);
+		playerTimerVO.setHerorestTime(300);
+		playerTimerVO.setSalaryD(bb);
+		playerTimerVO.setBuildD1(bb);
+		playerTimerVO.setBuildD2(bb);
+		playerTimerVO.setBuildD3(bb);
+		playerTimerVO.setFirstGrab(0);
+		char[] guideArray = new char[CommonConstants.GUIDE_NUM];
+		playerTimerVO.setGuide(CodeTool.encodeCharsToStr(guideArray));
+		playerTimerVO.setGuideArray(guideArray);
+		int[] dayDoneArray = new int[ActivityConstant.DAY_DONE_NUM];
+		playerTimerVO.setDayDoneArray(dayDoneArray);
+		playerTimerVO.setDayDoneStr(CodeTool.arrayToString(dayDoneArray, ","));
+
+		userCached.getUserTimer().setPlayerTimerVO(playerTimerVO);
+
+		//
+		PlayerBuildVO playerBuildVO = new PlayerBuildVO();
+		playerBuildVO.setPlayerId(playerId);
+		playerBuildVO.setB1(1);
+		playerBuildVO.setB2(1);
+		playerBuildVO.setB3(1);
+		userCached.getUserTimer().setPlayerBuildVO(playerBuildVO);
+
+		// 活动相关
+		PlayerActyVO playerActyVO = new PlayerActyVO();
+		playerActyVO.setPlayerid(playerId);
+		userCached.getUserActivity().setPlayerActyVO(playerActyVO);
+
+		UserHero userHero = userCached.getUserHero();
+		List<PlayerHeroVO> heros = new ArrayList<PlayerHeroVO>();
+		int i = 1;
+		heros.add(addHero(30000, playerId, i++));
+		// heros.add(addHero(30000, playerId, i++));
+		// heros.add(addHero(30000, playerId, i++));
+		// heros.add(addHero(30000, playerId, i++));
+		userHero.getHeroList().addAll(heros);
+		userHero.setMaxHeroId(i);
+
+		PlayerHeroHangVO heroHang1 = new PlayerHeroHangVO();
+		heroHang1.setHeroHangId(1);
+		heroHang1.setPlayerId(playerId);
+
+		PlayerHeroHangVO heroHang2 = new PlayerHeroHangVO();
+		heroHang2.setHeroHangId(2);
+		heroHang2.setPlayerId(playerId);
+
+		List<PlayerHeroHangVO> heroHangs = new ArrayList<PlayerHeroHangVO>();
+		heroHangs.add(heroHang1);
+		heroHangs.add(heroHang2);
+		userHero.setHeroHangList(heroHangs);
+		//
+		PlayerRaidVO playerRaidVO = new PlayerRaidVO();
+		playerRaidVO.setPlayerId(playerId);
+		playerRaidVO.setRaidid(10101);
+		List<PlayerRaidVO> raidList = new ArrayList<PlayerRaidVO>();
+		raidList.add(playerRaidVO);
+		userCached.getUserRaid().setRaidList(raidList);
+
+		// PlayerStrongHoldVO playerStrongHoldVO =
+		// userCached.getPlayerStrongHoldVO();
+		// playerStrongHoldVO.setPlayerid(playerId);
+		// playerStrongHoldVO.setPosx(150);
+		// playerStrongHoldVO.setPosy(380);
+		// playerStrongHoldVO.setStronghold(1);
+		// playerStrongHoldVO.setOpencity("1");
+		// userCached.setPlayerStrongHoldVO(playerStrongHoldVO);
+
+		PlayerWelfareVO playerWelfareVO = new PlayerWelfareVO();
+		playerWelfareVO.setPlayerId(userCached.getPlayerId());
+		playerWelfareVO.setFirstrecharge(0);
+		playerWelfareVO.setLvrew(0);
+		playerWelfareVO.setSevrew(0);
+		playerWelfareVO.setRechargerew(0);
+		userCached.getUserActivity().setPlayerWelfareVO(playerWelfareVO);
+
+		UserKnapsack knapsack = userCached.getUserKnapsack();
+		knapsack.setMaxKnapsackId(1);
+
+		// PlayerKnapsackVO k1 = new PlayerKnapsackVO();
+		// k1.setPlayerId(playerId);
+		// k1.setItemid(1);
+		// k1.setPosition(2);
+		// k1.setNumber(2);
+		// k1.setGem1(-1);
+		// k1.setGem2(-1);
+		// k1.setGem3(-1);
+		// k1.setGem4(-1);
+		// k1.setCfgId(23081);
+		// k1.setBaseItemVO(ItemRes.getInstance().getBaseItemVO(23081));
+		//
+		// if (ItemConstants.ITEM_TYPE_EQPI == k1.getBaseItemVO().getType()) {
+		// ItemRes.getInstance().loadGem(k1);
+		// BaseEnhanceVO baseEnhanceVO =
+		// EnhanceRes.getInstance().getBaseEnhanceVO(k1.getCfgId());
+		// k1.setBaseEnhanceVO(baseEnhanceVO);
+		// // 护佑
+		// BaseProteVO baseProteVO =
+		// ProtectionRes.getInstance().getBaseProteVO(k1.getProtectLevel());
+		// k1.setBaseProteVO(baseProteVO);
+		//
+		// // 计算装备的战斗力
+		// CombatUtil.equipCombat(k1);
+		// }
+
+		// PlayerKnapsackVO k2 = new PlayerKnapsackVO();
+		// k2.setPlayerId(playerId);
+		// k2.setItemid(2);
+		// k2.setPosition(3);
+		// k2.setNumber(2);
+		// k2.setGem1(-1);
+		// k2.setGem2(-1);
+		// k2.setGem3(-1);
+		// k2.setGem4(-1);
+		// k2.setCfgId(24000);
+		// k2.setBaseItemVO(ItemRes.getInstance().getBaseItemVO(24000));
+		//
+		// if (ItemConstants.ITEM_TYPE_EQPI == k2.getBaseItemVO().getType()) {
+		// ItemRes.getInstance().loadGem(k2);
+		// BaseEnhanceVO baseEnhanceVO =
+		// EnhanceRes.getInstance().getBaseEnhanceVO(k2.getCfgId());
+		// k2.setBaseEnhanceVO(baseEnhanceVO);
+		// // 护佑
+		// BaseProteVO baseProteVO =
+		// ProtectionRes.getInstance().getBaseProteVO(k2.getProtectLevel());
+		// k2.setBaseProteVO(baseProteVO);
+		//
+		// // 计算装备的战斗力
+		// CombatUtil.equipCombat(k2);
+		// }
+
+		// PlayerKnapsackVO k3 = new PlayerKnapsackVO();
+		// k3.setPlayerId(playerId);
+		// k3.setItemid(3);
+		// k3.setPosition(4);
+		// k3.setNumber(2);
+		// k3.setGem1(-1);
+		// k3.setGem2(-1);
+		// k3.setGem3(-1);
+		// k3.setGem4(-1);
+		// k3.setCfgId(24001);
+		// k3.setBaseItemVO(ItemRes.getInstance().getBaseItemVO(24001));
+		//
+		// if (ItemConstants.ITEM_TYPE_EQPI == k3.getBaseItemVO().getType()) {
+		// ItemRes.getInstance().loadGem(k3);
+		// BaseEnhanceVO baseEnhanceVO =
+		// EnhanceRes.getInstance().getBaseEnhanceVO(k3.getCfgId());
+		// k3.setBaseEnhanceVO(baseEnhanceVO);
+		// // 护佑
+		// BaseProteVO baseProteVO =
+		// ProtectionRes.getInstance().getBaseProteVO(k3.getProtectLevel());
+		// k3.setBaseProteVO(baseProteVO);
+		//
+		// // 计算装备的战斗力
+		// CombatUtil.equipCombat(k3);
+		// }
+		// PlayerKnapsackVO k4 = new PlayerKnapsackVO();
+		// k4.setPlayerId(playerId);
+		// k4.setItemid(4);
+		// k4.setPosition(1);
+		// k4.setNumber(14);
+		// k4.setGem1(-1);
+		// k4.setGem2(-1);
+		// k4.setGem3(-1);
+		// k4.setGem4(-1);
+		// k4.setCfgId(24000);
+		// k4.setBaseItemVO(ItemRes.getInstance().getBaseItemVO(24002));
+		// CombatUtil.equipCombat(k4);
+		// knapsack.getKnapsackList().add(k1);
+		// knapsack.getKnapsackList().add(k2);
+		// knapsack.getKnapsackList().add(k3);
+		// knapsack.getKnapsackList().add(k4);
+		// List<PlayerKnapsackVO> itemList = addItemForReg(4, 4, playerId);
+		// knapsack.getKnapsackList().addAll(itemList);
+		// knapsack.setMaxKnapsackId(4 + itemList.size());
+		//
+		// if (ItemConstants.ITEM_TYPE_EQPI == k4.getBaseItemVO().getType()) {
+		// ItemRes.getInstance().loadGem(k4);
+		// BaseEnhanceVO baseEnhanceVO =
+		// EnhanceRes.getInstance().getBaseEnhanceVO(k4.getCfgId());
+		// k4.setBaseEnhanceVO(baseEnhanceVO);
+		// // 护佑
+		// BaseProteVO baseProteVO =
+		// ProtectionRes.getInstance().getBaseProteVO(k4.getProtectLevel());
+		// k4.setBaseProteVO(baseProteVO);
+		//
+		// // 计算装备的战斗力
+		// CombatUtil.equipCombat(k4);
+		// }
+
+		UserGM userGM = new UserGM();
+		PlayerGMVO playerGMVO = new PlayerGMVO();
+		playerGMVO.setPlayerId(playerId);
+		playerGMVO.setLoginRecord(1);
+		userGM.setPlayerGMVO(playerGMVO);
+		userCached.setUserGM(userGM);
+
+		return userCached;
+
+	}
+
+	private static PlayerHeroVO addHero(int cfgId, int playerId, int id) {
+		PlayerHeroVO hero1 = new PlayerHeroVO();
+		hero1.setPlayerId(playerId);
+		hero1.setId(id);
+		hero1.setCfgId(cfgId);
+		hero1.setLevel(1);
+
+		BaseHeroInfoVO baseHeroInfoVO = HeroRes.getInstance().getBaseHeroInfoVO(hero1.getCfgId());
+		BaseLevelVO baseLevelVO = LevelRes.getInstance().getBaseLevelVO(hero1.getLevel());
+		BaseGrowthVO baseGrowthVO = HeroGrowthRes.getInstance().getBaseGrowthVO(hero1.getCfgId());
+
+		hero1.setName(baseHeroInfoVO.getName());
+		hero1.setHp(baseHeroInfoVO.getHp());
+		hero1.setDef(baseHeroInfoVO.getDef());
+		hero1.setMdef(baseHeroInfoVO.getMdef());
+		hero1.setAtk(baseHeroInfoVO.getAtk());
+		hero1.setMatk(baseHeroInfoVO.getMatk());
+		hero1.setHit(baseHeroInfoVO.getHit());
+		hero1.setDodge(baseHeroInfoVO.getDodge());
+		hero1.setCir_rate(baseHeroInfoVO.getCir_rate());
+		hero1.setSkillLevel(1);
+		hero1.setYzhp(hero1.getHp());
+		if (id == 1) {
+			hero1.setLineStatus(CommonConstants.ATK_LINE_START);
+		}
+
+		hero1.setBaseHeroInfoVO(baseHeroInfoVO);
+		hero1.setBaseLevelVO(baseLevelVO);
+		hero1.setBaseGrowthVO(baseGrowthVO);
+		hero1.setPassivesSkill(HeroConstants.HERO_PASSIVE_SKILL_INIT);
+		HeroService.loadPassiveSkill(hero1);
+
+		return hero1;
+	}
+
+	public static List<PlayerKnapsackVO> addItemForReg(int firstI, int position, int playerId) {
+		List<PlayerKnapsackVO> knaps = new ArrayList<PlayerKnapsackVO>();
+		PlayerKnapsackVO k1 = new PlayerKnapsackVO();
+		k1.setItemid(++firstI);
+		k1.setPlayerId(playerId);
+		k1.setPosition(++position);
+		k1.setNumber(99);
+		k1.setGem1(-1);
+		k1.setGem2(-1);
+		k1.setGem3(-1);
+		k1.setGem4(-1);
+		k1.setCfgId(23999);
+		k1.setBaseItemVO(ItemRes.getInstance().getBaseItemVO(k1.getCfgId()));
+		PlayerKnapsackVO k2 = new PlayerKnapsackVO();
+		k2.setItemid(++firstI);
+		k2.setPlayerId(playerId);
+		k2.setPosition(++position);
+		k2.setNumber(99);
+		k2.setGem1(-1);
+		k2.setGem2(-1);
+		k2.setGem3(-1);
+		k2.setGem4(-1);
+		k2.setCfgId(23101);
+		k2.setBaseItemVO(ItemRes.getInstance().getBaseItemVO(k2.getCfgId()));
+		PlayerKnapsackVO k3 = new PlayerKnapsackVO();
+		k3.setItemid(++firstI);
+		k3.setPlayerId(playerId);
+		k3.setPosition(++position);
+		k3.setNumber(99);
+		k3.setGem1(-1);
+		k3.setGem2(-1);
+		k3.setGem3(-1);
+		k3.setGem4(-1);
+		k3.setCfgId(23104);
+		k3.setBaseItemVO(ItemRes.getInstance().getBaseItemVO(k3.getCfgId()));
+		PlayerKnapsackVO k4 = new PlayerKnapsackVO();
+		k4.setItemid(++firstI);
+		k4.setPlayerId(playerId);
+		k4.setPosition(++position);
+		k4.setNumber(99);
+		k4.setGem1(-1);
+		k4.setGem2(-1);
+		k4.setGem3(-1);
+		k4.setGem4(-1);
+		k4.setCfgId(24012);
+		k4.setBaseItemVO(ItemRes.getInstance().getBaseItemVO(k4.getCfgId()));
+		PlayerKnapsackVO k5 = new PlayerKnapsackVO();
+		k5.setItemid(++firstI);
+		k5.setPlayerId(playerId);
+		k5.setPosition(++position);
+		k5.setNumber(99);
+		k5.setGem1(-1);
+		k5.setGem2(-1);
+		k5.setGem3(-1);
+		k5.setGem4(-1);
+		k5.setCfgId(23101);
+		k5.setBaseItemVO(ItemRes.getInstance().getBaseItemVO(k5.getCfgId()));
+		PlayerKnapsackVO k6 = new PlayerKnapsackVO();
+		k6.setItemid(++firstI);
+		k6.setPlayerId(playerId);
+		k6.setPosition(++position);
+		k6.setNumber(99);
+		k6.setGem1(-1);
+		k6.setGem2(-1);
+		k6.setGem3(-1);
+		k6.setGem4(-1);
+		k6.setCfgId(24004);
+		k6.setBaseItemVO(ItemRes.getInstance().getBaseItemVO(k6.getCfgId()));
+
+		knaps.add(k1);
+		knaps.add(k2);
+		knaps.add(k3);
+		knaps.add(k4);
+		knaps.add(k5);
+		knaps.add(k6);
+		return knaps;
+	}
+
+	public List<PlayerVO> getPlayersByUser(Users users) {
+		String usernames = users.getUsername();
+		String pids = users.getPlayerId();
+		String nicks = users.getName();
+		List<PlayerVO> playerVOs = new ArrayList<PlayerVO>();
+		PlayerVO playerVO = null;
+		if (!pids.isEmpty()) {// 玩家id优先
+
+		} else if (!usernames.isEmpty()) {// 玩家登录账号次
+			String[] userNameArray = usernames.split(",|，");
+			for (String string : userNameArray) {
+				try {
+					playerVO = getPlayerVOByAccount(string);
+					playerVOs.add(playerVO);
+				} catch (Exception e) {
+					logger.error("登录名字玩家不存在" + string);
+				}
+			}
+
+		} else if (!nicks.isEmpty()) {
+
+		} else {
+			return playerVOs;
+		}
+		return playerVOs;
+	}
+
+	// public static void main(String[] args) throws Exception {
+	// ApplicationContext ctx = null;
+	// PropertyConfigurator.configure("config/log4j.properties");
+	// ctx = new
+	// FileSystemXmlApplicationContext("config/applicationContext.xml");
+	// PlayerService playerService = (PlayerService)
+	// ctx.getBean("playerService");
+	// InitLoad initLoad = (InitLoad) ctx.getBean("initLoad");
+	// initLoad.init();
+	// long now = System.currentTimeMillis();
+	// for (int i = 0; i < 1000; i++) {
+	// try {
+	// // playerService.singleRegPlayer("vim" + i, "18", "测试注册用户" + i,
+	// // 1);
+	// } catch (Exception e) {
+	// logger.info("当前用户vin" + i, e);
+	// Thread.sleep(300);
+	// }
+	// }
+	// logger.info("注册完成,用时:" + (System.currentTimeMillis() - now));
+	// }
+}

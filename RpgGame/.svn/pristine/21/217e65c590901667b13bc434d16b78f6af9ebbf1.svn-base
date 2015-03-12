@@ -1,0 +1,267 @@
+package com.dh.service;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.apache.log4j.Logger;
+import org.springframework.stereotype.Component;
+
+import com.dh.constants.CommonCommand;
+import com.dh.constants.MailConstants;
+import com.dh.exception.GameException;
+import com.dh.game.constant.AlertEnum;
+import com.dh.game.vo.base.BaseItemVO;
+import com.dh.game.vo.base.Reward;
+import com.dh.game.vo.login.PlayerLoginProto.PLAYER_PROPERTY;
+import com.dh.game.vo.raid.RaidProto.RaidEndResponse;
+import com.dh.game.vo.raid.RaidProto.RaidRewardinfo;
+import com.dh.netty.NettyMessageVO;
+import com.dh.resconfig.ItemRes;
+import com.dh.resconfig.RewardRes;
+import com.dh.vo.user.UserCached;
+
+@Component
+public class RewardService {
+	public final static int REWARD_TYPE_GOODS = 1; // 物品
+	public final static int REWARD_TYPE_PLAYER_EXP = 2; // 主角经验
+	public final static int REWARD_TYPE_HERO_EXP = 3;
+	public final static int REWARD_TYPE_MONEY = 4;
+	public final static int REWARD_TYPE_RMB = 5;
+	public final static int REWARD_TYPE_POWER = 6;
+	public final static int REWARD_TYPE_HERO = 7;
+	public final static int REWARD_TYPE_EXPLOIT = 8;// 功勋
+	public final static int REWARD_TYPE_GIFTGOLD = 9;// 点券
+
+	private static Logger logger = Logger.getLogger(RewardService.class);
+	@Resource
+	private KnapsackService knapsackService;
+	@Resource
+	private PlayerAccountService playerAccountService;
+	@Resource
+	private PlayerService playerService;
+	@Resource
+	private HeroService heroService;
+	@Resource
+	private MailService mailService;
+
+	public void reward(UserCached userCached, int rewardGroupId, List<NettyMessageVO> commandList, int... gmio) throws Exception {
+		List<Reward> rewardList = RewardRes.getInstance().getRewardRateGroup(rewardGroupId);
+		if (rewardList == null || rewardList.isEmpty()) {
+			throw new GameException(AlertEnum.REWARD_NOT_FOUND);
+		}
+
+		if (!knapsackService.checkKnapsakFull(rewardList, userCached)) {
+			throw new GameException(AlertEnum.KNAPSACK_FULL);
+		}
+		try {
+			rewardsList(userCached, rewardList, commandList, gmio);
+		} catch (Exception e) {
+			commandList.add(CommonCommand.REWARD_ERROR);
+			logger.error(e);
+			throw new Exception();
+		}
+	}
+
+	public void checkAndReward(UserCached userCached, List<Reward> rewardsList, List<NettyMessageVO> commandList, int... gmio) throws Exception {
+		if (rewardsList == null || rewardsList.isEmpty()) {
+			throw new GameException(AlertEnum.REWARD_NOT_FOUND);
+		}
+
+		if (!knapsackService.checkKnapsakFull(rewardsList, userCached)) {
+			throw new GameException(AlertEnum.KNAPSACK_FULL);
+		}
+		rewardsList(userCached, rewardsList, commandList, gmio);
+	}
+
+	public void rewardByGroupId(UserCached userCached, int rewardGroupId, List<NettyMessageVO> commandList, int... gmio) throws Exception {
+		List<Reward> rewardList = RewardRes.getInstance().getRewardRateGroup(rewardGroupId);
+		if (rewardList == null || rewardList.isEmpty()) {
+			throw new GameException(AlertEnum.REWARD_NOT_FOUND);
+		}
+
+		if (!knapsackService.checkKnapsakFull(rewardList, userCached)) {
+			throw new GameException(AlertEnum.KNAPSACK_FULL);
+		}
+		rewardsList(userCached, rewardList, commandList, gmio);
+	}
+
+	/**
+	 * 如果背包满则发邮件
+	 * 
+	 * @param userCached
+	 * @param rewardList
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void rewardAndMail(UserCached userCached, List<Reward> rewardList, List<NettyMessageVO> commandList, String source, int... gmio) throws Exception {
+		if (rewardList == null || rewardList.isEmpty()) {
+			return;
+		}
+		if (!knapsackService.checkKnapsakFull(rewardList, userCached)) {
+			if (rewardList.size() > 4) {// 超过4个奖励需要拆分
+				for (int i = 0; i < rewardList.size(); i += 4) {
+					ArrayList<Reward> tempRewards = new ArrayList<Reward>();
+					tempRewards.addAll(rewardList.subList(i, Math.min(i + 4, rewardList.size())));
+					mailService.addNewMail(userCached, userCached.getPlayerVO().getPlayerId(), source + "奖励", "您的背包已满," + source + "所得道具通过邮件发送给您,请清理背包后领取。", MailConstants.MAIL_SENDER_KNAP_FULL, 0,
+							tempRewards);
+				}
+			} else {
+				mailService.addNewMail(userCached, userCached.getPlayerVO().getPlayerId(), source + "奖励", "您的背包已满," + source + "所得道具通过邮件发送给您,请清理背包后领取。", MailConstants.MAIL_SENDER_KNAP_FULL, 0,
+						rewardList);
+			}
+
+			return;
+		}
+		rewardsList(userCached, rewardList, commandList, gmio);
+	}
+
+	public boolean reward(UserCached userCached, List<Reward> rewardList, List<NettyMessageVO> commandList, int... gmio) throws Exception {
+		if (rewardList == null || rewardList.isEmpty()) {
+			return true;
+		}
+		if (!knapsackService.checkKnapsakFull(rewardList, userCached)) {
+			commandList.add(CommonCommand.KNAPSACK_FULL);
+			return false;
+		}
+		rewardsList(userCached, rewardList, commandList, gmio);
+		return true;
+	}
+
+	/**
+	 * 调用此方法需要检查背包是否已满,奖励规则组是否为空
+	 * 
+	 * @param userCached
+	 * @param rewardsList
+	 * @param commandList
+	 * @throws Exception
+	 */
+	private void rewardsList(UserCached userCached, List<Reward> rewardsList, List<NettyMessageVO> commandList, int... gmio) throws Exception {
+		for (Reward reward : rewardsList) {
+			if (reward.getType() == REWARD_TYPE_GOODS) {
+				knapsackService.addNewItem(userCached, ItemRes.getInstance().getBaseItemVO(reward.getContent()), reward.getNumber(), commandList);
+			} else if (reward.getType() == REWARD_TYPE_PLAYER_EXP) {
+				playerService.addPlayerExp(userCached, reward.getNumber(), commandList);
+			} else if (reward.getType() == REWARD_TYPE_HERO_EXP) {
+				playerAccountService.addCurrency(PLAYER_PROPERTY.PROPERTY_EXPC, reward.getNumber(), userCached.getPlayerAccountVO(), commandList, "奖励内容" + reward.getId());
+				// addHeroExp(userCached, reward.getNumber(), commandList);
+			} else if (reward.getType() == REWARD_TYPE_MONEY) {
+				playerAccountService.addCurrency(PLAYER_PROPERTY.PROPERTY_MONEY, reward.getNumber(), userCached.getPlayerAccountVO(), commandList, "奖励内容" + reward.getId());
+			} else if (reward.getType() == REWARD_TYPE_RMB) {
+				playerAccountService.addCurrency(PLAYER_PROPERTY.PROPERTY_RMB, reward.getNumber(), userCached.getPlayerAccountVO(), commandList, "奖励内容" + reward.getId(), gmio);
+			} else if (reward.getType() == REWARD_TYPE_POWER) {
+				playerAccountService.addCurrency(PLAYER_PROPERTY.PROPERTY_POWER, reward.getNumber(), userCached.getPlayerAccountVO(), commandList, "奖励内容" + reward.getId());
+			} else if (reward.getType() == REWARD_TYPE_HERO) {
+				// heroService.addPlayerHero(playerHeroVO);
+			} else if (reward.getType() == REWARD_TYPE_EXPLOIT) {
+				playerAccountService.addCurrency(PLAYER_PROPERTY.PROPERTY_EXPLOIT, reward.getNumber(), userCached.getPlayerAccountVO(), commandList, "奖励内容" + reward.getId());
+			} else if (reward.getType() == REWARD_TYPE_GIFTGOLD) {
+				playerAccountService.addCurrency(PLAYER_PROPERTY.PROPERTY_GIFTGOLD, reward.getNumber(), userCached.getPlayerAccountVO(), commandList, "奖励内容" + reward.getId(), gmio);
+			}
+		}
+	}
+
+	// public void addHeroExp(UserCached userCached, int exp,
+	// List<NettyMessageVO> commandList) throws Exception {
+	// if (CodeTool.isNotEmpty(userCached.getUserHero().getRaidHeroList())) {
+	// for (PlayerHeroVO playerHeroVO :
+	// userCached.getUserHero().getRaidHeroList()) {
+	// heroService.addHeroExp(userCached, playerHeroVO, exp, commandList);
+	// }
+	// }
+	// }
+
+	// =============副本专用====================================================================================================================================================
+
+	public void rewardRaid(UserCached userCached, List<Reward> rewardList, List<NettyMessageVO> commandList, RaidEndResponse.Builder raidEndResponse, int addmoney, int addteamExp, int addexpc,
+			int... gmio) throws Exception {
+
+		if (rewardList == null || rewardList.isEmpty()) {
+			// commandList.add(CommonCommand.REWARD_GROUP_NOT_EXIT);
+			throw new GameException(AlertEnum.REWARD_NOT_FOUND);
+		}
+
+		if (!knapsackService.checkKnapsakFull(rewardList, userCached)) {
+			mailService.addNewMail(userCached, userCached.getPlayerVO().getPlayerId(), "副本奖励", "你的背包已满,奖励给你转移到邮件,\n请您清理好背包在领取", MailConstants.MAIL_SENDER_KNAP_FULL, 0, rewardList);
+			return;
+			// throw new GameException(AlertEnum.KNAPSACK_FULL);
+		}
+		try {
+			rewardsList(userCached, rewardList, commandList, raidEndResponse, addmoney, addteamExp, addexpc, gmio);
+		} catch (Exception e) {
+			commandList.add(CommonCommand.REWARD_ERROR);
+			logger.error(e);
+			throw new Exception();
+		}
+	}
+
+	public void rewardsList(UserCached userCached, List<Reward> rewardsList, List<NettyMessageVO> commandList, RaidEndResponse.Builder raidEndResponse, int addmoney, int addteamExp, int addexpc,
+			int... gmio) throws Exception {
+
+		for (Reward reward : rewardsList) {
+			if (reward.getType() == REWARD_TYPE_GOODS) {
+				RaidRewardinfo.Builder raidRewardinfo = RaidRewardinfo.newBuilder();
+				raidRewardinfo.setType(reward.getType());
+				raidRewardinfo.setItemCfgId(reward.getContent());
+				raidRewardinfo.setNumber(reward.getNumber());
+				raidEndResponse.addRewards(raidRewardinfo);
+
+				knapsackService.addNewItem(userCached, ItemRes.getInstance().getBaseItemVO(reward.getContent()), reward.getNumber(), commandList);
+			} else if (reward.getType() == REWARD_TYPE_PLAYER_EXP) {
+
+				int teamExp = reward.getNumber();
+				teamExp = teamExp + teamExp * addteamExp / 100;
+				raidEndResponse.setTeamExp(raidEndResponse.getTeamExp() + teamExp);
+				playerService.addPlayerExp(userCached, teamExp, commandList);
+			} else if (reward.getType() == REWARD_TYPE_HERO_EXP) {
+
+				int expc = reward.getNumber();
+				expc = expc + expc * addexpc / 100;
+				playerAccountService.addCurrency(PLAYER_PROPERTY.PROPERTY_EXPC, expc, userCached.getPlayerAccountVO(), commandList, "奖励内容" + reward.getId());
+				raidEndResponse.setHeroExp(expc);
+				// addHeroExp(userCached, reward.getNumber(), commandList,
+				// raidEndResponse);
+			} else if (reward.getType() == REWARD_TYPE_MONEY) {
+
+				int money = reward.getNumber();
+
+				money = money + money * addmoney / 100;
+
+				raidEndResponse.setMoney(raidEndResponse.getMoney() + money);
+				playerAccountService.addCurrency(PLAYER_PROPERTY.PROPERTY_MONEY, money, userCached.getPlayerAccountVO(), commandList, "奖励内容" + reward.getContent());
+			} else if (reward.getType() == REWARD_TYPE_RMB) {
+				playerAccountService.addCurrency(PLAYER_PROPERTY.PROPERTY_RMB, reward.getNumber(), userCached.getPlayerAccountVO(), commandList, "奖励内容" + reward.getContent(), gmio);
+			} else if (reward.getType() == REWARD_TYPE_POWER) {
+				playerAccountService.addCurrency(PLAYER_PROPERTY.PROPERTY_POWER, reward.getNumber(), userCached.getPlayerAccountVO(), commandList, "奖励内容" + reward.getContent());
+			} else if (reward.getType() == REWARD_TYPE_EXPLOIT) {
+				playerAccountService.addCurrency(PLAYER_PROPERTY.PROPERTY_EXPLOIT, reward.getNumber(), userCached.getPlayerAccountVO(), commandList, "奖励内容" + reward.getContent());
+			} else if (reward.getType() == REWARD_TYPE_GIFTGOLD) {
+				playerAccountService.addCurrency(PLAYER_PROPERTY.PROPERTY_GIFTGOLD, reward.getNumber(), userCached.getPlayerAccountVO(), commandList, "奖励内容" + reward.getContent(), gmio);
+			}
+		}
+	}
+
+	// ==================================================================================================================================
+
+	public void reward(UserCached userCached, BaseItemVO baseItemVO, int num, List<NettyMessageVO> commandList, String source) throws Exception {
+
+		if (!knapsackService.hasKnapsackGird(userCached, num, baseItemVO.getMaxnum())) {
+			// commandList.add(CommonCommand.KNAPSACK_FULL);
+			throw new GameException(AlertEnum.KNAPSACK_FULL);
+		}
+		try {
+			rewardsItem(userCached, baseItemVO, num, commandList, source);
+		} catch (Exception e) {
+			commandList.add(CommonCommand.REWARD_ERROR);
+			logger.error(e);
+			throw new Exception();
+		}
+	}
+
+	public void rewardsItem(UserCached userCached, BaseItemVO baseItemVO, int num, List<NettyMessageVO> commandList, String source) throws Exception {
+		List<Reward> rewardList = new ArrayList<Reward>();
+		rewardAndMail(userCached, rewardList, commandList, source);
+		// knapsackService.addNewItem(userCached, baseItemVO, num, commandList);
+	}
+}

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="com.dh.dao.BaseInfoMapper">
+	<!-- <parameterMap id="paraMap" type="java.util.HashMap" > <parameter property="v_key"
+		jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/> <parameter property="r_id"
+		jdbcType="BIGINT" javaType="java.lang.Long" mode="OUT"/> </parameterMap> <resultMap
+		id = "resuMap" type="java.util.HashMap"> </resultMap> <select id="generID" parameterMap="paraMap"
+		statementType="CALLABLE" resultMap="resuMap"> {CALL `generId`(?,?)} </select> -->
+	<select id = "getGameRecordVOList" resultType="com.dh.game.vo.base.GameRecordVO">SELECT `id`, `strv1`, `strv2`, `value1`, `value2`, `descr` FROM `t_game_record`</select>
+	
+	<update id="updateGameRecordVO" parameterType="com.dh.game.vo.base.GameRecordVO">
+		UPDATE `t_game_record` SET `strv1` = #{strv1}, `strv2` = #{strv2}, `value1` = #{value1},
+		`value2` = #{value2} WHERE `id` = #{id}
+	</update>
+	
+	<select id = "getMaxPlayerId" resultType="java.lang.Integer">SELECT 	MAX(`PLAYERID`)		FROM `t_player`</select>
+	
+	<select id="getBaseSystemIds" resultType="com.dh.game.vo.base.BaseSystemIDVO">SELECT `skey`,`gid`,  `common` FROM `t_system_id`</select>
+	
+	<select id="getAllBaseActivityVO" resultType="com.dh.game.vo.base.BaseActivityVO">
+		SELECT `id`, `name`, `dayreset`, `type`, `time_type`, `weekly`, `begin_time`, `end_time`,
+		`dec`, `position`, `state` FROM `t_online_activity`
+	</select>
+	
+</mapper>

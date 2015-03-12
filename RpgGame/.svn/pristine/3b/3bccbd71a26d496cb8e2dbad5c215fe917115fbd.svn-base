@@ -1,0 +1,214 @@
+package com.dh.test;
+
+import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
+
+import java.util.ArrayList;
+
+import com.dh.game.constant.CSCommandConstant;
+import com.dh.game.vo.gm.GMProto.BLOCK_ENUM;
+import com.dh.game.vo.gm.GMProto.BlackPlayerReq;
+import com.dh.game.vo.gm.GMProto.ReloadRedisReq;
+import com.dh.game.vo.gm.GMProto.WorldBossStartReq;
+import com.dh.netty.MyMessageDecoder;
+import com.dh.netty.MyMessageEncoder;
+import com.dh.netty.NettyMessageVO;
+
+/**
+ * Sends one message when a connection is open and echoes back any received data
+ * to the server. Simply put, the echo client initiates the ping-pong traffic
+ * between the echo client and server by sending the first message to the
+ * server.
+ */
+public class EchoClient_vincent {
+
+	private final String host;
+	private final int port;
+	private Channel sendchannel;
+
+	public EchoClient_vincent(String host, int port) {
+		this.host = host;
+		this.port = port;
+	}
+
+	public static void main(String[] args) throws Exception {
+
+		// Parse options.
+		final String host = "211.149.218.52";
+		// final String host = "127.0.0.1";
+		// final String host = "182.254.184.29";
+		// final String host = "211.149.229.104";
+
+		final int port = 9090;
+		EchoClient_vincent ec = new EchoClient_vincent(host, port);
+		ec.run();
+
+		String userName_zxz = "100090";
+		String userName_vince = "vince1";
+		String userName_vince2 = "vince2";
+		String userName_vince3 = "vince3";
+		String userName_vince4 = "vince4";
+		String userName_vince5 = "vince5";
+		String userName_vince6 = "vince6";
+		String userName_vince7 = "vince7";
+		String userName_vince8 = "vince8";
+		String userName_vince9 = "vince9";
+		String userNname_v = "yxjtest70";
+		String userNname_vt1 = "vt1";
+		String username_fgy = "fangaiyan";
+		String username_zy = "zy123";
+		String username_vince_qq = "45CAAB25A5CE6115D0322432FA12FCCC";
+		String username_meiti = "54358";
+		// ec.sendMessage((short) CSCommandConstant.USER_LOGIN,
+		// TestData.LoginData(userName_zxz, ""));
+		ec.sendMessage((short) CSCommandConstant.USER_LOGIN, TestData.LoginData(username_vince_qq, ""));
+		// ec.sendMessage((short) CSCommandConstant.USER_LOGIN,
+		// TestData.LoginData(userName_vince5, ""));
+		// ec.legion();
+		// ec.sendMessage((short) CSCommandConstant.RELOAD_CSV,
+		// "LegionShopRes".getBytes());
+		// ec.reloadPlayerVO();
+		ec.reloadPlayerVO();
+	}
+
+	public void reloadPlayerVO() {
+		this.sendMessage(CSCommandConstant.GM_RELOAD_REDIS, ReloadRedisReq.newBuilder().setPlayerId(1626028).build().toByteArray());
+	}
+
+	public void shop() {
+		// this.sendMessage(CSCommandConstant.ITEM_SELL,
+		// ItemSellRequest.newBuilder().setCount());
+	}
+
+	public void legion() {
+		// this.sendMessage(CSCommandConstant.LEGION_REWARD_MEM, null);
+		// this.sendMessage(CSCommandConstant.LEGION_LIST, null);
+
+		// this.sendMessage(CSCommandConstant.LEGION_LOGS, null);
+		// this.sendMessage(CSCommandConstant.LEGION_JION_LIST, null);
+		//
+		// this.sendMessage(CSCommandConstant.LEGION_JION,
+		// LegionJoinReq.newBuilder().setLeigonId(1000001).build().toByteArray());
+		// this.sendMessage((short) CSCommandConstant.LEGION_HOME, null);
+		// this.sendMessage((short) CSCommandConstant.LEGION_MEM_LIST, null);
+		// this.sendMessage(CSCommandConstant.LEGION_MEM_MANAGE,
+		// LegionMemManageReq.newBuilder().addPlayerIds(1626125).setType(MEM_MANAGE_TYPE.MANAGE_TYPE_AGREE).build().toByteArray());
+		//
+		// this.sendMessage(CSCommandConstant.LEGION_DONATE,
+		// LegionDonateReq.newBuilder().setDonateType(DONATE_TYPE.DONATE_MATERIAL).setNum(10).build().toByteArray());
+		this.sendMessage(CSCommandConstant.LEGION_BOSS_DETAIL, null);
+		// this.sendMessage((short) CSCommandConstant.LEGION_CREATE,
+		// LegionCreateReq.newBuilder().setLegionName("菊花杀手2").build().toByteArray());
+		// this.sendMessage(CSCommandConstant.LEGION_LIST,
+		// LegionListReq.newBuilder().setLegionId(0).setPageCount(0).setShowType(0).build().toByteArray());
+
+	}
+
+	public void opendWorldBoss(int status) {
+		this.sendMessage(CSCommandConstant.SYS_BOSS_FRESH, WorldBossStartReq.newBuilder().setOpenBoss(status).build().toByteArray());
+	}
+
+	public void addToBlack(EchoClient_vincent ec) {
+		ec.sendMessage((short) CSCommandConstant.GM_BLACK_PLAYER, BlackPlayerReq.newBuilder().setNicks("廖海安,叶沁").setReason("恶意发送广告").setType(BLOCK_ENUM.BLOCK_UNBLOCK).build().toByteArray());
+	}
+
+	public void run() throws Exception {
+		// Configure the client.
+		EventLoopGroup group = new NioEventLoopGroup();
+		try {
+
+			Bootstrap b = new Bootstrap();
+			b.group(group).channel(NioSocketChannel.class).option(ChannelOption.TCP_NODELAY, true).handler(new MyChannelInitializer_vincent(this));
+
+			// Start the client.
+			ChannelFuture f = b.connect(host, port).sync();
+			sendchannel = f.channel();
+			if (f.isDone()) {
+				System.out.println("连接成功");
+			}
+
+			// f.channel().closeFuture().sync();
+			// f.channel().close();
+		} finally {
+
+			// Shut down the event loop to terminate all threads.
+			// group.shutdown();
+		}
+	}
+
+	public static NettyMessageVO getNettyMessageVO(short commandid, byte[] temp) {
+		NettyMessageVO builder = new NettyMessageVO();
+		builder.setCommandCode(commandid);
+		builder.setData(temp);
+		return builder;
+	}
+
+	public void sendMessage(short commandid, byte[] temp) {
+		sendchannel.write(getNettyMessageVO(commandid, temp));
+		sendchannel.flush();
+		// try {
+		// Thread.sleep(1000);
+		// } catch (InterruptedException e) {
+		// // TODO Auto-generated catch block
+		// e.printStackTrace();
+		// }
+	}
+
+}
+
+class MyChannelInitializer_vincent extends ChannelInitializer<SocketChannel> {
+	private EchoClient_vincent echoClient;
+
+	public MyChannelInitializer_vincent(EchoClient_vincent ec) {
+		echoClient = ec;
+	}
+
+	@Override
+	public void initChannel(SocketChannel ch) throws Exception {
+		// ch.pipeline().addLast("frameDecoder", new
+		// ProtobufVarint32FrameDecoder());
+		ch.pipeline().addLast("protobufDecoder", new MyMessageDecoder());
+
+		// ch.pipeline().addLast("frameEncoder", new
+		// ProtobufVarint32LengthFieldPrepender());
+		ch.pipeline().addLast("protobufEncoder", new MyMessageEncoder());
+
+		ch.pipeline().addLast("handler", new TestServerHandler_vincent(echoClient));
+	}
+}
+
+class TestServerHandler_vincent extends SimpleChannelInboundHandler<NettyMessageVO> {
+	private EchoClient_vincent echoClient;
+
+	public TestServerHandler_vincent(EchoClient_vincent ec) {
+		echoClient = ec;
+	}
+
+	@Override
+	public void messageReceived(ChannelHandlerContext ctx, NettyMessageVO nettyMessageVO) throws Exception {
+		ArrayList<NettyMessageVO> commandList = new ArrayList<NettyMessageVO>();
+		System.out.println("===messageReceived===");
+		System.out.println("datalength: " + nettyMessageVO.getDataLength());
+		System.out.println("commandcode: " + nettyMessageVO.getCommandCode());
+		// ParseData.FriendList(nettyMessageVO);
+		// ParseData.FriendOnline(nettyMessageVO);
+		// ParseData.AgreeAddFriend(nettyMessageVO);
+		if (CSCommandConstant.RAID_START == nettyMessageVO.getCommandCode()) {
+
+			ParseData.RaidStart(nettyMessageVO, commandList);
+			for (NettyMessageVO message : commandList) {
+				echoClient.sendMessage(message.getCommandCode(), message.getData());
+			}
+			commandList.clear();
+		}
+	}
+}

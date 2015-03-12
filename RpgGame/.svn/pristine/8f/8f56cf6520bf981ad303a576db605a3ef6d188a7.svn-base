@@ -1,0 +1,215 @@
+package com.dh.handler.battle;
+
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.springframework.stereotype.Component;
+
+import com.dh.Cache.RedisMap;
+import com.dh.exception.GameException;
+import com.dh.game.constant.AlertEnum;
+import com.dh.game.constant.CSCommandConstant;
+import com.dh.game.vo.base.BaseItemVO;
+import com.dh.game.vo.base.Reward;
+import com.dh.game.vo.item.ArenaProto.RECORDSUCC;
+import com.dh.game.vo.login.PlayerLoginProto.PLAYER_PROPERTY;
+import com.dh.game.vo.raid.RaidProto.HeroTeam;
+import com.dh.game.vo.raid.RaidProto.OpenBoxRequest;
+import com.dh.game.vo.raid.RaidProto.OpendBoxResponse;
+import com.dh.game.vo.raid.RaidProto.RaidEndRequest;
+import com.dh.game.vo.raid.RaidProto.RaidEndResponse;
+import com.dh.game.vo.raid.RaidProto.RaidPrepareRequest;
+import com.dh.game.vo.raid.RaidProto.RaidPrepareResponse;
+import com.dh.game.vo.raid.RaidProto.RaidRewardinfo;
+import com.dh.game.vo.raid.RaidProto.RaidStartRequest;
+import com.dh.game.vo.user.PlayerHeroDefVO;
+import com.dh.game.vo.user.PlayerHeroVO;
+import com.dh.game.vo.user.PlayerTimerVO;
+import com.dh.game.vo.user.PlayerVO;
+import com.dh.handler.arena.ArenaRedisTool;
+import com.dh.netty.NettyMessageVO;
+import com.dh.processor.GrabProcesso;
+import com.dh.resconfig.ItemRes;
+import com.dh.resconfig.RobRes;
+import com.dh.service.ArenaService;
+import com.dh.service.GrabService;
+import com.dh.service.PlayerAccountService;
+import com.dh.service.PlayerTimerService;
+import com.dh.service.RewardService;
+import com.dh.util.CodeTool;
+import com.dh.util.CommandUtil;
+import com.dh.util.RandomUtil;
+import com.dh.util.VOUtil;
+import com.dh.vo.user.UserCached;
+
+@Component
+public class DuoBaoBattle implements IBattle {
+	@Resource
+	private ArenaService arenaService;
+	@Resource
+	private PlayerAccountService playerAccountService;
+	@Resource
+	private RewardService rewardService;
+	@Resource
+	private PlayerTimerService playerTimerService;
+
+	@Override
+	public void battleDetail(RaidPrepareRequest request, UserCached userCached, List<NettyMessageVO> commandList) throws Exception {
+		playerAccountService.hasEnoughPvP(userCached, GrabService.GRAB_COST_PVP);
+		PlayerTimerVO playerTimerVO = userCached.getUserTimer().getPlayerTimerVO();
+		int otherPlayerId = request.getRaidid();
+		if (playerTimerVO.getGrabline().indexOf(String.valueOf(otherPlayerId)) < 0) {
+			throw new Exception("对手阵容里没有此人" + otherPlayerId);
+		}
+		// PlayerArenaVO otherPlayerArenaVO =
+		// ArenaService.getPlayerArenaVOFromRedis(String.valueOf(otherPlayerId));
+
+		RaidPrepareResponse.Builder raidPrepareResponse = RaidPrepareResponse.newBuilder();
+		raidPrepareResponse.setRaidid(request.getRaidid());
+		raidPrepareResponse.setType(request.getType());
+
+		HeroTeam.Builder heroTeam = HeroTeam.newBuilder();
+		for (PlayerHeroVO playerHeroVO : userCached.getUserHero().getAtkHeroList()) {
+			heroTeam.addHeroIds(playerHeroVO.getId());
+		}
+		raidPrepareResponse.setHeroTeam(heroTeam);
+
+		List<PlayerHeroDefVO> list = ArenaRedisTool.getPlayerHeroDefList(otherPlayerId);
+		if (CodeTool.isNotEmpty(list)) {
+			for (PlayerHeroDefVO playerHeroDefVO : list) {
+				raidPrepareResponse.addFinalHero(VOUtil.getFinalHero(playerHeroDefVO));
+			}
+		}
+
+		CommandUtil.packageNettyMessage(CSCommandConstant.RAID_DETAIL, raidPrepareResponse.build().toByteArray(), commandList);
+
+	}
+
+	@Override
+	public void battleStart(UserCached userCached, RaidStartRequest request, List<NettyMessageVO> commandList) throws Exception {
+		userCached.getUserReward().clear();
+		PlayerTimerVO playerTimerVO = userCached.getUserTimer().getPlayerTimerVO();
+		int otherPlayerId = request.getRaidid();
+		if (playerTimerVO.getGrabline().indexOf(String.valueOf(otherPlayerId)) < 0) {
+			throw new Exception("对手阵容里没有此人" + otherPlayerId);
+		}
+		playerAccountService.hasEnoughPvP(userCached, GrabService.GRAB_COST_PVP);
+		playerAccountService.deductCurrency(PLAYER_PROPERTY.PROPERTY_PVP, GrabService.GRAB_COST_PVP, userCached.getPlayerAccountVO(), commandList, "竞技场挑战扣pvp值");
+	}
+
+	@Override
+	public void battleEnd(UserCached userCached, RaidEndRequest request, List<NettyMessageVO> commandList) throws Exception {
+
+		if (request.getIsSucc() == RECORDSUCC.SUCC_VALUE) { // 挑战副本成功
+
+			PlayerVO otherPlayerVO = RedisMap.getPlayerVOById(request.getRaidid());
+			int rate = GrabProcesso.computerRate(userCached.getPlayerVO().getLevel(), otherPlayerVO.getLevel());
+			int random = 0;
+
+			if (userCached.getUserTimer().getPlayerTimerVO().getFirstGrab() == 0) {
+				random = 0;
+				userCached.getUserTimer().getPlayerTimerVO().setFirstGrab(1);
+				playerTimerService.updateFirstGrab(userCached.getUserTimer().getPlayerTimerVO());
+			} else {
+				random = RandomUtil.randomInt(100);
+			}
+
+			RaidEndResponse.Builder raidEndResponse = RaidEndResponse.newBuilder();
+			raidEndResponse.setRaidid(request.getRaidid());
+			raidEndResponse.setIsSucc(request.getIsSucc());
+			raidEndResponse.setType(request.getType());
+
+			if (random < rate) {
+				int spReward = userCached.getUserReward().getSpReward();
+				RaidRewardinfo.Builder raidRewardinfo = RaidRewardinfo.newBuilder();
+				raidRewardinfo.setType(RewardService.REWARD_TYPE_GOODS);
+				raidRewardinfo.setItemCfgId(spReward);
+				raidRewardinfo.setNumber(1);
+
+				raidEndResponse.addRewards(raidRewardinfo);
+
+				BaseItemVO baseItemVO = ItemRes.getInstance().getBaseItemVO(spReward);
+				rewardService.reward(userCached, baseItemVO, 1, commandList, "夺宝");
+			}
+
+			CommandUtil.packageNettyMessage(CSCommandConstant.RAID_END, raidEndResponse.build().toByteArray(), commandList);
+
+			// 刷新合成区域
+			CommandUtil.packageNettyMessage(CSCommandConstant.COMPOSE_ITEM, null, commandList);
+
+			// 准备翻牌
+			List<Reward> list = RobRes.getInstance().randomReward(userCached.getPlayerVO().getLevel());
+			userCached.getUserReward().setPrepareReward(list);
+		} else {
+			RaidEndResponse.Builder raidEndResponse = RaidEndResponse.newBuilder();
+			raidEndResponse.setRaidid(request.getRaidid());
+			raidEndResponse.setIsSucc(request.getIsSucc());
+			raidEndResponse.setTeamExp(0);
+			// raidEndResponse.setHeroExp(0);
+			raidEndResponse.setMoney(0);
+			raidEndResponse.setType(request.getType());
+
+			CommandUtil.packageNettyMessage(CSCommandConstant.RAID_END, raidEndResponse.build().toByteArray(), commandList);
+		}
+
+	}
+
+	/**
+	 * 翻牌
+	 * 
+	 * @param userCached
+	 * @param request
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void openBox(UserCached userCached, OpenBoxRequest request, List<NettyMessageVO> commandList) throws Exception {
+
+		if (userCached.getUserReward().getPrepareReward() == null) {
+			throw new GameException(AlertEnum.NOT_FOUND_OPENBOX);
+		}
+
+		OpendBoxResponse.Builder response = OpendBoxResponse.newBuilder();
+		response.setPos(request.getPos());
+
+		Reward myreward = // userCached.getUserReward().getPrepareReward().get(request.getPos());
+		getReward(userCached.getUserReward().getPrepareReward(), request.getPos() - 1);
+		if (myreward != null) {
+			userCached.getUserReward().getMyReward().add(myreward);
+		}
+
+		for (Reward reward : userCached.getUserReward().getPrepareReward()) {
+			response.addRaidRewardinfo(reward.getRaidRewardinfo());
+		}
+
+		rewardService.rewardAndMail(userCached, userCached.getUserReward().getMyReward(), commandList, "夺宝");
+		userCached.getUserReward().clear();
+		CommandUtil.packageNettyMessage(CSCommandConstant.OPENBOX, response.build().toByteArray(), commandList);
+	}
+
+	public static Reward getReward(List<Reward> list, int pos) {
+		Reward result = null;
+		if (list != null && list.size() > 0) {
+			int maxRandom = 0;
+			for (Reward reward : list) {
+				maxRandom += reward.getProbability();
+			}
+
+			int n = 0;
+			int random = RandomUtil.randomInt(maxRandom);
+			for (Reward reward : list) {
+
+				n += reward.getProbability();
+				if (random <= n) {
+					result = reward;
+					break;
+				}
+			}
+		}
+
+		list.remove(result);
+		list.add(pos, result);
+
+		return result;
+	}
+}

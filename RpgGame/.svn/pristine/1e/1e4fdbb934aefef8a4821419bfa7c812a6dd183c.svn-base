@@ -1,0 +1,281 @@
+package com.dh.service;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.apache.log4j.Logger;
+import org.springframework.stereotype.Service;
+
+import com.dh.dao.PlayerTaskMapper;
+import com.dh.game.constant.CSCommandConstant;
+import com.dh.game.constant.TaskConstant;
+import com.dh.game.vo.base.BaseTaskVO;
+import com.dh.game.vo.task.PlayerTask.TaskInfoResponse;
+import com.dh.game.vo.user.PlayerTaskVO;
+import com.dh.netty.NettyMessageVO;
+import com.dh.processor.TaskProcessor;
+import com.dh.resconfig.TaskRes;
+import com.dh.sqlexe.SqlSaveThread;
+import com.dh.util.CommandUtil;
+import com.dh.util.SqlBuild;
+import com.dh.util.VOUtil;
+import com.dh.vo.user.UserCached;
+
+/**
+ * 任务工具类
+ * 
+ * @author admin
+ * 
+ */
+@Service
+public class TasksService {
+	private static final Logger logger = Logger.getLogger(TasksService.class);
+	@Resource
+	private SqlBuild sqlBuild;
+	@Resource
+	private SqlSaveThread sqlSaveThread;
+	@Resource
+	private PlayerTaskMapper playerTaskMapper;
+
+	/**
+	 * 用户登陆时加载任务
+	 * 
+	 * @param playerId
+	 */
+	public void loadPlayerTask(UserCached userCached) throws Exception {
+		List<PlayerTaskVO> taskList = playerTaskMapper.getPlayerTaskList(userCached.getPlayerId());
+		analysisTask(userCached, taskList);
+	}
+
+	public void analysisTask(UserCached userCached, List<PlayerTaskVO> taskList) throws Exception {
+		if ((taskList == null || taskList.size() == 0) && playerTaskMapper.getPlayerTaskCount(userCached.getPlayerId()) == 0) {
+			addNewTask(userCached, -2, userCached.getPlayerVO().getLevel(), null);
+		} else {
+			for (PlayerTaskVO playerTaskVO : taskList) {
+				BaseTaskVO baseTaskVO = TaskRes.getInstance().getTask(playerTaskVO.getTaskId(), playerTaskVO.getTaskType());
+				playerTaskVO.setBaseTaskVO(baseTaskVO);
+			}
+			addTaskList(userCached, taskList);
+		}
+	}
+
+	public void addNewTask(UserCached userCached, int oldLevel, int newLevel, List<NettyMessageVO> commandList) {
+		List<BaseTaskVO> reqAchieveList = TaskRes.getInstance().getReqAchieveList();// 得到可接取的任务
+		List<PlayerTaskVO> ptList = new ArrayList<PlayerTaskVO>();
+		for (BaseTaskVO baseTaskVO : reqAchieveList) {
+			// if(baseTaskVO.getLevel() <= newLevel && baseTaskVO.getLevel() > oldLevel)
+
+			if (baseTaskVO.getFrontmission() != -1 || baseTaskVO.getLevel() <= oldLevel || baseTaskVO.getLevel() > newLevel) {
+				continue;
+			}
+			PlayerTaskVO playerTaskVO = TaskProcessor.BaseTaskToPlayerTaskVO(baseTaskVO, userCached.getPlayerId());
+			playerTaskVO.setStatus(TaskConstant.TASK_UNDERWAY);
+			if (addTask(userCached, playerTaskVO)) {
+				createTask(playerTaskVO);
+			}
+
+			ptList.add(playerTaskVO);
+		}
+
+		if (oldLevel > 0 && ptList.size() > 0 && commandList != null) {
+			// add command
+			TaskInfoResponse.Builder taskList = TaskInfoResponse.newBuilder();
+			for (PlayerTaskVO playerTaskVO : ptList)
+				taskList.addMyTask(VOUtil.getTask(playerTaskVO));
+			NettyMessageVO nettyMessageVO = new NettyMessageVO();
+			nettyMessageVO.setData(taskList.build().toByteArray());
+			nettyMessageVO.setCommandCode(CSCommandConstant.TASK_UPDATE);
+			commandList.add(nettyMessageVO);
+		}
+
+		ptList.clear();
+		ptList = null;
+		System.out.println("aaa");
+
+	}
+
+	/**
+	 * 查找玩家是否有可接取的任务
+	 * 
+	 * @param reqType
+	 * @return
+	 */
+	public PlayerTaskVO getReceiveblePlayerTaskById(UserCached userCached, int taskId) {
+		for (PlayerTaskVO playerTask : userCached.getTaskList()) {
+			if (playerTask.getTaskId() == taskId && playerTask.getStatus() == TaskConstant.TASK_CAN_GET) {
+				return playerTask;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * 查找玩家进行中的任务
+	 * 
+	 * @param reqType
+	 * @return
+	 */
+	public PlayerTaskVO getUnderwayPlayerTaskById(UserCached userCached, int reqType) {
+		for (PlayerTaskVO playerTask : userCached.getTaskList()) {
+			if (playerTask.getBaseTaskVO().getCompletetype() == reqType && playerTask.getStatus() == TaskConstant.TASK_UNDERWAY) {
+				return playerTask;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * 根据编号查找任务
+	 * 
+	 * @param userCached
+	 * @param taskId
+	 * @return
+	 */
+	public PlayerTaskVO getTaskById(UserCached userCached, int taskId) {
+		for (PlayerTaskVO playerTask : userCached.getTaskList()) {
+			if (playerTask.getTaskId() == taskId) {
+				return playerTask;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * 添加一个任务
+	 * 
+	 * @param userCached
+	 * @param task
+	 */
+	public boolean addTask(UserCached userCached, PlayerTaskVO task) {
+		if (getTaskById(userCached, task.getTaskId()) == null) {
+			userCached.getTaskList().add(task);
+			return true;
+		} else {
+			logger.error("此任务已经在任务列表中: " + task.getTaskId());
+		}
+		return false;
+	}
+
+	/**
+	 * 添加多个任务
+	 * 
+	 * @param userCached
+	 * @param taskList
+	 */
+	public void addTaskList(UserCached userCached, List<PlayerTaskVO> taskList) {
+		if (taskList.size() != 0) {
+			userCached.getTaskList().addAll(taskList);
+		}
+	}
+
+	/**
+	 * 移除指定任务
+	 * 
+	 * @author zqgame
+	 * @date 2013-10-22
+	 */
+	public void removeTask(UserCached userCached, int taskId) {
+		for (int i = 0; i < userCached.getTaskList().size(); i++) {
+			PlayerTaskVO playerTask = userCached.getTaskList().get(i);
+			if (taskId == (playerTask.getTaskId())) {
+				userCached.getTaskList().remove(i);
+				break;
+			}
+		}
+	}
+
+	/**
+	 * 创建任务
+	 * 
+	 * @param playerTask
+	 */
+	public void createTask(PlayerTaskVO playerTask) {
+		String sql = sqlBuild.getSql("com.dh.dao.PlayerTaskMapper.createTask", playerTask);
+		sqlSaveThread.putSql(sql);
+	}
+
+	/**
+	 * 改变任务的状态
+	 * 
+	 * @param player
+	 * @param playerTaskID
+	 * @param status
+	 */
+	public void changeTaskStatus(PlayerTaskVO playerTask, List<NettyMessageVO> commandList) {
+		String sql = sqlBuild.getSql("com.dh.dao.PlayerTaskMapper.changeTaskStatus", playerTask);
+		sqlSaveThread.putSql(sql);
+		if (playerTask.getStatus() == TaskConstant.TASK_COMPLIETE) {
+			commandList.add(CommandUtil.getTaskResponse(playerTask));
+		}
+	}
+
+	// /**
+	// * 日常任务
+	// *
+	// * @author zqgame
+	// * @date 2013-10-29
+	// */
+	// public void changDailyTaskByReQType(Player player, int reqType, int num)
+	// {
+	// List<Message> messageList = null;
+	// PlayerTask playerTask = null;
+	// try {
+	// playerTask = player.getMyTask().getTaskByReQTypeAndType(reqType);
+	// if (playerTask == null) {
+	// return;
+	// }
+	// messageList = new ArrayList<Message>();
+	// num += playerTask.getTaskNum();
+	// if (playerTask.getStatus() != 2) {
+	// if (num >= playerTask.getFinishNum()) {
+	// int scores = player.getScores();
+	// scores +=
+	// DailyTaskRes.getIntance().getTask(playerTask.getTaskId()).getScores();
+	// player.setScores(scores);
+	// playerDAODelegate.updatePlayerScores(player);// 更新 玩家的活跃点
+	// finishDailyTask(player, playerTask, messageList);// 更新任务的状态
+	// if (num == playerTask.getFinishNum()) {
+	// playerTask.setTaskNum(num);
+	// }
+	// } else {
+	// playerTask.setTaskNum(num);
+	// playerTaskDAODelegate.updateTaskNum(player, playerTask.getTaskId(), num);
+	// // 更改任务的完成度
+	// }
+	// }
+	// if (messageList != null && messageList.size() > 0) {
+	// ServerHandler.sendToPlayer(player.getPlayerId(), messageList);
+	// }
+	//
+	// } catch (Exception e) {
+	// LOGGER.error("TasksService.changDailyTaskByReQType error ", e);
+	// } finally {
+	// if (messageList != null) {
+	// messageList.clear();
+	// }
+	// messageList = null;
+	// }
+	// }
+	//
+
+	//
+	// /**
+	// * 完成日常任务
+	// *
+	// * @param player
+	// * @param taskId
+	// * @param status
+	// * @param messageList
+	// */
+	// public void finishDailyTask(Player player, PlayerTask playerTask,
+	// List<Message> messageList) {
+	// playerTask.setStatus(MyTask.TASK_COMPLIETE);
+	// messageList.add(CommandUtil.getDailyTaskResponse(player, playerTask));
+	// playerTaskDAODelegate.updateStateByPlayerTaskID(player, playerTask,
+	// MyTask.TASK_COMPLIETE);
+	//
+	// }
+
+}

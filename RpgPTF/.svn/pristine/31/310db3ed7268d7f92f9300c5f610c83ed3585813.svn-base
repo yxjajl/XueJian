@@ -1,0 +1,85 @@
+package com.dh.game.vo.activity;
+
+import "com/proto/vo/BaseProto.proto";
+//活动回包
+message WelfareResp {
+	repeated WelfareInfo welfareInfo = 1;
+	required GiftGoldInfo giftGoldInfo = 2;
+}
+
+message GiftGoldInfo {
+	required int32 giftnum = 2;
+	required int32 giftGold = 3;
+}
+
+message WelfareInfo {
+	required int32 type = 1; //类型id  5
+	repeated WelfareValue welfareValue = 2; //是否有奖励
+	optional int32 curvalue = 3; //当前累计值.
+	required int32 timetype = 4; // 0/永久 1有时间限制
+	optional string startdate = 5; //2014-12-10 00:00:00
+	optional string enddate = 6; //2014-12-10 00:00:00
+}
+
+message WelfareValue {
+	required int32 index = 1; //从１开始
+	optional int32 val = 2; //是否有奖励 -1未达成 0可领取 1已领取
+	optional string name = 3;
+	repeated int32 stateval = 4; //黄瓜仙子礼包用　statevalue不用val
+}
+
+//领奖励
+message RewardWelfareRequest {
+	required int32 type = 1;
+	required int32 index = 2; //从１开始 在黄瓜仙的礼包中是playerid
+	optional int32 state = 3; //黄瓜仙子礼包阶段 1-3
+}
+////在线奖励细节
+//message OnlineRewardDetail {
+//	required int32 onlineCountDown = 1; //在线倒计时,unit:s
+//	required RewardInfoList rewardInfoList = 2; //在线奖励信息列表
+//	required bool hadRewardAll = 3; //今日奖励是否已经领取完
+//}
+
+//在线奖励
+message RewardOnlineResp {
+	required int32 countDown = 1; //倒计时,单位s
+	required RewardInfoList rewardInfos = 2; //奖励,参考baseproto.proto
+	required bool hadRewardAll = 3; //是否已经领取完
+}
+//每日签到
+message DaySignResp {
+	required int32 daySign = 1; //每日签到记录,int32为,如果bit为1则为签到
+	required int32 resignCount = 3; //剩余补签次数
+	required int32 signReawrd = 5; //领奖记录[按顺序使用二进制,如果领取则标记为1,采用小端]
+}
+
+message SignReq {
+	required bool isResign = 1; //是补签还是正常签到
+}
+
+message SignRewardReq {
+	required int32 count = 1; //领取连续签到天数奖励{2天:1,5天:2}依次类推
+}
+
+message SignRewardResp {
+	required int32 signReward = 1; //领取连续签到天数奖励{2天:1,5天:2}依次类推
+}
+//每日充值后回包
+message DayChangeResp {
+	required int32 changeStatus = 1; //今日是否充值,如果为0弹出原来界面,3弹出福利大厅界面
+	required int32 rewardId = 2; //奖励组id
+}
+
+message ChargeNoticeResp {
+	required ChargeNoticeList chargeNoticeList = 1;
+}
+
+message ChargeNoticeList {
+	repeated ChargeNoticiInfo chargeNoticiInfo = 1;
+}
+
+message ChargeNoticiInfo {
+	required string name = 1;
+	required int32 num = 2; //数量
+}

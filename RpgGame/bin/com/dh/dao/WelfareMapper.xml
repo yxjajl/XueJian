@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="com.dh.dao.WelfareMapper">
+	
+	<select id="getPlayerWelfareVO" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.PlayerWelfareVO">
+		SELECT `playerId`, `lvrew`, `sevrew`, `rechargerew`, `firstrecharge`,`sign_freshTime` as signFreshTime ,`day_sign` as daySign,`resign_count` as resignCount,`reward_sign` as rewardSign,
+		recharge1,recharge2,recharge3,recharge4,recharge5,ddhszlzw
+		
+		FROM `t_player_welfare` where `playerId` = #{playerId}
+	</select>
+	
+	<insert id="insertPlayerWelfareVO" parameterType="com.dh.game.vo.user.PlayerWelfareVO">
+		INSERT INTO `t_player_welfare` (`playerId`, `lvrew`, `sevrew`, `rechargerew`, `firstrecharge`,`sign_freshTime`, `day_sign`, `resign_count`,  `reward_sign`) VALUES 
+		(#{playerId}, #{lvrew}, #{sevrew}, #{rechargerew}, #{firstrecharge},#{signFreshTime},#{daySign},#{resignCount},#{rewardSign})
+	</insert>
+	
+	<update id="updatePlayerWelfareVO" parameterType="com.dh.game.vo.user.PlayerWelfareVO">
+		UPDATE `t_player_welfare` SET 
+		  `lvrew` = #{lvrew},
+		  `sevrew` = #{sevrew},
+		  `rechargerew` = #{rechargerew},
+		  `firstrecharge` = #{firstrecharge},
+		  `sign_freshTime`=#{signFreshTime},
+		  `day_sign`=#{daySign},
+		  `resign_count`=#{resignCount},
+		  `reward_sign`=#{rewardSign},
+		recharge1=#{recharge1},
+		recharge2=#{recharge2},
+		recharge3=#{recharge3},
+		recharge4=#{recharge4},
+		recharge5=#{recharge5},
+		ddhszlzw = #{ddhszlzw}
+		WHERE `playerId` = #{playerId}
+	</update>
+	<insert id="addDymicGiftName" parameterType="com.dh.game.vo.base.DymicGiftVO">
+		INSERT INTO `t_dymic_gift_name` (`playerId`,`nick`,`vip`,`cgiftGold`, `lingiftGold`,`num`) VALUES (#{playerId},#{nick},#{vip},#{cgiftGold}, #{lingiftGold},#{num})
+	</insert>
+	
+	<select id= "getAllDymicGiftName" resultType="com.dh.game.vo.base.DymicGiftVO">
+		SELECT  `playerId`,  `nick`, `vip`,`cgiftGold`, `lingiftGold`,`num` FROM `t_dymic_gift_name`
+	</select>
+	
+	<update id="updateDymicGiftName" parameterType="com.dh.game.vo.base.DymicGiftVO">
+		UPDATE `t_dymic_gift_name`
+		SET 
+		  `cgiftGold` = #{cgiftGold},
+		  `lingiftGold` = #{lingiftGold},
+		  `num` = #{num}
+		WHERE `playerId` = #{playerId}
+		    AND `vip` = #{vip}		
+	</update>
+	
+	
+	
+	<select id="getPlayerDymicGift" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.PlayerDymicGiftVO">
+		SELECT `playerId`,`gifPlayerId`,`vip`, `state`,`rewarddate` FROM `t_dymic_gift` where `playerId` = #{playerId}
+	</select>
+	
+	<update id="updatePlayerDymicGift" parameterType="com.dh.game.vo.user.PlayerDymicGiftVO">
+		UPDATE `t_dymic_gift` SET 
+		 `state` = #{state},
+		  `rewarddate` = #{rewarddate}
+		WHERE  `playerId` = #{playerId} and
+ 		 `gifPlayerId` = #{gifPlayerId} and
+		  vip = #{vip}
+	</update>
+	
+	<insert id="insertPlayerDymicGift" parameterType="com.dh.game.vo.user.PlayerDymicGiftVO">
+		INSERT INTO `t_dymic_gift`
+	            (`playerId`,
+	             `gifPlayerId`,
+				 `vip`,
+	             `state`,
+	             `rewarddate`)
+		VALUES (#{playerId},
+		        #{gifPlayerId},
+			    #{vip},
+		        #{state},
+		        #{rewarddate})
+	</insert>
+	
+	
+	<select id="getPlayerOpenActVO" resultType="com.dh.game.vo.user.PlayerOpenActVO">
+		SELECT
+		  `playerId`,
+		  `actid`,
+		  `step`,
+		  `rank`,
+		  `reward`,
+		  `state`
+		FROM `t_open_activy`
+	</select>
+	
+	<insert id="insertPlayerOpenActVO"   parameterType="com.dh.game.vo.user.PlayerOpenActVO">
+		INSERT INTO `t_open_activy`
+            (`playerId`,
+             `actid`,
+             `step`,
+             `rank`,
+             `reward`,
+             `state`)
+		VALUES (#{playerId},
+		        #{actid},
+		        #{step},
+		        #{rank},
+		        #{reward},
+		        #{state})
+	</insert>
+	
+	<insert id="updatePlayerOpenActVO"   parameterType="com.dh.game.vo.user.PlayerOpenActVO">
+		UPDATE `t_open_activy`
+		SET 
+		  `reward` = #{reward},
+		  `state` = #{state}
+		WHERE `playerId` = #{playerId},
+		    AND `actid` = #{actid},
+		    AND `step` = #{step},
+		    AND `rank` = #{rank}
+	</insert>
+		
+</mapper>

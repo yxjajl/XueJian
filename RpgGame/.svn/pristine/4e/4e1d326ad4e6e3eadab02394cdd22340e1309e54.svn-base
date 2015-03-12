@@ -1,0 +1,820 @@
+package com.dh.processor;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.apache.log4j.Logger;
+import org.springframework.stereotype.Component;
+
+import com.dh.Cache.ServerHandler;
+import com.dh.constants.CommonCommand;
+import com.dh.constants.CommonConstants;
+import com.dh.constants.GameRecordConstants;
+import com.dh.constants.HeroConstants;
+import com.dh.constants.ItemConstants;
+import com.dh.enums.GMIOEnum;
+import com.dh.exception.GameException;
+import com.dh.game.constant.AlertEnum;
+import com.dh.game.constant.CSCommandConstant;
+import com.dh.game.constant.TaskConstant;
+import com.dh.game.vo.base.BaseGrowthVO;
+import com.dh.game.vo.base.BaseHeroInfoVO;
+import com.dh.game.vo.base.BaseHeroRecruitVO;
+import com.dh.game.vo.base.BaseHeroStarVO;
+import com.dh.game.vo.base.BaseItemVO;
+import com.dh.game.vo.base.BaseLevelVO;
+import com.dh.game.vo.base.GameRecordVO;
+import com.dh.game.vo.base.HeroPreNameVO;
+import com.dh.game.vo.base.Reward;
+import com.dh.game.vo.common.CommonProto.CountType;
+import com.dh.game.vo.hero.HeroProto.HeroLevelUpRequest;
+import com.dh.game.vo.hero.HeroProto.HeroRecruitCard;
+import com.dh.game.vo.hero.HeroProto.HeroRecruitPageResponse;
+import com.dh.game.vo.hero.HeroProto.HeroRecruitRequest;
+import com.dh.game.vo.hero.HeroProto.HeroRecruitResponse;
+import com.dh.game.vo.hero.HeroProto.HeroStarUpPreRequest;
+import com.dh.game.vo.hero.HeroProto.HeroStarUpPreResponse;
+import com.dh.game.vo.hero.HeroProto.RECRUIT_TYPE;
+import com.dh.game.vo.hero.HeroProto.Recruit;
+import com.dh.game.vo.hero.HeroProto.RemoveHeroPreRequest;
+import com.dh.game.vo.hero.HeroProto.RemoveHeroPreResponse;
+import com.dh.game.vo.login.PlayerLoginProto.PLAYER_PROPERTY;
+import com.dh.game.vo.user.PlayerHeroVO;
+import com.dh.game.vo.user.PlayerTimerVO;
+import com.dh.netty.NettyMessageVO;
+import com.dh.resconfig.HeroGrowthRes;
+import com.dh.resconfig.HeroPreNameRes;
+import com.dh.resconfig.HeroRecruitRes;
+import com.dh.resconfig.HeroRes;
+import com.dh.resconfig.HeroStarRes;
+import com.dh.resconfig.ItemRes;
+import com.dh.resconfig.PlayerLevelRes;
+import com.dh.resconfig.RewardRes;
+import com.dh.service.ActivityService;
+import com.dh.service.ArenaService;
+import com.dh.service.BaseInfoService;
+import com.dh.service.ChatService;
+import com.dh.service.HeroService;
+import com.dh.service.KnapsackService;
+import com.dh.service.PlayerAccountService;
+import com.dh.service.PlayerService;
+import com.dh.service.PlayerTimerService;
+import com.dh.service.RewardService;
+import com.dh.util.CombatUtil;
+import com.dh.util.CommandUtil;
+import com.dh.util.GameUtil;
+import com.dh.util.MyClassLoaderUtil;
+import com.dh.vo.user.UserCached;
+
+@SuppressWarnings("deprecation")
+@Component
+public class HeroProcessor {
+	private static final Logger LOGGER = Logger.getLogger(HeroProcessor.class);
+
+	@Resource
+	private HeroService heroService;
+	@Resource
+	private PlayerAccountService playerAccountService;
+	// @Resource
+	// private RewardService rewardService;
+	@Resource
+	private PlayerTimerService playerTimerService;
+	@Resource
+	private KnapsackService knapsackService;
+	@Resource
+	private PlayerService playerService;
+	@Resource
+	private ArenaService arenaService;
+	@Resource
+	private BaseInfoService baseInfoService;
+	@Resource
+	private RewardService rewardService;
+	@Resource
+	private ActivityService activityService;
+
+	public void heroToExp(HeroStarUpPreRequest request, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		PlayerHeroVO playerHeroVO = userCached.getUserHero().getPlayerHeroVOById(request.getHeroId());
+		if (playerHeroVO == null) {
+			throw new GameException(AlertEnum.HERO_NOT_FOUND);
+		}
+
+		if ((playerHeroVO.getHang_status() != CommonConstants.HANG_STATUS_NORMAL)) {
+			throw new GameException(AlertEnum.HERO_NOT_FREE);
+		}
+
+		int maxExpc = userCached.getPlayerVO().getBaseLevelVO().getMaxExpc();
+
+		// if (userCached.getPlayerAccountVO().getExpc() >= maxExpc) {
+		// throw new GameException(AlertEnum.EXPC_FULL);
+		// }
+
+		int equipmentNum = playerHeroVO.getEquipList().size();
+
+		if (equipmentNum > 0) {
+			// 查看背包
+			if (!knapsackService.hasKnapsackGird(userCached, equipmentNum)) {
+				commandList.add(CommonCommand.KNAPSACK_FULL);
+				return;
+			}
+			// 脱装备 删英难
+			if (playerHeroVO.getEquipList() != null && playerHeroVO.getEquipList().size() > 0) {
+				knapsackService.takeOffEquipment(userCached, playerHeroVO, commandList);
+			}
+
+		}
+
+		int num = (playerHeroVO.getBaseHeroInfoVO().getStar() >= 7 ? 2 : 1);
+		int x = 8 - playerHeroVO.getBaseHeroInfoVO().getStar();
+		int CCFG = playerHeroVO.getCfgId() + x; // 8星碎片的cfgId
+		BaseItemVO baseItemVO = ItemRes.getInstance().getHeroSPByCfgId(CCFG);
+
+		int heroexpc = GameUtil.calHeroToExp(playerHeroVO.getBaseHeroInfoVO().getStar(), playerHeroVO.getBaseLevelVO().getMaxExpc());
+
+		heroService.deletePlayerHero(userCached, playerHeroVO, commandList);
+
+		if (userCached.getPlayerAccountVO().getExpc() < maxExpc) {
+			playerAccountService.addCurrency(PLAYER_PROPERTY.PROPERTY_EXPC, heroexpc, userCached.getPlayerAccountVO(), commandList,
+					"英雄转换成经验" + playerHeroVO.getPlayerId() + "," + playerHeroVO.getCfgId());
+		}
+
+		if (num > 0 && baseItemVO != null) {
+			LOGGER.error("拿到装备碎片 " + baseItemVO.getCfgId() + ", num = " + num);
+			rewardService.reward(userCached, baseItemVO, num, commandList, "驱逐英雄得碎片");
+		} else {
+			LOGGER.error("拿 不到装备碎片 " + playerHeroVO.getCfgId() + ", num = " + num);
+		}
+
+		if (CombatUtil.playerCombat(userCached)) {
+			playerService.updatePlayerVO(userCached.getPlayerVO());
+			// 计算角色战斗力
+			CommandUtil.reComputerPlayerCombat(userCached, commandList);
+		}
+
+	}
+
+	// 计算英雄驱逐产生的经验
+	public void heroToPreExp(RemoveHeroPreRequest request, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		PlayerHeroVO playerHeroVO = userCached.getUserHero().getPlayerHeroVOById(request.getHeroId());
+		if (playerHeroVO == null) {
+			throw new GameException(AlertEnum.HERO_NOT_FOUND);
+		}
+
+		int heroexpc = GameUtil.calHeroToExp(playerHeroVO.getBaseHeroInfoVO().getStar(), playerHeroVO.getBaseLevelVO().getMaxExpc());
+
+		RemoveHeroPreResponse.Builder builder = RemoveHeroPreResponse.newBuilder();
+		builder.setHeroId(request.getHeroId());
+		builder.setExp(heroexpc);
+
+		CommandUtil.packageNettyMessage(CSCommandConstant.HEROTOPREEXP, builder.build().toByteArray(), commandList);
+	}
+
+	/**
+	 * 英雄升级
+	 * 
+	 * @param request
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void heroLevelUp(HeroLevelUpRequest request, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		PlayerHeroVO playerHeroVO = userCached.getUserHero().getPlayerHeroVOById(request.getHeroId());
+		if (playerHeroVO == null) {
+			throw new GameException(AlertEnum.HERO_NOT_FOUND);
+		}
+
+		BaseLevelVO baseLevelVO = PlayerLevelRes.getInstance().getBaseLevelVO(userCached.getPlayerVO().getLevel());
+
+		if (baseLevelVO == null || playerHeroVO.getLevel() >= baseLevelVO.getHerolevel()) {
+			throw new GameException(AlertEnum.ROLE_LEVEL_NO);
+		}
+
+		int exp = playerHeroVO.getBaseLevelVO().getExp() - playerHeroVO.getExp(); // 升级所需经验
+		exp = Math.min(exp, userCached.getPlayerAccountVO().getExpc());// 所能加的最大经验
+		if (playerHeroVO.getLevel() >= playerHeroVO.getBaseHeroInfoVO().getMaxLevel()) {
+			// /throw new GameException(AlertEnum.HERO_LEVEL_LIMIT);
+			// 前台说有问题不提示此项
+			return;
+		}
+
+		if (exp > 0) {
+			heroService.addHeroExp(userCached, playerHeroVO, exp, commandList);
+
+			playerAccountService.deductCurrency(PLAYER_PROPERTY.PROPERTY_EXPC, exp, userCached.getPlayerAccountVO(), commandList, "英雄升级扣经验池经验");
+
+			// 英雄升级
+			MyClassLoaderUtil.getInstance().getTaskCheck().changTaskByReQType(userCached, TaskConstant.TASK_HERO_UPLEVEL, playerHeroVO.getCfgId(), playerHeroVO.getLevel(), commandList);
+
+			// 升级Ｎ个Ｍ级英雄
+			MyClassLoaderUtil.getInstance().getTaskCheck().changTaskByReQType(userCached, TaskConstant.TASK_ANY_LEVELHERO, commandList);
+			activityService.addDayDone(userCached, 9, commandList);
+
+			// 全服英雄升级
+			GameRecordVO gameRecordVO = BaseInfoService.getGameRecordVO(GameRecordConstants.HEROUPLEVEL);
+			gameRecordVO.setValue1(GameRecordConstants.HEROUPLEVEL_VALUE.incrementAndGet());
+			baseInfoService.updateGameRecordVO(gameRecordVO);
+
+		}
+
+	}
+
+	/**
+	 * 英雄预升星
+	 * 
+	 * @param request
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void heroStarUpPre(HeroStarUpPreRequest request, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		PlayerHeroVO playerHeroVO = userCached.getUserHero().getPlayerHeroVOById(request.getHeroId());
+		if (playerHeroVO == null) {
+			throw new GameException(AlertEnum.HERO_NOT_FOUND);
+		}
+
+		BaseHeroStarVO baseHeroStarVO = HeroStarRes.getInstance().getBaseHeroStarVO(playerHeroVO.getCfgId());
+		if (baseHeroStarVO == null) {
+
+			HeroStarUpPreResponse.Builder heroStarUpPreResponse = HeroStarUpPreResponse.newBuilder();
+			heroStarUpPreResponse.setHeroId(request.getHeroId());// 英雄id
+			heroStarUpPreResponse.setCfgId(playerHeroVO.getCfgId()); // 升星后英雄模型id
+			heroStarUpPreResponse.setStar(playerHeroVO.getBaseHeroInfoVO().getStar());
+			heroStarUpPreResponse.setHp(0);
+			heroStarUpPreResponse.setAtk(0); // 远程攻击
+			heroStarUpPreResponse.setDef(0); // 远程防御
+			heroStarUpPreResponse.setMatk(0); // 远程攻击
+			heroStarUpPreResponse.setMdef(0); // 远程防御
+			heroStarUpPreResponse.setAtkSpeed(0); // 攻速
+			heroStarUpPreResponse.setCirRate(0); // 暴击率
+			heroStarUpPreResponse.setHit(0); // 命中
+			heroStarUpPreResponse.setDodge(0); // 闪避
+			heroStarUpPreResponse.setRange(0); // 攻击范围
+
+			heroStarUpPreResponse.setCombat(playerHeroVO.getCombat());
+			heroStarUpPreResponse.setMaxLevel(playerHeroVO.getBaseHeroInfoVO().getMaxLevel());
+
+			heroStarUpPreResponse.setItemCfgId(0);
+			heroStarUpPreResponse.setItemNum(0);
+			heroStarUpPreResponse.setItemReqNum(0);
+
+			heroStarUpPreResponse.setHeroCardId(0);
+			heroStarUpPreResponse.setHeroCardNum(0);
+			heroStarUpPreResponse.setHeroCardReqNum(0);
+
+			heroStarUpPreResponse.setReqLevel(0); // 升星所需等级
+			heroStarUpPreResponse.setReqMoney(0); // 升星所需银两
+
+			// 打包并发送
+			CommandUtil.packageNettyMessage(CSCommandConstant.HERO_STAR_UP_PRE, heroStarUpPreResponse.build().toByteArray(), commandList);
+			return;
+
+		}
+
+		BaseHeroInfoVO nextBaseHeroInfoVO = HeroRes.getInstance().getBaseHeroInfoVO(baseHeroStarVO.getResCfgId());
+		BaseGrowthVO nextBaseGrowthVO = HeroGrowthRes.getInstance().getBaseGrowthVO(baseHeroStarVO.getResCfgId());
+
+		int level = playerHeroVO.getLevel();
+
+		int hp = nextBaseHeroInfoVO.getHp() + nextBaseGrowthVO.getHp() * level - (playerHeroVO.getBaseHeroInfoVO().getHp() + playerHeroVO.getBaseGrowthVO().getHp() * level);
+		int atk = nextBaseHeroInfoVO.getAtk() + nextBaseGrowthVO.getAtk() * level - (playerHeroVO.getBaseHeroInfoVO().getAtk() + playerHeroVO.getBaseGrowthVO().getAtk() * level);
+		int def = nextBaseHeroInfoVO.getDef() + nextBaseGrowthVO.getDef() * level - (playerHeroVO.getBaseHeroInfoVO().getDef() + playerHeroVO.getBaseGrowthVO().getDef() * level);
+		int matk = nextBaseHeroInfoVO.getMatk() + nextBaseGrowthVO.getMatk() * level - (playerHeroVO.getBaseHeroInfoVO().getMatk() + playerHeroVO.getBaseGrowthVO().getMatk() * level);
+		int mdef = nextBaseHeroInfoVO.getMdef() + nextBaseGrowthVO.getMdef() * level - (playerHeroVO.getBaseHeroInfoVO().getMdef() + playerHeroVO.getBaseGrowthVO().getMdef() * level);
+		int atk_speed = nextBaseHeroInfoVO.getAtk_speed() - playerHeroVO.getBaseHeroInfoVO().getAtk_speed();
+		int cir_rate = nextBaseHeroInfoVO.getCir_rate() + nextBaseGrowthVO.getCir_rate() * level
+				- (playerHeroVO.getBaseHeroInfoVO().getCir_rate() + playerHeroVO.getBaseGrowthVO().getCir_rate() * level);
+		int hit = nextBaseHeroInfoVO.getHit() + nextBaseGrowthVO.getHit() * level - (playerHeroVO.getBaseHeroInfoVO().getHit() + playerHeroVO.getBaseGrowthVO().getHit() * level);
+		int dodge = nextBaseHeroInfoVO.getDodge() + nextBaseGrowthVO.getDodge() * level - (playerHeroVO.getBaseHeroInfoVO().getDodge() + playerHeroVO.getBaseGrowthVO().getDodge() * level);
+		int range = nextBaseHeroInfoVO.getAtk_range() - playerHeroVO.getBaseHeroInfoVO().getAtk_range();
+
+		HeroStarUpPreResponse.Builder heroStarUpPreResponse = HeroStarUpPreResponse.newBuilder();
+		heroStarUpPreResponse.setHeroId(request.getHeroId());// 英雄id
+		heroStarUpPreResponse.setCfgId(playerHeroVO.getCfgId()); // 升星后英雄模型id
+		heroStarUpPreResponse.setStar(playerHeroVO.getBaseHeroInfoVO().getStar() + 1);
+		heroStarUpPreResponse.setHp(hp);
+		heroStarUpPreResponse.setAtk(atk); // 远程攻击
+		heroStarUpPreResponse.setDef(def); // 远程防御
+		heroStarUpPreResponse.setMatk(matk); // 远程攻击
+		heroStarUpPreResponse.setMdef(mdef); // 远程防御
+		heroStarUpPreResponse.setAtkSpeed(atk_speed); // 攻速
+		heroStarUpPreResponse.setCirRate(cir_rate); // 暴击率
+		heroStarUpPreResponse.setHit(hit); // 命中
+		heroStarUpPreResponse.setDodge(dodge); // 闪避
+		heroStarUpPreResponse.setRange(range); // 攻击范围
+
+		hp = nextBaseHeroInfoVO.getHp();
+		atk = nextBaseHeroInfoVO.getAtk();
+		def = nextBaseHeroInfoVO.getDef();
+		matk = nextBaseHeroInfoVO.getMatk();
+		mdef = nextBaseHeroInfoVO.getMdef();
+		cir_rate = nextBaseHeroInfoVO.getCir_rate();
+		hit = nextBaseHeroInfoVO.getHit();
+		dodge = nextBaseHeroInfoVO.getDodge();
+
+		if (playerHeroVO.getPrefix() != 0) {
+			int cc = 1;
+			HeroPreNameVO HeroPreNameVO = null;
+			if (playerHeroVO.getPrefix() < 0) {
+				cc = -1;
+				HeroPreNameVO = HeroPreNameRes.getInstance().getHeroPreNameVO(-playerHeroVO.getPrefix());
+			} else {
+				HeroPreNameVO = HeroPreNameRes.getInstance().getHeroPreNameVO(playerHeroVO.getPrefix());
+			}
+
+			switch (HeroPreNameVO.getType()) {
+			case 1:
+				hp = ((int) (hp + hp * cc * HeroPreNameVO.getPercent() / 100));
+				break;
+			case 2:
+				def = ((int) (def + def * cc * HeroPreNameVO.getPercent() / 100));
+				break;
+			case 3:
+				mdef = ((int) (mdef + mdef * cc * HeroPreNameVO.getPercent() / 100));
+				break;
+			case 4:
+				atk = ((int) (atk + atk * cc * HeroPreNameVO.getPercent() / 100));
+				break;
+			case 5:
+				matk = ((int) (matk + matk * cc * HeroPreNameVO.getPercent() / 100));
+				break;
+			case 6:
+				hit = ((int) (hit + hit * cc * HeroPreNameVO.getPercent() / 100));
+				break;
+			case 7:
+				dodge = ((int) (dodge + dodge * cc * HeroPreNameVO.getPercent() / 100));
+				break;
+			case 8:
+				cir_rate = ((int) (cir_rate + cir_rate * cc * HeroPreNameVO.getPercent() / 100));
+				break;
+			}
+		}
+		level--;
+		hp += nextBaseGrowthVO.getHp() * level;
+		atk += nextBaseGrowthVO.getAtk() * level;
+		def += nextBaseGrowthVO.getDef() * level;
+		matk += nextBaseGrowthVO.getMatk() * level;
+		mdef += nextBaseGrowthVO.getMdef() * level;
+		cir_rate += nextBaseGrowthVO.getCir_rate() * level;
+		hit += nextBaseGrowthVO.getHit() * level;
+		dodge += nextBaseGrowthVO.getDodge() * level;
+
+		heroStarUpPreResponse.setCombat(CombatUtil.heroCombat(playerHeroVO, userCached, hp, atk, def, matk, mdef, cir_rate, hit, dodge));
+		heroStarUpPreResponse.setMaxLevel(nextBaseHeroInfoVO.getMaxLevel());
+
+		heroStarUpPreResponse.setItemCfgId(baseHeroStarVO.getItemid());
+		int num = knapsackService.findKnaspackNumByCfgId(userCached.getUserKnapsack().getKnapsackList(), baseHeroStarVO.getItemid());
+		heroStarUpPreResponse.setItemNum(num);
+		heroStarUpPreResponse.setItemReqNum(baseHeroStarVO.getNum());
+
+		if (baseHeroStarVO.getReqHeroCfgId() > 0) {
+
+			heroStarUpPreResponse.setHeroCardId(baseHeroStarVO.getReqHeroCfgId());
+			// 取一类型英雄和英雄卡的数量
+			num = knapsackService.findKnaspackNumByCfgId(userCached.getUserKnapsack().getKnapsackList(), baseHeroStarVO.getReqHeroCfgId());
+			// BaseItemVO heroCardItem =
+			// ItemRes.getInstance().getHeroCardByCfgId(baseHeroStarVO.getReqHeroCfgId());
+			// num +=
+			// userCached.getUserHero().getPlayerHeroNumByCfgId(playerHeroVO.getId(),
+			// heroCardItem.getPvalue(), heroCardItem.getPvalue2());
+			heroStarUpPreResponse.setHeroCardNum(num); // 玩家升星可用英雄卡 数量
+			heroStarUpPreResponse.setHeroCardReqNum(baseHeroStarVO.getReqHeroNum()); // 升星所需
+																						// 英雄卡
+																						// 数量
+		} else {
+			heroStarUpPreResponse.setHeroCardId(0);
+			heroStarUpPreResponse.setHeroCardNum(0);
+			heroStarUpPreResponse.setHeroCardReqNum(0);
+		}
+		heroStarUpPreResponse.setReqLevel(baseHeroStarVO.getReqLevel()); // 升星所需等级
+		heroStarUpPreResponse.setReqMoney(baseHeroStarVO.getReqMoney()); // 升星所需银两
+
+		// 打包并发送
+		CommandUtil.packageNettyMessage(CSCommandConstant.HERO_STAR_UP_PRE, heroStarUpPreResponse.build().toByteArray(), commandList);
+
+	}
+
+	/**
+	 * 英雄升星
+	 * 
+	 * @param request
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void heroStarUp(HeroStarUpPreRequest request, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		PlayerHeroVO playerHeroVO = userCached.getUserHero().getPlayerHeroVOById(request.getHeroId());
+		if (playerHeroVO == null) {
+			throw new GameException(AlertEnum.HERO_NOT_FOUND);
+		}
+
+		int oldStar = playerHeroVO.getBaseHeroInfoVO().getStar();
+
+		BaseHeroStarVO baseHeroStarVO = HeroStarRes.getInstance().getBaseHeroStarVO(playerHeroVO.getCfgId());
+		if (baseHeroStarVO == null) {
+			throw new GameException(AlertEnum.HERO_STAR_FULL);
+		}
+
+		if (baseHeroStarVO.getReqLevel() > playerHeroVO.getLevel()) {
+			throw new GameException(AlertEnum.HERO_LEVEL_NO);// 等级不足
+		}
+
+		if (baseHeroStarVO.getReqMoney() > 0) {
+			playerAccountService.hasEnoughRMBAndGift(userCached, baseHeroStarVO.getReqMoney());
+		}
+
+		if (!knapsackService.hasEnoughItem(userCached.getUserKnapsack().getKnapsackList(), baseHeroStarVO.getItemid(), baseHeroStarVO.getNum())) {
+			throw new GameException(AlertEnum.ITEM_NUM_NOT);
+		}
+		if (baseHeroStarVO.getReqHeroCfgId() > 0) {
+
+			int num1 = knapsackService.findKnaspackNumByCfgId(userCached.getUserKnapsack().getKnapsackList(), baseHeroStarVO.getReqHeroCfgId());
+			// BaseItemVO heroCardItem =
+			// ItemRes.getInstance().getHeroCardByCfgId(baseHeroStarVO.getReqHeroCfgId());
+			// int num2 =
+			// userCached.getUserHero().getPlayerHeroNumByCfgId(playerHeroVO.getId(),
+			// heroCardItem.getPvalue(), heroCardItem.getPvalue2());
+
+			if ((num1) < baseHeroStarVO.getReqHeroNum()) {
+				throw new GameException(AlertEnum.ITEM_NUM_NOT);
+			}
+
+			// 优先扣卡片，然后扣英雄
+			if (num1 >= baseHeroStarVO.getReqHeroNum()) {
+				knapsackService.removeItem(userCached, baseHeroStarVO.getReqHeroCfgId(), baseHeroStarVO.getReqHeroNum(), commandList);
+			} else {
+				// if (num1 > 0) {
+				// knapsackService.removeItem(userCached,
+				// baseHeroStarVO.getReqHeroCfgId(), num1, commandList);
+				// }
+				//
+				// int nn = baseHeroStarVO.getReqHeroNum() - num1;
+				// List<PlayerHeroVO> deletePlayerHeroList = new
+				// ArrayList<PlayerHeroVO>(nn);
+				// int equipmentNum = 0;
+				// // 选择要清理的英雄
+				// for (int i = 0; i < nn; i++) {
+				// PlayerHeroVO detelePlayerHeroVO =
+				// userCached.getUserHero().getPlayerHeroByCfgIdAndLevel(playerHeroVO.getId(),
+				// heroCardItem.getPvalue(), heroCardItem.getPvalue2());
+				// equipmentNum += detelePlayerHeroVO.getEquipList().size();
+				// deletePlayerHeroList.add(detelePlayerHeroVO);
+				// }
+				// // 查看背包
+				// if (!knapsackService.hasKnapsackGird(userCached,
+				// equipmentNum)) {
+				// commandList.add(CommonCommand.KNAPSACK_FULL);
+				// return;
+				// }
+				// // 脱装备 删英难
+				// for (PlayerHeroVO detelePlayerHeroVO : deletePlayerHeroList)
+				// {
+				// if (detelePlayerHeroVO.getEquipList() != null &&
+				// detelePlayerHeroVO.getEquipList().size() > 0) {
+				// knapsackService.takeOffEquipment(userCached,
+				// detelePlayerHeroVO, commandList);
+				// }
+				//
+				// heroService.deletePlayerHero(userCached, detelePlayerHeroVO,
+				// commandList);
+				// }
+
+			}
+
+		}
+		// 强化扣钱
+		if (baseHeroStarVO.getReqMoney() > 0) {
+			playerAccountService.deductCurrency(PLAYER_PROPERTY.PROPERTY_MONEY, baseHeroStarVO.getReqMoney(), userCached.getPlayerAccountVO(), commandList, "英雄升星" + playerHeroVO.getCfgId());
+		}
+		// 扣材料
+		knapsackService.removeItem(userCached, baseHeroStarVO.getItemid(), baseHeroStarVO.getNum(), commandList);
+
+		BaseHeroInfoVO nextBaseHeroInfoVO = HeroRes.getInstance().getBaseHeroInfoVO(baseHeroStarVO.getResCfgId());
+		BaseGrowthVO nextBaseGrowthVO = HeroGrowthRes.getInstance().getBaseGrowthVO(baseHeroStarVO.getResCfgId());
+
+		playerHeroVO.setCfgId(baseHeroStarVO.getResCfgId());
+
+		playerHeroVO.setHp(nextBaseHeroInfoVO.getHp());
+		playerHeroVO.setAtk(nextBaseHeroInfoVO.getAtk());
+		playerHeroVO.setDef(nextBaseHeroInfoVO.getDef());
+		playerHeroVO.setMatk(nextBaseHeroInfoVO.getMatk());
+		playerHeroVO.setMdef(nextBaseHeroInfoVO.getMdef());
+		playerHeroVO.setCir_rate(nextBaseHeroInfoVO.getCir_rate());
+		playerHeroVO.setHit(nextBaseHeroInfoVO.getHit());
+		playerHeroVO.setDodge(nextBaseHeroInfoVO.getDodge());
+
+		playerHeroVO.setBaseGrowthVO(nextBaseGrowthVO);
+		playerHeroVO.setBaseHeroInfoVO(nextBaseHeroInfoVO);
+		heroService.updateHero(playerHeroVO);
+
+		heroService.updateHeroCombat(userCached, playerHeroVO, commandList);
+
+		// 英雄升星任务 某类英雄升到多少星
+		MyClassLoaderUtil.getInstance().getTaskCheck().changTaskByReQType(userCached, TaskConstant.TASK_HERO_UPSTAR, playerHeroVO.getCfgId(), nextBaseHeroInfoVO.getStar(), commandList);
+		// N个N星英雄
+		MyClassLoaderUtil.getInstance().getTaskCheck().changTaskByReQType(userCached, TaskConstant.TASK_NHERO_NSTAR, commandList);
+
+		int newStar = playerHeroVO.getBaseHeroInfoVO().getStar();
+		if (newStar >= 5) {
+			ChatService.sendSysMsg(ChatService.sendHeroUpdate(userCached.getPlayerVO().getName(), oldStar, playerHeroVO.getName(), newStar), ChatService.TAGS[0]);
+		}
+	}
+
+	/**
+	 * 进入招蓦页
+	 * 
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void heroRecruitPage(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		HeroRecruitPageResponse.Builder heroRecruitPage = HeroRecruitPageResponse.newBuilder();
+		heroRecruitPage.setScore(userCached.getPlayerAccountVO().getScore());
+		long curTime = System.currentTimeMillis();
+		Recruit.Builder recruit = null;
+		for (BaseHeroRecruitVO baseHeroRecruitVO : HeroRecruitRes.getInstance().getDataList()) {
+			recruit = Recruit.newBuilder();
+			recruit.setType(baseHeroRecruitVO.getType());
+			recruit.setPrice(baseHeroRecruitVO.getPrice());
+			Date tempDate = userCached.getUserTimer().getTimerDate(baseHeroRecruitVO.getType());
+			recruit.setRemainTime(GameUtil.getRemainTime(curTime, tempDate, baseHeroRecruitVO.getCd()));
+			if (tempDate == null) {
+				recruit.setIsfirst(1);
+			} else {
+				recruit.setIsfirst(0);
+			}
+			heroRecruitPage.addRecruit(recruit);
+		}
+
+		heroRecruitPage.setFreeMoneyTimes(HeroConstants.HERORECRUITMAXTIMES - userCached.getUserTimer().getPlayerTimerVO().getMoney10());
+
+		HeroConstants.readHeroAdvance(heroRecruitPage);
+		CommandUtil.packageNettyMessage(CSCommandConstant.HERO_RECRUIT_PAGE, heroRecruitPage.build().toByteArray(), commandList);
+	}
+
+	/**
+	 * 招蓦
+	 * 
+	 * @param request
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void heroRecruit(HeroRecruitRequest request, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+		RECRUIT_TYPE type = request.getType();
+		PlayerTimerVO playerTimerVO = userCached.getUserTimer().getPlayerTimerVO();
+		long remainTime = 0;
+		long curTime = System.currentTimeMillis();
+
+		int nn = 1;
+		switch (type) {
+		case TYPE_MONEY10:
+		case TYPE_RMB10:
+			nn = 10;
+			break;
+		default:
+			nn = 1;
+			break;
+		}
+
+		if (userCached.getUserHero().getHeroList().size() + nn > HeroConstants.HERO_MAX_NUM) {
+			throw new GameException(AlertEnum.HERO_NUM_LIMIT);
+		}
+
+		Recruit.Builder recruit = Recruit.newBuilder();
+		recruit.setType(type);
+		recruit.setIsfirst(0);
+
+		BaseHeroRecruitVO baseHeroRecruitVO = HeroRecruitRes.getInstance().getBaseHeroRecruitVO(type);
+
+		Date tempDate = userCached.getUserTimer().getTimerDate(baseHeroRecruitVO.getType());
+		if (baseHeroRecruitVO.getCd() > 0 && tempDate != null) {
+			remainTime = baseHeroRecruitVO.getCd() - (curTime - tempDate.getTime());
+			if (remainTime < 0) {
+				remainTime = 0;
+			}
+		}
+		recruit.setPrice(baseHeroRecruitVO.getPrice());
+
+		HeroRecruitResponse.Builder heroRecruitResponse = HeroRecruitResponse.newBuilder();
+		List<Reward> list = new ArrayList<Reward>(10);
+
+		if (remainTime == 0) {
+			if (type == RECRUIT_TYPE.TYPE_MONEY && playerTimerVO.getMoney10() >= HeroConstants.HERORECRUITMAXTIMES) {
+				remainTime = (GameUtil.computerNextReFreshTime(0, 0) - System.currentTimeMillis());
+			}
+		}
+
+		if (remainTime == 0) {
+
+			switch (type) {
+			case TYPE_MONEY:
+				playerTimerVO.setZmD1(new Date());
+				CommandUtil.updateCountDown(CountType.FREE_HIRE, (int) (baseHeroRecruitVO.getCd() / 1000), commandList);
+				playerTimerVO.setMoney10(playerTimerVO.getMoney10() + 1);
+				break;
+			case TYPE_RMB:
+				playerTimerVO.setZmD2(new Date());
+				CommandUtil.updateCountDown(CountType.RMB_HIRE, (int) (baseHeroRecruitVO.getCd() / 1000), commandList);
+				break;
+			case TYPE_RMB10:
+
+				if (knapsackService.hasEnoughItem(userCached.getUserKnapsack().getKnapsackList(), ItemConstants.ITEM_HEROZAOMU_R10, 1)) {
+					knapsackService.removeItem(userCached, ItemConstants.ITEM_HEROZAOMU_R10, 1, commandList);
+				} else {
+
+					playerAccountService.hasEnoughOnlyRMB(userCached, baseHeroRecruitVO.getPrice());
+					playerAccountService.deductCurrencyOnlyRMB(baseHeroRecruitVO.getPrice(), userCached.getPlayerAccountVO(), commandList, "英雄招蓦", GMIOEnum.OUT_HERO_RECRU.usage());
+					playerAccountService.addCurrency(PLAYER_PROPERTY.PROPERTY_SCORE, HeroRecruitRes.RMBZMSCORE10, userCached.getPlayerAccountVO(), commandList, "英雄招蓦");
+
+				}
+
+				list.addAll(RewardRes.getInstance().getRewardRateGroup(3, 9)); // 8连抽
+				list.addAll(RewardRes.getInstance().getRewardRateGroup(6, 1)); // 十连抽中的密出奖励/物品
+				playerTimerVO.setZmD3(new Date());
+
+				// 十连抽累计计数
+				GameRecordVO gameRecordVO = BaseInfoService.getGameRecordVO(GameRecordConstants.TENZAOMU);
+				gameRecordVO.setValue1(GameRecordConstants.TENZAOMU_VALUE.incrementAndGet());
+				baseInfoService.updateGameRecordVO(gameRecordVO);
+				break;
+			case TYPE_MONEY10:
+
+				playerAccountService.hasEnoughMoney(userCached, baseHeroRecruitVO.getPrice());
+				playerAccountService.deductCurrency(PLAYER_PROPERTY.PROPERTY_MONEY, baseHeroRecruitVO.getPrice(), userCached.getPlayerAccountVO(), commandList, "英雄招蓦");
+
+				list.addAll(RewardRes.getInstance().getRewardRateGroup(7, 9)); // 8连抽
+				list.addAll(RewardRes.getInstance().getRewardRateGroup(8, 1)); // 十连抽中的密出奖励/物品
+				playerTimerVO.setZmD4(new Date());
+
+				break;
+			// case TYPE_SCORE:
+			// playerAccountService.hasEnoughScore(userCached,
+			// baseHeroRecruitVO.getPrice());
+			// playerAccountService.deductCurrency(PLAYER_PROPERTY.PROPERTY_SCORE,
+			// baseHeroRecruitVO.getPrice(), userCached.getPlayerAccountVO(),
+			// commandList, "英雄招蓦");
+			// playerTimerVO.setZmD4(new Date());
+			// break;
+			}
+
+			if (type == RECRUIT_TYPE.TYPE_MONEY && playerTimerVO.getMoney10() >= HeroConstants.HERORECRUITMAXTIMES) {
+				recruit.setRemainTime((int) ((GameUtil.computerNextReFreshTime(0, 0) - System.currentTimeMillis()) / 1000));
+
+			} else {
+				recruit.setRemainTime((int) (baseHeroRecruitVO.getCd() / 1000));
+			}
+
+			if ((type == RECRUIT_TYPE.TYPE_MONEY) || (type == RECRUIT_TYPE.TYPE_RMB)) {
+				list.addAll(RewardRes.getInstance().getRewardRateGroup(baseHeroRecruitVO.getRewardId()));
+				// rewardService.reward(userCached, list, commandList);
+				// for (Reward reward : list) {
+				// heroRecruitResponse.addConfigId(reward.getContent());
+				// }
+			}
+
+		} else {
+			recruit.setRemainTime((int) (remainTime / 1000));
+			switch (type) {
+			case TYPE_MONEY:
+				if (knapsackService.hasEnoughItem(userCached.getUserKnapsack().getKnapsackList(), ItemConstants.ITEM_HEROZAOMU_MON, 1)) {
+					knapsackService.removeItem(userCached, ItemConstants.ITEM_HEROZAOMU_MON, 1, commandList);
+				} else {
+					playerAccountService.hasEnoughMoney(userCached, baseHeroRecruitVO.getPrice());
+					playerAccountService.deductCurrency(PLAYER_PROPERTY.PROPERTY_MONEY, baseHeroRecruitVO.getPrice(), userCached.getPlayerAccountVO(), commandList, "英雄招蓦");
+				}
+				break;
+			case TYPE_RMB:
+				if (knapsackService.hasEnoughItem(userCached.getUserKnapsack().getKnapsackList(), ItemConstants.ITEM_HEROZAOMU_RMB, 1)) {
+					knapsackService.removeItem(userCached, ItemConstants.ITEM_HEROZAOMU_RMB, 1, commandList);
+				} else {
+					int score = HeroRecruitRes.RMBZMSCORE;
+					if (userCached.getPlayerAccountVO().getGiftgod() < baseHeroRecruitVO.getPrice()) {
+						score = (baseHeroRecruitVO.getPrice() - userCached.getPlayerAccountVO().getGiftgod()) / 10;
+					}
+
+					playerAccountService.hasEnoughRMBAndGift(userCached, baseHeroRecruitVO.getPrice());
+					playerAccountService.deductCurrency(PLAYER_PROPERTY.PROPERTY_RMB, baseHeroRecruitVO.getPrice(), userCached.getPlayerAccountVO(), commandList, "英雄招蓦",
+							GMIOEnum.OUT_HERO_RECRU.usage());
+					playerAccountService.addCurrency(PLAYER_PROPERTY.PROPERTY_SCORE, score, userCached.getPlayerAccountVO(), commandList, "英雄招蓦");
+				}
+
+				break;
+			default:
+				break;
+			}
+			list.addAll(RewardRes.getInstance().getRewardRateGroup(baseHeroRecruitVO.getRewardId()));
+
+			// List<Reward> list =
+			// RewardRes.getInstance().getRewardRateGroup(baseHeroRecruitVO.getRewardId());
+			// rewardService.reward(userCached, list, commandList);
+			// for (Reward reward : list) {
+			// heroRecruitResponse.addConfigId(reward.getContent());
+			// }
+		}
+
+		if (type == RECRUIT_TYPE.TYPE_MONEY && playerTimerVO.getZmFirst1() == 0) {
+			list.clear();
+			Reward reward = new Reward();
+			reward.setContent(27066);
+			list.add(reward);
+			playerTimerVO.setZmFirst1((byte) 1);
+
+		} else if (type == RECRUIT_TYPE.TYPE_RMB && playerTimerVO.getZmFirst2() == 0) {
+			list.clear();
+			Reward reward = new Reward();
+			reward.setContent(27123);
+			list.add(reward);
+			playerTimerVO.setZmFirst2((byte) 1);
+		}
+
+		playerTimerService.updatePlayerTimer(playerTimerVO);
+
+		if (list != null && list.size() > 0) {
+			List<Reward> itemlist = new ArrayList<Reward>(10); // 道具列表
+			for (Reward reward : list) {
+				BaseItemVO baseItemVO = ItemRes.getInstance().getBaseItemVO(reward.getContent());
+				if (baseItemVO.getType() == ItemConstants.ITEM_TYPE_CARD) {
+					int cfgId = baseItemVO.getPvalue();
+					int level = baseItemVO.getPvalue2();
+					BaseHeroInfoVO baseHeroInfoVO = HeroRes.getInstance().getBaseHeroInfoVO(cfgId);
+					PlayerHeroVO playerHeroVO = heroService.addPlayerHero(baseHeroInfoVO, level, userCached, true, commandList);
+					HeroRecruitCard.Builder heroRecruitCard = HeroRecruitCard.newBuilder();
+					heroRecruitCard.setCfgid(baseItemVO.getCfgId()); // 物品配置id
+					heroRecruitCard.setName(playerHeroVO.getName());
+					heroRecruitCard.setUrl(playerHeroVO.getBaseHeroInfoVO().getUrl());
+					heroRecruitCard.setType(1); // 英雄
+					heroRecruitCard.setRace(baseHeroInfoVO.getRace());
+					heroRecruitResponse.addHeroRecruitCard(heroRecruitCard);
+
+					if (baseHeroInfoVO.getStar() > 6) {
+						String msg = null;
+						String playerName = userCached.getPlayerVO().getName();
+						int star = baseHeroInfoVO.getStar();
+						String heroName = baseHeroInfoVO.getName();
+						if (type == RECRUIT_TYPE.TYPE_RMB) {
+							msg = ChatService.sendRMBHire(playerName, star, heroName);
+						} else if (type == RECRUIT_TYPE.TYPE_RMB10) {
+							msg = ChatService.sendTenHire(playerName, star, heroName);
+							// } else if (type == RECRUIT_TYPE.TYPE_SCORE) {
+							// msg = ChatService.sendScoreHire(playerName, star,
+							// heroName);
+						}
+
+						HeroConstants.writeHeroAdvance(playerName, star, heroName);
+
+						if (msg != null) {
+							ChatService.sendSysMsg(msg, ChatService.TAGS[0]);
+						}
+					}
+				} else {
+
+					HeroRecruitCard.Builder heroRecruitCard = HeroRecruitCard.newBuilder();
+					heroRecruitCard.setCfgid(baseItemVO.getCfgId()); // 物品配置id
+					heroRecruitCard.setName(baseItemVO.getName());
+					heroRecruitCard.setUrl(baseItemVO.getUrl());
+					heroRecruitCard.setType(0); // 道具
+					heroRecruitCard.setRace(0);
+					heroRecruitResponse.addHeroRecruitCard(heroRecruitCard);
+
+					itemlist.add(reward);
+				}
+
+			}
+
+			if (itemlist.size() > 0) {
+				rewardService.rewardAndMail(userCached, itemlist, commandList, "招募");
+			}
+
+		}
+
+		heroRecruitResponse.setRecruit(recruit);
+		heroRecruitResponse.setFreeMoneyTimes(HeroConstants.HERORECRUITMAXTIMES - playerTimerVO.getMoney10());
+		heroRecruitResponse.setScore(userCached.getPlayerAccountVO().getScore());
+
+		CommandUtil.packageNettyMessage(CSCommandConstant.HERO_RECRUIT, heroRecruitResponse.build().toByteArray(), commandList);
+
+	}
+
+}

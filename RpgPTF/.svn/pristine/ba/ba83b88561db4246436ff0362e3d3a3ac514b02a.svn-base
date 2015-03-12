@@ -1,0 +1,270 @@
+package com.dh.util;
+
+import java.io.UnsupportedEncodingException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class Tool {
+	private final static String CHARASET = "UTF-8";
+
+	/**
+	 * 解析uri
+	 * 
+	 * @param str
+	 * @return
+	 */
+	public static Map<String, String> parseUri(String str) {
+		System.out.println("str uri = " + str);
+		Map<String, String> map = new HashMap<String, String>();
+		if (str.length() < 2) {
+			return map;
+		}
+
+		String[] arrStr = str.substring(2).split("&");
+		String key = null;
+		String value = null;
+		for (String temp : arrStr) {
+			int n = temp.indexOf('=');
+			if (n < 0) {
+				continue;
+			}
+
+			key = temp.substring(0, n).toLowerCase().trim();
+			value = temp.substring(n + 1).trim();
+
+			map.put(key, value);
+		}
+
+		return map;
+	}
+
+	/**
+	 * MD5校验
+	 * 
+	 * @param str
+	 * @param sign
+	 * @return
+	 */
+	public static boolean validateMD5(String str, String sign) {
+		return sign.equalsIgnoreCase(MD5(str, CHARASET));
+	}
+
+	/**
+	 * MD5生成
+	 * 
+	 * @param str
+	 * @param charset
+	 * @return
+	 */
+
+	public static String MD5(String str) {
+		return MD5(str, CHARASET);
+	}
+
+	public static String MD5(String str, String charset) {
+		MessageDigest messageDigest = null;
+		try {
+			messageDigest = MessageDigest.getInstance("MD5");
+			messageDigest.reset();
+			messageDigest.update(str.getBytes(charset));
+		} catch (NoSuchAlgorithmException e) {
+			System.out.println("NoSuchAlgorithmException caught!");
+			System.exit(-1);
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
+		}
+
+		byte[] byteArray = messageDigest.digest();
+		StringBuffer md5StrBuff = new StringBuffer();
+		for (int i = 0; i < byteArray.length; i++) {
+			if (Integer.toHexString(0xFF & byteArray[i]).length() == 1)
+				md5StrBuff.append("0").append(Integer.toHexString(0xFF & byteArray[i]));
+			else
+				md5StrBuff.append(Integer.toHexString(0xFF & byteArray[i]));
+		}
+
+		return md5StrBuff.toString();
+	}
+
+	/**
+	 * 查看一个整数是否在一个字符串中
+	 * 
+	 * @param value
+	 * @param str
+	 * @param split
+	 * @return
+	 */
+	public static boolean intInString(int value, String str, String split) {
+		return intInArr(value, strToIntArr(str, split));
+	}
+
+	public static boolean intInArr(int value, int[] arr) {
+		for (int n : arr) {
+			if (n == value) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * 判断 value出现的次数
+	 * 
+	 * @param value
+	 * @param arr
+	 * @return
+	 */
+	public static int intInArrTime(int value, int[] arr) {
+		int x = 0;
+		for (int n : arr) {
+			if (n == value) {
+				x++;
+			}
+		}
+		return x;
+	}
+
+	public static int intInArrTime(int value, List<Integer> arr) {
+		int x = 0;
+		for (int n : arr) {
+			if (n == value) {
+				x++;
+			}
+		}
+		return x;
+	}
+
+	public static int[] strToIntArr(String str) {
+		return strToIntArr(str, ",");
+	}
+
+	public static int[] strToIntArr(String str, String split) {
+		if (str == null || str.trim().length() == 0) {
+			return null;
+		}
+		if (split.length() == 1) {
+			str = trimChar(str, split.charAt(0));
+		}
+		String[] strArr = str.split(split);
+		int[] arr = new int[strArr.length];
+
+		for (int i = 0; i < strArr.length; i++) {
+			arr[i] = Integer.valueOf(strArr[i]);
+		}
+
+		return arr;
+	}
+
+	/**
+	 * 数组打包成String
+	 * 
+	 * @param arr
+	 * @return
+	 */
+	public static String intArrToString(int[] arr) {
+		return intArrToString(arr, ',');
+	}
+
+	public static String intArrToString(int[] arr, char ch) {
+		StringBuffer sb = new StringBuffer();
+		for (int i = 0; i < arr.length; i++) {
+			if (i > 0) {
+				sb.append(ch);
+			}
+			sb.append(arr[i]);
+		}
+		return sb.toString();
+	}
+
+	public static String intArrToString(List<Integer> list) {
+		return intArrToString(list, ',');
+	}
+
+	public static String intArrToString(List<Integer> list, char ch) {
+		if (list == null || list.size() == 0) {
+			return "";
+		}
+		StringBuffer sb = new StringBuffer();
+		for (int i = 0; i < list.size(); i++) {
+			if (i > 0) {
+				sb.append(ch);
+			}
+			sb.append(list.get(i));
+		}
+		return sb.toString();
+	}
+
+	public static String generKey() {
+		StringBuffer result = new StringBuffer();
+		for (int i = 0; i < 4; i++) {
+			result.append((char) ('a' + RandomUtil.randomInt(25)));
+		}
+
+		return result.toString();
+	}
+
+	public static byte[] IntToByes(int n) {
+		byte[] b = new byte[4];
+		b[0] = (byte) (0xff & n);
+		b[1] = (byte) ((0xff00 & n) >> 8);
+		b[2] = (byte) ((0xff0000 & n) >> 16);
+		b[3] = (byte) ((0xff000000 & n) >> 24);
+		return b;
+	}
+
+	public static int BytesToInt(byte[] b) {
+		return (0xff & b[3]) << 24 | (0xff & b[2]) << 16 | (0xff & b[1]) << 8 | (0xff & b[0]);
+
+	}
+
+	public static String trimChar(String str, char ch) {
+		int len = str.length();
+		int start = 0;
+		int end = str.length();
+
+		for (int i = 0; i < len; i++) {
+			if (str.charAt(i) == ch) {
+				start = i + 1;
+			} else {
+				break;
+			}
+		}
+
+		for (int i = len - 1; i >= start; i--) {
+			if (str.charAt(i) == ch) {
+				end = i;
+			} else {
+				break;
+			}
+		}
+
+		return str.substring(start, end);
+
+	}
+
+	public static int computerProp(int maxv, int minv) {
+		double d = Math.pow(Math.log10(maxv - minv), 2.78) + 1;
+		int x = (int) d;
+		return Math.min(RandomUtil.randomInt(x * 2) - x, maxv - minv);
+	}
+
+	public static void main(String[] args) {
+		// Map<String, String> map = Tool.parseUri("/?method=login&a=1&b=2");
+		// for (String str : map.keySet()) {
+		// System.out.println("key = " + str + ", value " + map.get(str));
+		// }
+		// System.out.println(Tool.MD5("ABCDE"));
+		// for(int i = 0;i < 200; i++) {
+		// System.out.println(computerProp(1000, 0));
+		// }
+		long d1 = System.currentTimeMillis();
+		for (int i = 0; i < 10; i++) {
+			System.out.println(Tool.MD5("54355"+242105));
+		}
+		System.out.println(System.currentTimeMillis() - d1);
+	}
+
+}

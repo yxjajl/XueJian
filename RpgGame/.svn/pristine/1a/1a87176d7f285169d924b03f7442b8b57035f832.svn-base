@@ -1,0 +1,21 @@
+#gameServer
+centerServer.host=127.0.0.1
+centerServer.port=9990
+
+socialServer.host=127.0.0.1
+socialServer.port=9991
+
+
+redis_server_ip=127.0.0.1
+redis_server_pwd=asdf1234
+
+
+#mina
+server.port=9090
+server.idleTime=40
+
+#redis xiu hao
+redis_server_db=1
+
+tx_zone_id=1
+my_server_id=1

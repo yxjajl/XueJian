@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+ <mapper namespace="com.dh.dao.PlayerKnapsackMapper">
+ 
+<select id="getPlayerKnapsackList" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.PlayerKnapsackVO">
+	<include refid="queryKnap"></include>
+	 WHERE playerId = #{playerId}
+</select>
+<select id="getKnapsByHeroVO"  parameterType="com.dh.game.vo.user.PlayerHeroVO" resultType="com.dh.game.vo.user.PlayerKnapsackVO">
+		<include refid="queryKnap"></include>
+		WHERE playerId=#{playerId} and `heroId`=#{heroId}
+</select>
+
+<sql id="queryKnap">
+	SELECT
+	  `itemid`,
+	  `playerid`,
+	  `heroId`,
+	  `cfgid`,
+	  `status`,
+	  `position`,
+	  `number`,
+	  `enhance`,
+	  `gem1`,
+	  `gem2`,
+	  `gem3`,
+	  `gem4`,
+	  `bind`,`protectLevel`, `protectExp` FROM `t_play_items` 
+</sql>
+
+
+<insert id="insertPlayerKnapsackVO" parameterType="com.dh.game.vo.user.PlayerKnapsackVO">
+	INSERT INTO `t_play_items`
+	            (`itemid`,
+	             `playerId`,
+				 `heroId`,
+	             `cfgid`,
+	             `status`,
+	             `position`,
+	             `number`,
+				 `enhance`,
+				   `gem1`,
+				  `gem2`,
+				  `gem3`,
+				  `gem4`,
+	  			  `bind`,`protectLevel`, `protectExp`)
+	VALUES (#{itemid},
+	        #{playerId},
+			#{heroId},
+	        #{cfgId},
+	        #{status},
+	        #{position},
+	        #{number},
+            #{enhance},
+		    #{gem1},
+		    #{gem2},
+		    #{gem3},
+		    #{gem4},
+		    #{bind},#{protectLevel}, #{protectExp})	
+
+</insert>
+
+<update id="updatePlayerKnapsackVO" parameterType="com.dh.game.vo.user.PlayerKnapsackVO">
+		UPDATE `t_play_items`
+		SET 
+	      `cfgid` = #{cfgId},
+          `heroId` = #{heroId},
+		  `position`= #{position},
+		  `number` = #{number},
+		  `status` = #{status},
+ 		  `enhance`= #{enhance},
+		  `bind` = #{bind},
+		  `gem1` = #{gem1},
+		  `gem2` = #{gem2},
+		  `gem3` = #{gem3},
+		  `gem4` = #{gem4},
+		  `protectLevel` = #{protectLevel},
+	      `protectExp` = #{protectExp}
+		WHERE `itemid` = #{itemid}
+		    AND `playerId` = #{playerId}
+</update>
+
+
+
+<delete id="delPlayerKnapsackVO" parameterType="com.dh.game.vo.user.PlayerKnapsackVO">
+	DELETE FROM `t_play_items`
+	WHERE `itemid` = #{itemid}  
+	AND `playerId` = #{playerId}
+	AND `status` = 0
+</delete>
+
+</mapper>

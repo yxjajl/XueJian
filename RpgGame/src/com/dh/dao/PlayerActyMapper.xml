@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dh.dao.PlayerActyMapper">
+	<update id="updatePlayerActy" parameterType="com.dh.game.vo.user.PlayerActyVO" >
+		UPDATE `t_player_acty` SET 
+		`lastansdate` = #{lastansdate},
+		 `index` = #{index}, 
+		`score` = #{score}, 
+		`correct` = #{correct},
+		 `ansright` = #{ansright},
+		 `ansdel` = #{ansdel},
+		 `ansdouble`= #{ansdouble} WHERE `playerid` = #{playerid};
+	</update>
+	<select id="getPlayerActy" resultType="com.dh.game.vo.user.PlayerActyVO">
+		SELECT
+  `playerid`,
+  `lastansdate`,
+  `index`,
+  `score`,
+  `correct`,
+  `ansright`,
+  `ansdel`,
+  `ansdouble`
+	FROM `t_player_acty` where `playerid`=#{playerid}
+	</select>
+	<insert id="insertPlayerActy" parameterType="com.dh.game.vo.user.PlayerActyVO">
+		INSERT INTO `t_player_acty`
+            (`playerid`,
+             `lastansdate`,
+             `index`,
+             `score`,
+             `correct`,
+             `ansright`,
+             `ansdel`,
+             `ansdouble`)
+VALUES (#{playerid},
+        #{lastansdate},
+        #{index},
+        #{score},
+        #{correct},
+        #{ansright},
+        #{ansdel},
+        #{ansdouble});
+		
+		
+	</insert>
+</mapper>

@@ -1,0 +1,219 @@
+package com.dh.handler.battle;
+
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.springframework.stereotype.Component;
+
+import com.dh.exception.GameException;
+import com.dh.game.constant.AlertEnum;
+import com.dh.game.constant.CSCommandConstant;
+import com.dh.game.vo.base.BaseExpeditionVO;
+import com.dh.game.vo.base.Reward;
+import com.dh.game.vo.item.ArenaProto.RECORDSUCC;
+import com.dh.game.vo.login.PlayerLoginProto.PLAYER_PROPERTY;
+import com.dh.game.vo.login.PlayerLoginProto.PLAYER_UNIT_TYPE;
+import com.dh.game.vo.raid.RaidProto.HeroTeam;
+import com.dh.game.vo.raid.RaidProto.RaidEndRequest;
+import com.dh.game.vo.raid.RaidProto.RaidEndResponse;
+import com.dh.game.vo.raid.RaidProto.RaidPrepareRequest;
+import com.dh.game.vo.raid.RaidProto.RaidPrepareResponse;
+import com.dh.game.vo.raid.RaidProto.RaidStartRequest;
+import com.dh.game.vo.raid.RaidProto.YuanZhenhero;
+import com.dh.game.vo.user.PlayerHeroDefVO;
+import com.dh.game.vo.user.PlayerHeroVO;
+import com.dh.game.vo.user.PlayerYuanZhenVO;
+import com.dh.netty.NettyMessageVO;
+import com.dh.processor.YuanZhenProcessor;
+import com.dh.resconfig.ExpeditionRes;
+import com.dh.resconfig.ExpeditionRewardRes;
+import com.dh.service.ActivityService;
+import com.dh.service.HeroService;
+import com.dh.service.RewardService;
+import com.dh.service.YuanZhenService;
+import com.dh.util.CodeTool;
+import com.dh.util.CommandUtil;
+import com.dh.util.VOUtil;
+import com.dh.vo.user.UserCached;
+
+@Component
+public class YuanZhenBattle implements IBattle {
+	@Resource
+	private RewardService rewardService;
+	@Resource
+	private YuanZhenService yuanZhenService;
+	@Resource
+	private YuanZhenProcessor yuanZhenProcessor;
+	@Resource
+	private HeroService heroService;
+	@Resource
+	private ActivityService activityService;
+
+	@Override
+	public void battleDetail(RaidPrepareRequest request, UserCached userCached, List<NettyMessageVO> commandList) throws Exception {
+
+		PlayerYuanZhenVO playerYuanZhenVO = userCached.getUserYuanZhen().findPlayerYuanZhenVO(userCached.getUserYuanZhen().getLastIndex());
+		if (playerYuanZhenVO.getStatus() == 1) {
+			throw new Exception("已经全部通关了");
+		}
+
+		if (playerYuanZhenVO.getOtherId() != request.getRaidid()) {
+			throw new Exception("错误 的数据");
+		}
+
+		RaidPrepareResponse.Builder raidPrepareResponse = RaidPrepareResponse.newBuilder();
+		raidPrepareResponse.setRaidid(request.getRaidid());
+		raidPrepareResponse.setType(request.getType());
+		//
+		HeroTeam.Builder heroTeam = HeroTeam.newBuilder();
+		for (PlayerHeroVO playerHeroVO : userCached.getUserHero().getAtkHeroList()) {
+			heroTeam.addHeroIds(playerHeroVO.getId());
+		}
+		raidPrepareResponse.setHeroTeam(heroTeam);
+
+		List<PlayerHeroDefVO> list = userCached.getUserYuanZhen().getPlayerHeroDefList();
+		if (CodeTool.isNotEmpty(list)) {
+			for (PlayerHeroDefVO playerHeroDefVO : list) {
+				if (playerHeroDefVO.getYzhp() > 0) {
+					System.out.println("playerHeroDefVO.getYzanger() = " + playerHeroDefVO.getYzanger());
+					raidPrepareResponse.addFinalHero(VOUtil.getFinalHero(playerHeroDefVO));
+				}
+			}
+		}
+
+		CommandUtil.packageNettyMessage(CSCommandConstant.RAID_DETAIL, raidPrepareResponse.build().toByteArray(), commandList);
+
+	}
+
+	@Override
+	public void battleStart(UserCached userCached, RaidStartRequest request, List<NettyMessageVO> commandList) throws Exception {
+		PlayerYuanZhenVO playerYuanZhenVO = userCached.getUserYuanZhen().findPlayerYuanZhenVO(userCached.getUserYuanZhen().getLastIndex());
+		if (playerYuanZhenVO.getStatus() == 1) {
+			throw new Exception("已经全部通关了");
+		}
+
+		if (playerYuanZhenVO.getOtherId() != request.getRaidid()) {
+			throw new Exception("错误 的数据");
+		}
+
+		for (PlayerHeroVO playerHeroVO : userCached.getUserHero().getAtkHeroList()) {
+			if (playerHeroVO.getYzhp() == 0 || playerHeroVO.getLevel() < 20) {
+				throw new GameException(AlertEnum.HERO_LEVEL_YZHP_NOT_ENOUGH);
+			} else {
+				// System.err.println(playerHeroVO.getId() + "," +
+				// playerHeroVO.getName() + "," + playerHeroVO.getYzhp() + "," +
+				// playerHeroVO.getFinal_hp());
+			}
+		}
+
+	}
+
+	@Override
+	public void battleEnd(UserCached userCached, RaidEndRequest request, List<NettyMessageVO> commandList) throws Exception {
+		if (request.getIsSucc() == RECORDSUCC.SUCC_VALUE) { // 挑战副本成功
+
+			// PlayerVO otherPlayerVO =
+			// PlayerService.getPlayerVOById(request.getRaidid());
+
+			RaidEndResponse.Builder raidEndResponse = RaidEndResponse.newBuilder();
+			raidEndResponse.setRaidid(request.getRaidid());
+			raidEndResponse.setIsSucc(request.getIsSucc());
+			raidEndResponse.setType(request.getType());
+
+			PlayerYuanZhenVO playerYuanZhenVO = userCached.getUserYuanZhen().findPlayerYuanZhenVO(userCached.getUserYuanZhen().getLastIndex());
+			playerYuanZhenVO.setStatus((byte) 1);
+			yuanZhenService.updatePlayerYuanZhenVO(playerYuanZhenVO);
+
+			int lastIndex = playerYuanZhenVO.getIndex();
+			BaseExpeditionVO baseExpeditionVO = ExpeditionRes.getInstance().getBaseExpeditionVO(lastIndex);
+			List<Reward> rewardList = ExpeditionRewardRes.getInstance().getRewardRateGroup(baseExpeditionVO.getReward());
+
+			rewardService.rewardAndMail(userCached, rewardList, commandList, "华山论剑奖励");
+
+			CommandUtil.packageNettyMessage(CSCommandConstant.RAID_END, raidEndResponse.build().toByteArray(), commandList);
+
+			boolean isfinal = false;
+			if (lastIndex == YuanZhenService.MAXNORMALYUANZHEN || lastIndex == YuanZhenService.MAXELILYUANZHEN) {
+				isfinal = true;
+			}
+
+			if (lastIndex < YuanZhenService.MAXELILYUANZHEN) {
+				lastIndex++;
+				userCached.getUserYuanZhen().setLastIndex(lastIndex);
+			}
+
+			// 保存自己和对方的血量信息
+			for (YuanZhenhero yuanZhenhero : request.getMyYuanZhenheroList()) {
+				PlayerHeroVO playerHeroVO = userCached.getUserHero().getPlayerHeroVOById(yuanZhenhero.getId());
+				if (playerHeroVO != null) {
+					// System.err.println("我的 id= " + playerHeroVO.getId() +
+					// ", yzhp = " + yuanZhenhero.getYzhp());
+					if (yuanZhenhero.getYzhp() <= playerHeroVO.getYzhp()) {
+						playerHeroVO.setYzhp(yuanZhenhero.getYzhp());
+						if (playerHeroVO.getYzhp() < 0) {
+							playerHeroVO.setYzhp(0);
+						}
+					}
+					playerHeroVO.setYzanger(yuanZhenhero.getYzanger());
+					heroService.updateHero(playerHeroVO);
+
+					commandList.add(CommandUtil.packageSomeProperties(PLAYER_UNIT_TYPE.UNIT_HERO, playerHeroVO.getId(), new PLAYER_PROPERTY[] { PLAYER_PROPERTY.PROPERTY_YZ_HP,
+							PLAYER_PROPERTY.PROPERTY_YZ_YZANGER }, new int[] { playerHeroVO.getYzhp(), playerHeroVO.getYzanger() }));
+				}
+			}
+			int layer = 0;
+			if (isfinal) {
+				if (lastIndex == YuanZhenService.MAXELILYUANZHEN) {
+					layer = 1;
+				}
+				yuanZhenService.statistics(userCached, layer, commandList);
+			}
+
+			yuanZhenService.loadYuanZhen(userCached);
+
+			if (lastIndex > YuanZhenService.MAXNORMALYUANZHEN) {
+				layer = 1;
+			} else {
+				layer = 0;
+			}
+
+			yuanZhenProcessor.yuanZhenDetail(userCached, layer, commandList);
+
+		} else {
+
+			for (YuanZhenhero yuanZhenhero : request.getMyYuanZhenheroList()) {
+				PlayerHeroDefVO playerHeroDefVO = userCached.getUserYuanZhen().findPlayerHeroDefVO(yuanZhenhero.getId());
+				if (playerHeroDefVO != null) {
+					playerHeroDefVO.setYzhp(yuanZhenhero.getYzhp());
+
+					if (playerHeroDefVO.getYzhp() > playerHeroDefVO.getHp()) {
+						playerHeroDefVO.setYzhp(playerHeroDefVO.getHp());
+						if (playerHeroDefVO.getYzhp() < 0) {
+							playerHeroDefVO.setYzhp(0);
+						}
+					}
+
+					playerHeroDefVO.setYzanger(yuanZhenhero.getYzanger());
+					yuanZhenService.updateYuanZhenHeroDef(playerHeroDefVO);
+				}
+			}
+
+			// 保存自己和对方的血量信息 打输了就全部清理
+			for (PlayerHeroVO playerHeroVO : userCached.getUserHero().getAtkHeroList()) {
+				playerHeroVO.setYzhp(0);
+				playerHeroVO.setYzanger(0);
+				heroService.updateHero(playerHeroVO);
+				commandList.add(CommandUtil.packageSomeProperties(PLAYER_UNIT_TYPE.UNIT_HERO, playerHeroVO.getId(), new PLAYER_PROPERTY[] { PLAYER_PROPERTY.PROPERTY_YZ_HP,
+						PLAYER_PROPERTY.PROPERTY_YZ_YZANGER }, new int[] { playerHeroVO.getYzhp(), playerHeroVO.getYzanger() }));
+			}
+
+			RaidEndResponse.Builder raidEndResponse = RaidEndResponse.newBuilder();
+			raidEndResponse.setRaidid(request.getRaidid());
+			raidEndResponse.setIsSucc(request.getIsSucc());
+			raidEndResponse.setType(request.getType());
+			CommandUtil.packageNettyMessage(CSCommandConstant.RAID_END, raidEndResponse.build().toByteArray(), commandList);
+		}
+		activityService.addDayDone(userCached, 5, commandList);
+	}
+}

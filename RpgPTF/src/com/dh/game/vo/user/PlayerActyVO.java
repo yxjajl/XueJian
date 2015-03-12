@@ -1,0 +1,127 @@
+package com.dh.game.vo.user;
+
+//玩家活动相关
+public class PlayerActyVO {
+	private int playerid;
+	private int lastansdate;// 最近回答时间
+	private int score;
+	private int index;// 当前题目序号,0开始
+	private int correct;// 答对题目数
+	private int ansright;// 直接回答正确次数
+	private int ansdel;// 删除错误答案次数
+	private int ansdouble;// 分数加倍次数
+	private boolean isDel;// 使用过删除错误答案
+	private boolean isDouble;// 使用过Double
+	private boolean isOver;
+
+	@Override
+	public boolean equals(Object obj) {
+		return obj instanceof PlayerActyVO && this.getPlayerid() == ((PlayerActyVO) obj).getPlayerid();
+	}
+
+	public boolean isOver() {
+		return isOver;
+	}
+
+	public void setOver(boolean isOver) {
+		this.isOver = isOver;
+	}
+
+	public void next(int index) {
+		this.index = index;
+		this.setDel(false);
+		this.setDouble(false);
+	}
+
+	public boolean isDel() {
+		return isDel;
+	}
+
+	public void setDel(boolean isDel) {
+		this.isDel = isDel;
+	}
+
+	public boolean isDouble() {
+		return isDouble;
+	}
+
+	public void setDouble(boolean isDouble) {
+		this.isDouble = isDouble;
+	}
+
+	public int getAnsright() {
+		return ansright;
+	}
+
+	public void clearAns() {
+		this.setAnsdel(3);
+		this.setAnsright(1);
+		this.setAnsdouble(3);
+		this.setScore(0);
+		this.setCorrect(0);
+		this.setIndex(0);
+		this.isOver = false;
+	}
+
+	public void setAnsright(int ansright) {
+		this.ansright = ansright;
+	}
+
+	public int getAnsdel() {
+		return ansdel;
+	}
+
+	public void setAnsdel(int ansdel) {
+		this.ansdel = ansdel;
+	}
+
+	public int getAnsdouble() {
+		return ansdouble;
+	}
+
+	public void setAnsdouble(int ansdouble) {
+		this.ansdouble = ansdouble;
+	}
+
+	public int getIndex() {
+		return index;
+	}
+
+	public void setIndex(int index) {
+		this.index = index;
+	}
+
+	public int getCorrect() {
+		return correct;
+	}
+
+	public void setCorrect(int correct) {
+		this.correct = correct;
+	}
+
+	public int getScore() {
+		return score;
+	}
+
+	public void setScore(int score) {
+		this.score = score;
+	}
+
+	public int getPlayerid() {
+		return playerid;
+	}
+
+	public void setPlayerid(int playerid) {
+		this.playerid = playerid;
+	}
+
+	public int getLastansdate() {
+		return lastansdate;
+	}
+
+	public void setLastansdate(int lastansdate) {
+		this.lastansdate = lastansdate;
+	}
+
+	// private
+}

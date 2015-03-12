@@ -1,0 +1,161 @@
+package com.dh.handler.timer;
+
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.apache.log4j.Logger;
+import org.springframework.stereotype.Component;
+
+import com.dh.constants.GMConstants;
+import com.dh.game.constant.AlertEnum;
+import com.dh.game.constant.CSCommandConstant;
+import com.dh.game.vo.gm.GMProto.ActyAnsReq;
+import com.dh.game.vo.gm.GMProto.WorldBossStartReq;
+import com.dh.game.vo.item.ArenaProto.OtherAnernaInfo;
+import com.dh.handler.ICommandHandler;
+import com.dh.main.GateWayMain;
+import com.dh.netty.NettyMessageVO;
+import com.dh.processor.ExceptionProcessor;
+import com.dh.processor.HeroHangProcessor;
+import com.dh.processor.TimerProcessor;
+import com.dh.service.ActivityService;
+import com.dh.service.ArenaService;
+import com.dh.service.ChatService;
+import com.dh.service.MailService;
+import com.dh.service.PlayerService;
+import com.dh.util.MyClassLoaderUtil;
+import com.google.protobuf.InvalidProtocolBufferException;
+
+@Component
+public class TimerHandler implements ICommandHandler {
+	private static Logger logger = Logger.getLogger(TimerHandler.class);
+
+	@Resource
+	private TimerProcessor timerProcessor;
+	@Resource
+	private HeroHangProcessor heroHangProcessor;
+	@Resource
+	private PlayerService playerService;
+	@Resource
+	private ActivityService activityService;
+	@Resource
+	private ExceptionProcessor exceptionProcessor;
+	@Resource
+	private MailService mailService;
+
+	@Override
+	public void handleMessage(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		switch (nettyMessageVO.getCommandCode()) {
+		case CSCommandConstant.SYS_TIPS_NOTICE:// 随机发送游戏tips
+			ChatService.sendSysTips();
+			break;
+		case CSCommandConstant.SYS_SHOP_REFRESH:
+			dailyRefresh();
+			break;
+		case CSCommandConstant.SYS_POWER_FRESH: //
+			powerFresh();
+			break;
+		case CSCommandConstant.SYS_APPEND_REGISTERROLE: // 补充注册
+			playerService.prepareUserCaches();
+			break;
+		case CSCommandConstant.SYS_RELOAD_SCRIPT: // 重新任务加载脚本
+			MyClassLoaderUtil.getInstance().loadTaskCheck();
+			MyClassLoaderUtil.getInstance().getTaskCheck().init(GateWayMain.ctx);
+			break;
+		case CSCommandConstant.SYS_BOSS_FRESH:
+			bossFresh(nettyMessageVO);
+			break;
+		case CSCommandConstant.SYS_ACTY_FRESH:
+			actyFresh(nettyMessageVO);
+			break;
+
+		case CSCommandConstant.SYS_ARENA_RANK3:
+			String name1 = "";
+			String name2 = "";
+			String name3 = "";
+			for (OtherAnernaInfo.Builder build : ArenaService.OtherAnernaInfoList) {
+				if (build.getOrder() == 1) {
+					name1 = build.getNick();
+				} else if (build.getOrder() == 2) {
+					name2 = build.getNick();
+				} else if (build.getOrder() == 3) {
+					name3 = build.getNick();
+				}
+			}
+			ChatService.sendSysMsg(ChatService.sendArenaRank(name1, name2, name3), ChatService.TAGS[0]);
+			break;
+		case CSCommandConstant.SYS_GM_NOTICE:// gm通告
+			GMConstants.iteratorAndSendNotice();
+			ChatService.sendWorldBossNotice();
+			break;
+		default:
+			exceptionProcessor.errCommandPro(nettyMessageVO);
+			break;
+		}
+	}
+
+	private void actyFresh(NettyMessageVO nettyMessageVO) throws Exception {
+		ActyAnsReq req = null;
+		try {
+			req = ActyAnsReq.parseFrom(nettyMessageVO.getData());
+		} catch (InvalidProtocolBufferException e) {
+			logger.error(AlertEnum.DATA_PARSE_ERROR);
+			return;
+		}
+		activityService.actyAnsFresh(req);
+	}
+
+	/**
+	 * 定点刷新
+	 * 
+	 * @throws Exception
+	 */
+	private void bossFresh(NettyMessageVO nettyMessageVO) throws Exception {
+		WorldBossStartReq req = null;
+		try {
+			req = WorldBossStartReq.parseFrom(nettyMessageVO.getData());
+		} catch (InvalidProtocolBufferException e) {
+			logger.error(AlertEnum.DATA_PARSE_ERROR);
+			return;
+		}
+		activityService.freshBoss(req);
+	}
+
+	/**
+	 * 每日12:00刷新
+	 */
+	public void dailyRefresh() {
+		try {
+			timerProcessor.shopRefresh();
+		} catch (Exception e) {
+			logger.error("" + e.getMessage(), e);
+		}
+
+		try {
+			timerProcessor.arenaRefresh();
+		} catch (Exception e) {
+			logger.error("" + e.getMessage(), e);
+		}
+		try {
+			activityService.morningFreshBoss();
+		} catch (Exception e) {
+			logger.error("" + e.getMessage(), e);
+		}
+		try {
+			mailService.delInvalidMail();
+		} catch (Exception e) {
+			logger.error("" + e.getMessage(), e);
+		}
+
+	}
+
+	private void powerFresh() {
+		try {
+			timerProcessor.powerAndPvpRefresh();
+		} catch (Exception e) {
+			logger.error("" + e.getMessage(), e);
+		}
+	}
+
+}

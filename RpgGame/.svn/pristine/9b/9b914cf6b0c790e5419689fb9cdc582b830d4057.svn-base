@@ -1,0 +1,74 @@
+package com.dh.netty;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+
+import java.nio.ByteOrder;
+
+/**
+ * 用amf3封装服务端响应的数据
+ * 
+ */
+public class MyMessageDecoder extends LengthFieldBasedFrameDecoder {
+	// @Override
+	// protected Object decode(ChannelHandlerContext ctx, ByteBuf in) throws Exception {
+	// in.markReaderIndex();
+	// if (!in.isReadable() || in.readableBytes() < 6) {
+	// in.resetReaderIndex();
+	// return null;
+	// }
+	//
+	// // in = in.order(ByteOrder.LITTLE_ENDIAN);
+	// int dataLength = in.readInt();
+	// short commandCode = in.readShort();
+	//
+	// if (dataLength > MAXLENG) {
+	// throw new Exception("数据太长");
+	// }
+	//
+	// if (in.readableBytes() < dataLength) {
+	// in.resetReaderIndex();
+	// return null;
+	// }
+	//
+	// byte[] data = new byte[dataLength];
+	// // 此行执行后，本次消息数据已全部出去来了
+	// in.readBytes(data);
+	//
+	// NettyMessageVO nettyMessageVO = new NettyMessageVO();
+	// nettyMessageVO.setCommandCode(commandCode);
+	// nettyMessageVO.setData(data);
+	// return nettyMessageVO;
+	//
+	// }
+
+	public MyMessageDecoder() {
+		super(ByteOrder.BIG_ENDIAN, 100000, 0, 4, 2, 4, true);
+	}
+
+	@Override
+	protected NettyMessageVO decode(ChannelHandlerContext ctx, ByteBuf in) throws Exception {
+		ByteBuf frame = (ByteBuf) super.decode(ctx, in);
+		if (frame == null) {
+			return null;
+		}
+
+		short cmd = frame.readShort();
+
+		byte[] data = new byte[frame.readableBytes()];
+		frame.readBytes(data);
+
+		NettyMessageVO nettyMessageVO = new NettyMessageVO();
+		nettyMessageVO.setCommandCode(cmd);
+		nettyMessageVO.setData(data);
+		return nettyMessageVO;
+
+	}
+
+	@Override
+	protected ByteBuf extractFrame(ChannelHandlerContext ctx, ByteBuf buffer, int index, int length) {
+		return buffer.slice(index, length);
+	}
+
+}

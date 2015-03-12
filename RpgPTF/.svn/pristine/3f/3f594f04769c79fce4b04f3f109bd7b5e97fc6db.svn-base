@@ -1,0 +1,41 @@
+package com.dh.game.vo.base;
+
+public class VipLevelVO {
+	private int level;
+	private int RMB;
+	private int vipreward;
+	private int time;
+
+	public int getLevel() {
+		return level;
+	}
+
+	public void setLevel(int level) {
+		this.level = level;
+	}
+
+	public int getRMB() {
+		return RMB;
+	}
+
+	public void setRMB(int rMB) {
+		RMB = rMB;
+	}
+
+	public int getVipreward() {
+		return vipreward;
+	}
+
+	public void setVipreward(int vipreward) {
+		this.vipreward = vipreward;
+	}
+
+	public int getTime() {
+		return time;
+	}
+
+	public void setTime(int time) {
+		this.time = time;
+	}
+
+}

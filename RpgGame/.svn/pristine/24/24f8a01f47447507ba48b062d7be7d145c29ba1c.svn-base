@@ -1,0 +1,337 @@
+package com.dh.processor;
+
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.springframework.stereotype.Component;
+
+import com.dh.Cache.ServerHandler;
+import com.dh.constants.ActivityConstant;
+import com.dh.constants.ItemConstants;
+import com.dh.constants.RaidConstant;
+import com.dh.enums.GMIOEnum;
+import com.dh.exception.GameException;
+import com.dh.game.constant.AlertEnum;
+import com.dh.game.constant.CSCommandConstant;
+import com.dh.game.vo.activity.ActivityProto.ChargeNoticeResp;
+import com.dh.game.vo.activity.ActivityProto.DayChangeResp;
+import com.dh.game.vo.activity.ActivityProto.DayDoneResp;
+import com.dh.game.vo.activity.ActivityProto.DayDoneRewardReq;
+import com.dh.game.vo.activity.ActivityProto.DayDoneRewardResp;
+import com.dh.game.vo.activity.ActivityProto.SignReq;
+import com.dh.game.vo.activity.ActivityProto.SignRewardReq;
+import com.dh.game.vo.activity.ActivityProto.SignRewardResp;
+import com.dh.game.vo.activity.WorldBossProto.BOSS_STATUS;
+import com.dh.game.vo.activity.WorldBossProto.BossAddtionResp;
+import com.dh.game.vo.activity.WorldBossProto.BossCdAccrResp;
+import com.dh.game.vo.activity.WorldBossProto.BossDetailReq;
+import com.dh.game.vo.activity.WorldBossProto.BossDetailResp;
+import com.dh.game.vo.base.BaseDayDoneRewardVO;
+import com.dh.game.vo.base.BaseDaySignVO;
+import com.dh.game.vo.base.Reward;
+import com.dh.game.vo.login.PlayerLoginProto.PLAYER_PROPERTY;
+import com.dh.game.vo.user.PlayerBossVO;
+import com.dh.game.vo.user.PlayerTimerVO;
+import com.dh.game.vo.user.PlayerWelfareVO;
+import com.dh.netty.NettyMessageVO;
+import com.dh.resconfig.DayChangeRewardRes;
+import com.dh.resconfig.DayDoneRewardRes;
+import com.dh.resconfig.DaySignRes;
+import com.dh.resconfig.RewardRes;
+import com.dh.resconfig.VipLevelRes;
+import com.dh.service.ActivityService;
+import com.dh.service.KnapsackService;
+import com.dh.service.MailService;
+import com.dh.service.PlayerAccountService;
+import com.dh.service.PlayerTimerService;
+import com.dh.service.RewardService;
+import com.dh.service.WelfareService;
+import com.dh.util.CommandUtil;
+import com.dh.util.DateUtil;
+import com.dh.util.VOUtil;
+import com.dh.vo.WorldBossVO;
+import com.dh.vo.user.UserCached;
+
+@Component
+public class ActivityProcessor {
+	@Resource
+	private PlayerAccountService playerAccountService;
+	@Resource
+	private WelfareService welfareService;
+	@Resource
+	private RewardService rewardService;
+	@Resource
+	private ActivityService activityService;
+	@Resource
+	private KnapsackService knapsackService;
+	@Resource
+	private PlayerTimerService playerTimerService;
+
+	/**
+	 * 每日签到
+	 * 
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void getDaySign(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+		PlayerWelfareVO playerWelfareVO = userCached.getUserActivity().getPlayerWelfareVO();
+		if (!DateUtil.isSameMonth(playerWelfareVO.getSignFreshTime())) {
+			playerWelfareVO.setSignFreshTime(DateUtil.getNow());
+			playerWelfareVO.setResignCount(0);
+			playerWelfareVO.setRewardSign(0);
+			playerWelfareVO.setDaySign(0);
+			welfareService.updatePlayerWelfareVO(playerWelfareVO);
+		}
+		nettyMessageVO.setData(VOUtil.packSign(userCached, playerWelfareVO).build().toByteArray());
+		commandList.add(nettyMessageVO);
+	}
+
+	/**
+	 * 签到和补签
+	 */
+	public void sign(SignReq req, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+		PlayerWelfareVO playerWelfareVO = userCached.getUserActivity().getPlayerWelfareVO();
+
+		Calendar cal = Calendar.getInstance();
+		int dayOfMonth = cal.get(Calendar.DAY_OF_MONTH) - 1;
+		if (req.getIsResign()) {
+			int totalResign = VipLevelRes.getInstance().getPvpResignTimes(userCached.getPlayerVO().getVip());
+			if (playerWelfareVO.getResignCount() + 1 > totalResign) {
+				throw new GameException(AlertEnum.RESIGN_COUNT_REQ);
+			}
+			dayOfMonth = playerWelfareVO.getFirstUnsignDay(dayOfMonth);
+			if (dayOfMonth == -1) {
+				throw new GameException(AlertEnum.SIGN_DONE);
+			} else if (dayOfMonth >= (cal.get(Calendar.DAY_OF_MONTH) - 1)) {
+				throw new GameException(AlertEnum.SIGN_NOT_RESIGN);
+			}
+			playerWelfareVO.setResignCount(playerWelfareVO.getResignCount() + 1);
+			playerAccountService.deductCurrency(PLAYER_PROPERTY.PROPERTY_RMB, ActivityConstant.RESIGN_COST, userCached.getPlayerAccountVO(), commandList, "每日签到补签", GMIOEnum.OUT_REGIGN.usage());
+		} else if (playerWelfareVO.isSign(dayOfMonth)) {
+			throw new GameException(AlertEnum.SIGN_DONE);
+		}
+		playerAccountService.addCurrency(PLAYER_PROPERTY.PROPERTY_EXPC, 500, userCached.getPlayerAccountVO(), commandList, "每日签到奖励");
+		playerWelfareVO.sign(dayOfMonth);
+
+		welfareService.updatePlayerWelfareVO(playerWelfareVO);
+		nettyMessageVO.setData(VOUtil.packSign(userCached, playerWelfareVO).build().toByteArray());
+		commandList.add(nettyMessageVO);
+	}
+
+	public void signReward(SignRewardReq req, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int count = req.getCount();
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+		PlayerWelfareVO playerWelfareVO = userCached.getUserActivity().getPlayerWelfareVO();
+		if (playerWelfareVO.isRewarded(count - 1)) {
+			throw new GameException(AlertEnum.COMMON_HAD_REWARD);
+		}
+		List<BaseDaySignVO> daysSign = DaySignRes.getInstance().getSignRewardByDays(count);
+		if (daysSign == null) {
+			throw new GameException(AlertEnum.SIGN_COUNTS_NOT_EXIT);
+		}
+		List<Reward> rewards = new ArrayList<Reward>();
+		for (BaseDaySignVO baseDaySignVO : daysSign) {
+			Reward reward = MailService.createReward(baseDaySignVO.getType(), baseDaySignVO.getContent(), baseDaySignVO.getNumber());
+			rewards.add(reward);
+		}
+		boolean isSucc = rewardService.reward(userCached, rewards, commandList);
+		if (isSucc) {
+			playerWelfareVO.reward(count - 1);
+			welfareService.updatePlayerWelfareVO(playerWelfareVO);
+			nettyMessageVO.setData(SignRewardResp.newBuilder().setSignReward(playerWelfareVO.getRewardSign()).build().toByteArray());
+			commandList.add(nettyMessageVO);
+		}
+	}
+
+	/**
+	 * 获得boss,登录请求
+	 * 
+	 * @param nettyMessageVO
+	 * @param commandList
+	 */
+	public void getBoss(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) {
+		CommandUtil.packWorldBoss(commandList);
+	}
+
+	public void getBossDetail(BossDetailReq req, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		int id = req.getId();
+		BossDetailResp.Builder resp = BossDetailResp.newBuilder().setId(id);
+		WorldBossVO instance = WorldBossVO.getInstance();
+		BOSS_STATUS status = WorldBossVO.getInstance().getBossStatus(id);
+		if (status == BOSS_STATUS.END || status == BOSS_STATUS.OVER) {
+			throw new GameException(AlertEnum.ACTIVITY_BOSS_HAD_END);
+		} else if (status == BOSS_STATUS.BEFORE) {
+			throw new GameException(AlertEnum.ACTIVITY_BOSS_NOT_OPEN);
+		}
+
+		PlayerBossVO playerBossVO = activityService.getPlayerBossVO(userCached);
+		resp.setHp(instance.getHp());
+		resp.setTotalHp(instance.getBaseMonsterVO().getHp());
+		resp.setCountDown(playerBossVO.getCountDown()).setId(id);
+		resp.setMineHunt(VOUtil.packBossLog(playerBossVO.getBossLogVO()));
+		resp.setRankHuntLogList(instance.getRankList());
+		if (instance.getMaxKillInfo(instance.isFirst()) != null) {
+			resp.setMaxHuntInfo(VOUtil.packBossLog(instance.getMaxKillInfo(instance.isFirst()).getBossLogVO()));
+		}
+		nettyMessageVO.setData(resp.build().toByteArray());
+		ServerHandler.addBossChannel(nettyMessageVO.getChannel());
+		commandList.add(nettyMessageVO);
+	}
+
+	/**
+	 * 加速boss
+	 * 
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void BossCdAccr(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+		PlayerBossVO playerBossVO = activityService.getPlayerBossVO(userCached);
+		if (playerBossVO.getCountDown() == 0) {
+			throw new GameException(AlertEnum.CD_HAD_FINISHED);
+		}
+		if (knapsackService.hasEnoughItem(userCached.getUserKnapsack().getKnapsackList(), ItemConstants.ITEM_CDESC_LENQUE, 1)) {
+			knapsackService.removeItem(userCached, ItemConstants.ITEM_CDESC_LENQUE, 1, commandList);
+		} else {
+			playerAccountService.hasEnoughRMBAndGift(userCached, RaidConstant.RAID_ACCRCD_COST_RMB);
+			playerAccountService.deductCurrency(PLAYER_PROPERTY.PROPERTY_RMB, RaidConstant.RAID_ACCRCD_COST_RMB, userCached.getPlayerAccountVO(), commandList, "世界bosscd",
+					GMIOEnum.OUT_CD_WORLD_BOSS.usage());
+		}
+
+		playerBossVO.setStartTime(0);
+		nettyMessageVO.setData(BossCdAccrResp.newBuilder().setCd(0).build().toByteArray());
+		commandList.add(nettyMessageVO);
+	}
+
+	/**
+	 * 增加号令值
+	 * 
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void bossAddtion(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+		PlayerBossVO playerBossVO = activityService.getPlayerBossVO(userCached);
+		if (playerBossVO.getAddtion() >= 100) {
+			throw new GameException(AlertEnum.ACTIVITY_BOSS_ADDTION_FULL);
+		}
+		if (!knapsackService.hasEnoughItem(userCached.getUserKnapsack().getKnapsackList(), ItemConstants.ITEM_BOSS_ADDTION, 1)) {
+			playerAccountService.hasEnoughRMBAndGift(userCached, ActivityConstant.BOSS_ADDTION_COST);
+			playerAccountService.deductCurrency(PLAYER_PROPERTY.PROPERTY_RMB, ActivityConstant.BOSS_ADDTION_COST, userCached.getPlayerAccountVO(), commandList, "增加号令值",
+					GMIOEnum.OUT_BUY_ADDTION.usage());
+		} else {
+			knapsackService.removeItem(userCached, ItemConstants.ITEM_BOSS_ADDTION, 1, commandList);
+		}
+		playerBossVO.setAddtion(playerBossVO.getAddtion() + 10);
+		playerBossVO.getBossLogVO().setAddtion(playerBossVO.getAddtion());
+		activityService.updatePlayerBoss(playerBossVO);
+		nettyMessageVO.setData(BossAddtionResp.newBuilder().setAddtion(playerBossVO.getAddtion()).build().toByteArray());
+		commandList.add(nettyMessageVO);
+	}
+
+	public void bossExit(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) {
+		ServerHandler.removeBossChannel(nettyMessageVO.getChannel());
+	}
+
+	/**
+	 * 每日充值
+	 */
+	public void dayChange(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+		nettyMessageVO.setData(DayChangeResp.newBuilder().setChangeStatus(userCached.getPlayerAccountVO().getHisrecharge() == 0 ? 3 : userCached.getUserTimer().getPlayerTimerVO().getDayChange())
+				.setRewardId(DayChangeRewardRes.getInstance().getRewardIndex()).build().toByteArray());
+		commandList.add(nettyMessageVO);
+	}
+
+	public void dayChangeReward(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+		PlayerTimerVO pt = userCached.getUserTimer().getPlayerTimerVO();
+		if (pt.getDayChange() == 1) {// 已经充值还未领奖
+			List<Reward> rewards = DayChangeRewardRes.getInstance().getRewards();
+			rewardService.rewardAndMail(userCached, rewards, commandList, "每日充值奖励所得");
+			pt.setDayChange(2);
+			playerTimerService.updateDayChange(pt);
+			nettyMessageVO.setData(DayChangeResp.newBuilder().setChangeStatus(pt.getDayChange()).setRewardId(DayChangeRewardRes.getInstance().getRewardIndex()).build().toByteArray());
+			nettyMessageVO.setCommandCode(CSCommandConstant.ACTIVITY_DAY_CHARGE);
+			commandList.add(nettyMessageVO);
+		}
+
+	}
+
+	public void chargeList(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) {
+		nettyMessageVO.setData(ChargeNoticeResp.newBuilder().setChargeNoticeList(ActivityConstant.getChargeNoticeList()).build().toByteArray());
+		commandList.add(nettyMessageVO);
+	}
+
+	public void getDayDone(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+		PlayerTimerVO pt = userCached.getUserTimer().getPlayerTimerVO();
+
+		DayDoneResp.Builder res = VOUtil.packDayDone(pt);
+		nettyMessageVO.setData(res.build().toByteArray());
+		commandList.add(nettyMessageVO);
+	}
+
+	public void dayDoneReward(DayDoneRewardReq req, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+		PlayerTimerVO pt = userCached.getUserTimer().getPlayerTimerVO();
+		int rewards = pt.getDayDoneRewards();
+		int id = req.getId();
+		if (id < 0 || id > 4) {
+			return;
+		}
+		int target = 0x1 << id;
+		if ((rewards >> id & 0x1) == 1) {
+			throw new GameException(AlertEnum.REWARD_ALREADY_GET);
+		}
+		BaseDayDoneRewardVO reward = DayDoneRewardRes.getInstance().getDayDoneReward(++id);
+		if (!knapsackService.hasKnapsackGird(userCached, 1, 99)) {
+			throw new GameException(AlertEnum.KNAPSACK_FULL);
+		}
+		knapsackService.addNewItem(userCached, reward.getBaseItemVO(), 1, commandList);
+		rewards |= target;
+		pt.setDayDoneRewards(rewards);
+		playerTimerService.updateDayDoneReward(pt);
+
+		DayDoneRewardResp.Builder resp = DayDoneRewardResp.newBuilder();
+		resp.setRewards(rewards);
+		nettyMessageVO.setData(resp.build().toByteArray());
+		commandList.add(nettyMessageVO);
+	}
+
+	// 每日分享
+	public void dayShare(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+		PlayerTimerVO playerTimerVO = userCached.getUserTimer().getPlayerTimerVO();
+		if (playerTimerVO.getDayShare() == 0) {
+			rewardService.reward(userCached, RewardRes.getInstance().dayShareList, commandList);
+			playerTimerVO.setDayShare(1);
+			playerTimerService.updateDayShare(playerTimerVO);
+		} else {
+			throw new GameException(AlertEnum.DAY_SHARE_INVALIDE);
+		}
+
+		CommandUtil.dayShare(userCached, commandList);
+	}
+}

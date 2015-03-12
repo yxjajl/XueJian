@@ -1,0 +1,40 @@
+package com.dh.timer;
+
+import org.apache.log4j.Logger;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
+import com.MyOpenApiV3;
+import com.dh.Cache.ServerHandler;
+import com.dh.constants.PlatformConstant;
+import com.dh.game.vo.user.PlayerVO;
+import com.dh.vo.user.UserCached;
+
+@Component
+public class TXOpenkeyContinueTimer {
+	private static final Logger logger = Logger.getLogger(TXOpenkeyContinueTimer.class);
+
+	@Scheduled(cron = "0 0/30 * * * ?")
+	public void run() {
+		// logger.info("========TXOpenkeyContinueTimer========================");
+		long curTime = System.currentTimeMillis();
+		UserCached[] arrUserCached = ServerHandler.USERCACHEDMAP.values(new UserCached[0]);
+		for (UserCached userCached : arrUserCached) {
+			try {
+				PlayerVO playerVO = userCached.getPlayerVO();
+
+				if (PlatformConstant.isTXPlatform(playerVO.getBchannel()) && ((curTime - playerVO.getLastLoginDate().getTime()) > 1800000)) {
+					// 续openkey
+					MyOpenApiV3.isLogin(playerVO.getUserName(), playerVO.getPassword(), playerVO.getBchannel());
+				}
+			} catch (Exception e) {
+				logger.error("TimerHandler.heroHang()", e);
+			}
+		}
+
+	}
+
+	public static void main(String[] args) throws Exception {
+
+	}
+}

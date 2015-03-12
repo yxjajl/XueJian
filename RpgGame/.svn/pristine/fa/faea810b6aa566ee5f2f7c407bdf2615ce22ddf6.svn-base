@@ -1,0 +1,58 @@
+package com.dh.constants;
+
+import java.util.Iterator;
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingQueue;
+
+import com.dh.game.vo.activity.ActivityProto.ChargeNoticeList;
+import com.dh.game.vo.activity.ActivityProto.ChargeNoticeList.Builder;
+import com.dh.game.vo.activity.ActivityProto.ChargeNoticiInfo;
+import com.dh.game.vo.user.RechargeInfoVO;
+
+public class ActivityConstant {
+
+	public final static int DAY_DONE_LIMIT = 105;
+	// public static int VIP_DAY_SIGN_COUNT = 25;
+	public final static int NOT_VIP_DAY_SIGN_COUNT = 5;
+	public final static int RESIGN_COST = 50;
+	public final static int BOSS_CD_ACCR_RMB_COST = 20;
+	public final static int BOSS_POWER_COST = 5;
+	public final static int BOSS_ADDTION_COST = 10;
+	public final static int DAY_DONE_NUM = 14;// 每日必做总数
+
+	public static final Queue<RechargeInfoVO> CHARGE_QUEUE = new LinkedBlockingQueue<RechargeInfoVO>(20);
+	public static Object LOCK = new Object();
+	private static Builder chargeNoticeList = null;
+	public final static int CHARGE_LIST_SIZE = 20;
+
+	public static void addCharge(RechargeInfoVO rechargeInfoVO) {
+		synchronized (LOCK) {
+			while (CHARGE_QUEUE.size() >= CHARGE_LIST_SIZE) {
+				CHARGE_QUEUE.poll();
+			}
+			CHARGE_QUEUE.offer(rechargeInfoVO);
+			// System.out.println("当前size: " + CHARGE_QUEUE.size());
+		}
+		createChargeList();
+	}
+
+	public static Builder getChargeNoticeList() {
+		synchronized (LOCK) {
+			return chargeNoticeList;
+		}
+	}
+
+	public static void createChargeList() {
+		synchronized (LOCK) {
+			chargeNoticeList = ChargeNoticeList.newBuilder();
+			Iterator<RechargeInfoVO> it = CHARGE_QUEUE.iterator();
+			while (it.hasNext()) {
+				RechargeInfoVO r = it.next();
+				chargeNoticeList.addChargeNoticiInfo(ChargeNoticiInfo.newBuilder().setName(r.getName()).setNum(r.getGoldingot()));
+			}
+		}
+
+	}
+
+	// publlic static int BOSS_
+}

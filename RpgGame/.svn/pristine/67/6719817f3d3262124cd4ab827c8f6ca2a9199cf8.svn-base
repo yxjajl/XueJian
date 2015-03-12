@@ -1,0 +1,129 @@
+package com.dh.sqlexe;
+
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.apache.log4j.Logger;
+import org.springframework.stereotype.Component;
+
+import com.dh.s2s.queue.BaseQueue;
+
+@Component
+public class SqldirectExeThread implements Runnable {
+	private final static Logger logger = Logger.getLogger(SqldirectExeThread.class);
+	private static BaseQueue<List<String>> baseQueue = new BaseQueue<List<String>>();
+
+	@Resource
+	private JdbcDAO jdbcDAO;
+
+	private SqldirectExeThread() {
+		super();
+	}
+
+	public void putSqlList(List<String> list) {
+		baseQueue.put(list);
+	}
+
+	@Override
+	public void run() {
+		for (;;) {
+			try {
+				batchSqlExe();
+				// TimeUnit.MILLISECONDS.sleep(100);
+			} catch (Exception e) {
+				e.printStackTrace();
+				logger.error("SqldirectExeThread.exesql" + e.getCause(), e);
+			}
+		}
+	}
+
+	public void batchSqlExe() throws InterruptedException {
+		long d1 = System.currentTimeMillis();
+		List<String> list = baseQueue.reallyTake();
+		if (list.size() > 0) {
+			try {
+				jdbcDAO.batchSql(list.toArray(new String[0]));
+			} catch (Exception e) {
+				logger.error("SqlSaveThread.batchSql" + e.getMessage(), e);
+				logger.error("==============error sql register start===============");
+				for (String str : list) {
+					logger.error(str);
+				}
+				logger.error("==============error sql register end===============");
+			}
+		}
+
+		long d2 = System.currentTimeMillis();
+		long d3 = d2 - d1;
+		if (d3 > 100) {
+			logger.debug("exec list size use = " + (System.currentTimeMillis() - d1));
+		}
+
+	}
+
+	public void register() {
+		int n = baseQueue.getQueueSize();
+		if (n > 0) {
+			long d1 = System.currentTimeMillis();
+			for (int i = 0; i < n; i++) {
+
+				List<String> list = baseQueue.take();
+
+				if (list != null && list.size() > 0) {
+					try {
+						jdbcDAO.batchSql(list.toArray(new String[0]));
+					} catch (Exception e) {
+						logger.error("SqlSaveThread.batchSql" + e.getMessage(), e);
+						logger.error("==============error sql register start===============");
+						for (String str : list) {
+							logger.error(str);
+						}
+						logger.error("==============error sql register end===============");
+					}
+				}
+			}
+
+			long d2 = System.currentTimeMillis();
+			long d3 = d2 - d1;
+			if (d3 > 100) {
+				logger.debug("exec list size use = " + (System.currentTimeMillis() - d1));
+			}
+		}
+	}
+
+	// public void exesql(String sql) {
+	// try {
+	// // logger.debug("exec" + sql);
+	// if (sql != null && sql.trim().length() > 0) {
+	// jdbcDAO.execute(sql);
+	// }
+	// } catch (Exception e) {
+	// logger.error("SqlSaveThread.exesql" + e.getMessage(), e);
+	// }
+	// }
+
+	public void batchSql(String[] sqls) {
+		try {
+			long d1 = System.currentTimeMillis();
+
+			if (sqls != null && sqls.length > 0) {
+				jdbcDAO.batchSql(sqls);
+			}
+			long d2 = System.currentTimeMillis();
+			long d3 = d2 - d1;
+			if (d3 > 100) {
+				logger.debug("exec sql size = " + sqls.length);
+				logger.debug("exec sql size use = " + (System.currentTimeMillis() - d1));
+			}
+		} catch (Exception e) {
+			logger.error("SqlSaveThread.batchSql" + e.getMessage(), e);
+			logger.error("==============error sql array start===============");
+			for (String str : sqls) {
+				logger.error(str);
+			}
+			logger.error("==============error sql array end===============");
+		}
+	}
+
+}

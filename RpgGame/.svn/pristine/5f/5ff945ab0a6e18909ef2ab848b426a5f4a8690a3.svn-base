@@ -1,0 +1,47 @@
+package com.dh.timer;
+
+import org.springframework.stereotype.Component;
+
+@Component
+public class RechargeTimer {
+//	private static Logger logger = Logger.getLogger(RechargeTimer.class);
+//	public static BaseQueue<RechargeInfoVO> baseQueue = new BaseQueue<RechargeInfoVO>();
+
+//	@Resource
+//	private RechargeService rechargeService;
+
+//	@Scheduled(cron = "0 0/3 * * * ?")
+	public void run() {
+//		logger.debug("=============RechargeTimer===========");
+//		if (baseQueue.getQueueSize() > 0) {
+//			int length = baseQueue.getQueueSize();
+//			for (int i = 0; i < length; i++) {
+//				RechargeInfoVO rechargeInfoVO = baseQueue.take();
+//				if (rechargeInfoVO.getState() == 1) {
+//					HashMap<String, String> map = rechargeInfoVO.getMapParam();
+//					boolean bool = MyOpenApiV3.confirmDelivery(rechargeInfoVO.getOpenid(), map.get("payitem"), map.get("token"), map.get("billno"), map.get("version"), map.get("zoneid"), "0", "ok",
+//							map.get("amt"), map.get("payamt_coins"), "0", rechargeInfoVO.getPlatform());
+//
+//					if (bool) {
+//						rechargeInfoVO.setState(2);
+//						rechargeService.updateRechargeInfo(rechargeInfoVO);
+//					} else {
+//						if (rechargeInfoVO.getRepeated() < 3) {
+//							rechargeInfoVO.setRepeated(rechargeInfoVO.getRepeated() + 1);
+//							RechargeTimer.baseQueue.put(rechargeInfoVO);
+//						}
+//					}
+//
+//				}
+//
+//			} // end for
+//
+//		}
+
+	}
+
+	// public BaseQueue<RechargeInfoVO> getBaseQueue() {
+	// return baseQueue;
+	// }
+
+}

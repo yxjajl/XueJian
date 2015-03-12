@@ -1,0 +1,742 @@
+package com.dh.processor;
+
+import java.util.Date;
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.apache.log4j.Logger;
+import org.springframework.stereotype.Component;
+
+import com.dh.Cache.ServerHandler;
+import com.dh.constants.GameRecordConstants;
+import com.dh.constants.OpenActConstants;
+import com.dh.enums.GMIOEnum;
+import com.dh.exception.GameException;
+import com.dh.game.constant.AlertEnum;
+import com.dh.game.constant.CSCommandConstant;
+import com.dh.game.vo.activity.ActivityProto.GiftGoldInfo;
+import com.dh.game.vo.activity.ActivityProto.RewardOnlineResp;
+import com.dh.game.vo.activity.ActivityProto.RewardWelfareRequest;
+import com.dh.game.vo.activity.ActivityProto.WelfareRequest;
+import com.dh.game.vo.activity.ActivityProto.WelfareResp;
+import com.dh.game.vo.activity.OpenActivityProto.LinQuState;
+import com.dh.game.vo.activity.OpenActivityProto.OneRechargeRep;
+import com.dh.game.vo.activity.OpenActivityProto.OneRechargeReq;
+import com.dh.game.vo.activity.OpenActivityProto.OpenActiveInfo;
+import com.dh.game.vo.activity.OpenActivityProto.OpenActiveLinQuReq;
+import com.dh.game.vo.activity.OpenActivityProto.OpenActiveResponse;
+import com.dh.game.vo.base.BaseOnlineReward;
+import com.dh.game.vo.base.BaseWelfareVO;
+import com.dh.game.vo.base.DymicGiftVO;
+import com.dh.game.vo.base.GameRecordVO;
+import com.dh.game.vo.base.Reward;
+import com.dh.game.vo.login.PlayerLoginProto.PLAYER_PROPERTY;
+import com.dh.game.vo.user.PlayerDymicGiftVO;
+import com.dh.game.vo.user.PlayerOpenActVO;
+import com.dh.game.vo.user.PlayerTimerVO;
+import com.dh.game.vo.user.PlayerWelfareVO;
+import com.dh.netty.NettyMessageVO;
+import com.dh.resconfig.OneRechargeRes;
+import com.dh.resconfig.OnlineRewardRes;
+import com.dh.resconfig.OpenActRes;
+import com.dh.resconfig.WelfareRes;
+import com.dh.resconfig.WelfareRewardRes;
+import com.dh.service.MailService;
+import com.dh.service.PlayerAccountService;
+import com.dh.service.PlayerTimerService;
+import com.dh.service.RewardService;
+import com.dh.service.WelfareService;
+import com.dh.util.CommandUtil;
+import com.dh.util.DateUtil;
+import com.dh.util.VOUtil;
+import com.dh.vo.user.UserCached;
+
+@Component
+public class WelfareProcessor {
+	private final static Logger LOGGER = Logger.getLogger(WelfareProcessor.class);
+	@Resource
+	private WelfareService welfareService;
+	@Resource
+	private RewardService rewardService;
+	@Resource
+	private PlayerTimerService timerService;
+	@Resource
+	private PlayerAccountService playerAccountService;
+
+	/**
+	 * 进入福利大厅
+	 * 
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void getWelfareResp(WelfareRequest request, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+		WelfareResp.Builder build = welfareService.getWelfareResp(request.getType(), userCached, 0);
+		build.setType(request.getType());
+		CommandUtil.packageNettyMessage(CSCommandConstant.WELFARE_LIST, build.build().toByteArray(), commandList);
+	}
+
+	public void rewardWelfare(RewardWelfareRequest request, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		BaseWelfareVO baseWelfareVO = null;
+		PlayerWelfareVO playerWelfareVO = null;
+		int size = 0;
+		int index = -1;
+		switch (request.getType()) { // request.getId()
+		case WelfareRes.LEVEL_REWARD:
+			index = request.getIndex() - 1;
+			size = WelfareRes.getInstance().LEVELLIST.size();
+			if (index < 0 || index > (size - 1)) {
+				throw new GameException(AlertEnum.REWARD_NOT_FOUND);
+			}
+
+			// 验证是否有奖励可领
+			playerWelfareVO = userCached.getUserActivity().getPlayerWelfareVO();
+			baseWelfareVO = WelfareRes.getInstance().LEVELLIST.get(index);
+			if (userCached.getPlayerVO().getLevel() < baseWelfareVO.getFinished()) {
+				throw new Exception("条件不满足,等级不够");
+			}
+
+			int x = (playerWelfareVO.getLvrew() >> index) & 1;
+			if (x == 1) { // 领过了
+				throw new GameException(AlertEnum.REWARD_NOT_FOUND);
+			} else {
+				int lvrew = ((1 << index) | playerWelfareVO.getLvrew());
+				playerWelfareVO.setLvrew(lvrew);
+			}
+			welfareService.updatePlayerWelfareVO(playerWelfareVO);
+			rewardService.rewardAndMail(userCached, WelfareRewardRes.getInstance().getRewardRateGroup(baseWelfareVO.getRewardid()), commandList, "福利大厅等级奖励");
+
+			break;
+		case WelfareRes.LOGIN_REWARD:
+			index = request.getIndex() - 1;
+			size = WelfareRes.getInstance().LOGINLIST.size();
+
+			if (index < 0 || index > (size - 1)) {
+				throw new GameException(AlertEnum.REWARD_NOT_FOUND);
+			}
+
+			// 验证是否有奖励可领
+			playerWelfareVO = userCached.getUserActivity().getPlayerWelfareVO();
+			baseWelfareVO = WelfareRes.getInstance().LOGINLIST.get(index);
+			if (userCached.getPlayerVO().getScores() < baseWelfareVO.getFinished()) {
+				throw new Exception("条件不满足,等级不够");
+			}
+
+			x = (playerWelfareVO.getSevrew() >> index) & 1;
+			if (x == 1) { // 领过了
+				throw new GameException(AlertEnum.REWARD_NOT_FOUND);
+			} else {
+				int lvrew = ((1 << index) | playerWelfareVO.getSevrew());
+				playerWelfareVO.setSevrew(lvrew);
+			}
+
+			welfareService.updatePlayerWelfareVO(playerWelfareVO);
+			rewardService.rewardAndMail(userCached, WelfareRewardRes.getInstance().getRewardRateGroup(baseWelfareVO.getRewardid()), commandList, "福利大厅登陆奖励");
+
+			break;
+		case WelfareRes.RECHARGE_REWARD:
+			index = request.getIndex() - 1;
+			size = WelfareRes.getInstance().RECHARGELIST.size();
+
+			if (index < 0 || index > (size - 1)) {
+				throw new GameException(AlertEnum.REWARD_NOT_FOUND);
+			}
+
+			// 验证是否有奖励可领
+			playerWelfareVO = userCached.getUserActivity().getPlayerWelfareVO();
+
+			baseWelfareVO = WelfareRes.getInstance().RECHARGELIST.get(index);
+			if (userCached.getPlayerAccountVO().getHisrecharge() < baseWelfareVO.getFinished()) {
+				throw new Exception("条件不满足,等级不够"); // 充值额度
+			}
+
+			x = (playerWelfareVO.getRechargerew() >> index) & 1;
+			if (x == 1) { // 领过了
+				throw new GameException(AlertEnum.REWARD_NOT_FOUND);
+			} else {
+				int lvrew = ((1 << index) | playerWelfareVO.getRechargerew());
+				playerWelfareVO.setRechargerew(lvrew);
+			}
+			welfareService.updatePlayerWelfareVO(playerWelfareVO);
+			rewardService.rewardAndMail(userCached, WelfareRewardRes.getInstance().getRewardRateGroup(baseWelfareVO.getRewardid()), commandList, "福利大厅充值奖励");
+
+			break;
+		case WelfareRes.FIRST_RECHARG:
+
+			// 验证是否有奖励可领
+
+			baseWelfareVO = WelfareRes.getInstance().FistBaseWelfareVO;
+			if (userCached.getPlayerAccountVO().getHisrecharge() <= 0) {
+				throw new Exception("条件不满足,等级不够"); // 充值额度
+			}
+
+			playerWelfareVO = userCached.getUserActivity().getPlayerWelfareVO();
+
+			if (playerWelfareVO.getFirstrecharge() > 0) {
+				throw new GameException(AlertEnum.REWARD_NOT_FOUND);
+			} else {
+				playerWelfareVO.setFirstrecharge(1);
+			}
+
+			welfareService.updatePlayerWelfareVO(playerWelfareVO);
+			rewardService.rewardAndMail(userCached, WelfareRewardRes.getInstance().getRewardRateGroup(baseWelfareVO.getRewardid()), commandList, "福利大厅首充奖励");
+			break;
+
+		case WelfareRes.ZAO_MU10:// 全服累计十连抽达到500次
+			xmjz(request, userCached, GameRecordConstants.TENZAOMU_VALUE.intValue(), commandList);
+			break;
+		case WelfareRes.JJCTZ:// 全服竞技场挑战达到1000次
+			xmjz(request, userCached, GameRecordConstants.JJCTZ_VALUE.intValue(), commandList);
+			break;
+		case WelfareRes.ENHANCE:// 全服装备强化达到1000次
+			xmjz(request, userCached, GameRecordConstants.ENHANCE_VALUE.intValue(), commandList);
+			break;
+		case WelfareRes.HEROUPLEVEL:// 全服英雄升级达到1000次
+			xmjz(request, userCached, GameRecordConstants.HEROUPLEVEL_VALUE.intValue(), commandList);
+			break;
+		case WelfareRes.VIP1:// 全服vip1数量达到200个
+			xmjz(request, userCached, GameRecordConstants.VIP1NUM_VALUE.intValue(), commandList);
+			break;
+		case WelfareRes.VIP4:// 全服vip4数量达到50个
+			xmjz(request, userCached, GameRecordConstants.VIP4NUM_VALUE.intValue(), commandList);
+			break;
+		case WelfareRes.VIP7:// 全服vip7数量达到30个
+			xmjz(request, userCached, GameRecordConstants.VIP7NUM_VALUE.intValue(), commandList);
+			break;
+		case WelfareRes.VIP8:// 全服vip8数量达到20个
+			xmjz(request, userCached, GameRecordConstants.VIP8NUM_VALUE.intValue(), commandList);
+			break;
+		case WelfareRes.VIP9:// 全服vip9数量达到20个
+			xmjz(request, userCached, GameRecordConstants.VIP9NUM_VALUE.intValue(), commandList);
+			break;
+		case WelfareRes.VIP10:// 全服vip10数量达到20个
+			xmjz(request, userCached, GameRecordConstants.VIP10NUM_VALUE.intValue(), commandList);
+			break;
+
+		// case WelfareRes.DYMICVIP1:
+		// case WelfareRes.DYMICVIP4:
+		case WelfareRes.DYMICVIP7:
+		case WelfareRes.DYMICVIP8:
+		case WelfareRes.DYMICVIP9:
+		case WelfareRes.DYMICVIP10:
+			dymicRewardLinQu(request, userCached, commandList);
+			break;
+
+		default:
+			throw new GameException(AlertEnum.REWARD_NOT_FOUND);
+		}
+
+		int label = WelfareRes.getLabelByType(request.getType());
+		WelfareResp.Builder build = welfareService.getWelfareResp(label, userCached, request.getType());
+		build.setType(label);
+		CommandUtil.packageNettyMessage(CSCommandConstant.WELFARE_REWARD, build.build().toByteArray(), commandList);
+
+	}
+
+	public void xmjz(RewardWelfareRequest request, UserCached userCached, int fvalue, List<NettyMessageVO> commandList) throws Exception {
+		List<BaseWelfareVO> list = WelfareRes.getInstance().getSXJZ(request.getType());
+		int index = request.getIndex() - 1;
+		if (list == null || index < 0 || index > (list.size() - 1)) {
+			throw new GameException(AlertEnum.REWARD_NOT_FOUND);
+		}
+		BaseWelfareVO baseWelfareVO = list.get(index);
+		if (fvalue < baseWelfareVO.getFinished()) {
+			throw new Exception("条件不满足,等级不够");
+		}
+
+		if (userCached.getPlayerVO().getVip() < baseWelfareVO.getVip_levelmin()) {
+			throw new Exception("vip等级不够不能领取");
+		}
+
+		int ssid = baseWelfareVO.getType() * 100 + baseWelfareVO.getNum();
+		PlayerDymicGiftVO playerDymicGiftVO = userCached.getUserActivity().findDymicGift(ssid, 1, 0);
+		if (playerDymicGiftVO != null && DateUtil.isSameDay(playerDymicGiftVO.getRewarddate())) { // 领过了
+			throw new GameException(AlertEnum.REWARD_NOT_FOUND);
+		}
+
+		if (playerDymicGiftVO == null) {
+			playerDymicGiftVO = new PlayerDymicGiftVO();
+			playerDymicGiftVO.setGifPlayerId(ssid);
+			playerDymicGiftVO.setPlayerId(userCached.getPlayerId());
+			playerDymicGiftVO.setVip(0);
+			playerDymicGiftVO.setRewarddate(new Date());
+			playerDymicGiftVO.setState(1);
+			welfareService.insertPlayerDymicGift(userCached, playerDymicGiftVO);
+		} else {
+			playerDymicGiftVO.setRewarddate(new Date());
+			playerDymicGiftVO.setState(1);
+			welfareService.updatePlayerDymicGift(playerDymicGiftVO);
+		}
+
+		rewardService.rewardAndMail(userCached, WelfareRewardRes.getInstance().getRewardRateGroup(baseWelfareVO.getRewardid()), commandList, "福利大厅");
+	}
+
+	public void dymicRewardLinQu(RewardWelfareRequest request, UserCached userCached, List<NettyMessageVO> commandList) throws Exception {
+		BaseWelfareVO baseWelfareVO = WelfareRes.getInstance().getHuangGua(request.getType(), request.getState());
+		if (baseWelfareVO == null) {
+			throw new Exception("没有此类活动");
+		}
+
+		if (userCached.getPlayerVO().getVip() < baseWelfareVO.getVip_levelmin()) {
+			throw new Exception("vip等级不够不能领取");
+		}
+
+		DymicGiftVO dymicGiftVO = GameRecordConstants.findDymicGiftVO(baseWelfareVO.getFinished(), request.getIndex());
+		if (dymicGiftVO == null) {
+			throw new GameException(AlertEnum.REWARD_NOT_FOUND);
+		}
+
+		PlayerDymicGiftVO playerDymicGiftVO = userCached.getUserActivity().findDymicGift(dymicGiftVO.getPlayerId(), request.getState(), baseWelfareVO.getFinished());
+		if (playerDymicGiftVO != null) { // 领过了
+			throw new GameException(AlertEnum.REWARD_ALREADY_GET);
+		}
+
+		dymicGiftVO.addGiftGold(50 * userCached.getPlayerVO().getVip());
+		welfareService.updateDymicGiftName(dymicGiftVO);
+
+		if (playerDymicGiftVO == null) {
+			playerDymicGiftVO = new PlayerDymicGiftVO();
+			playerDymicGiftVO.setGifPlayerId(dymicGiftVO.getPlayerId());
+			playerDymicGiftVO.setPlayerId(userCached.getPlayerId());
+			playerDymicGiftVO.setVip(baseWelfareVO.getFinished());
+			playerDymicGiftVO.setRewarddate(new Date());
+			playerDymicGiftVO.setState(request.getState());
+			welfareService.insertPlayerDymicGift(userCached, playerDymicGiftVO);
+		}
+
+		rewardService.rewardAndMail(userCached, WelfareRewardRes.getInstance().getRewardRateGroup(baseWelfareVO.getRewardid()), commandList, "福利大厅", GMIOEnum.IN_VIP_DYMIC.usage());
+	}
+
+	public void rewardOnline(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+		PlayerTimerVO playerTimerVO = userCached.getUserTimer().getPlayerTimerVO();
+		int id = playerTimerVO.getOnlineCount() + 1;
+		long now = System.currentTimeMillis();
+		int tt;
+		if (playerTimerVO.getLastRewardTime() != 0) {
+			tt = (int) ((now - playerTimerVO.getLastRewardTime()) / 1000);
+		} else {
+			tt = (int) ((now - userCached.getPlayerVO().getLastLoginDate().getTime()) / 1000);
+		}
+		BaseOnlineReward baseOnlineReward = OnlineRewardRes.getInstance().getOnlineRewardById(id);
+		if (baseOnlineReward == null) {
+			throw new GameException(AlertEnum.ONLINE_REWARD_NOFOUND);
+		}
+		if (tt + playerTimerVO.getOnlineTime() < baseOnlineReward.getTime() * 60) {
+			throw new GameException(AlertEnum.ONLINE_REWARD_COLD);
+		}
+
+		boolean isSucc = rewardService.reward(userCached, baseOnlineReward.getRewards(), commandList);
+		if (isSucc) {
+			int countDown = 0;
+			BaseOnlineReward nextOnlineReward = OnlineRewardRes.getInstance().getOnlineRewardById(++id);
+			if (nextOnlineReward != null) {
+				countDown = nextOnlineReward.getTime() * 60;
+				playerTimerVO.setLastRewardTime(now);
+			}
+			playerTimerVO.setOnlineCount(id - 1);
+			playerTimerVO.setOnlineTime(0);
+			timerService.updateOnlineReward(playerTimerVO);
+			RewardOnlineResp.Builder resp = RewardOnlineResp.newBuilder().setRewardInfos(VOUtil.packRewardInfos(nextOnlineReward == null ? null : nextOnlineReward.getRewards()))
+					.setCountDown(countDown).setHadRewardAll(nextOnlineReward == null || countDown > (int) (DateUtil.getMorningNextDate(1).getTime() / 1000));
+			nettyMessageVO.setData(resp.build().toByteArray());
+			commandList.add(nettyMessageVO);
+		} else {
+			LOGGER.error("在线奖励失败:\n\t" + "id: " + baseOnlineReward.getId() + ",:" + "rewards: " + MailService.encoderReward(baseOnlineReward.getRewards()) + ",time: " + baseOnlineReward.getTime()
+					+ "\n");
+		}
+	}
+
+	public void rewardOnlineDetail(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		RewardOnlineResp.Builder resp = null;
+		long now = System.currentTimeMillis();
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+		PlayerTimerVO playerTimerVO = userCached.getUserTimer().getPlayerTimerVO();
+		int tt;
+		if (playerTimerVO.getLastRewardTime() != 0) {
+			tt = (int) ((now - playerTimerVO.getLastRewardTime()) / 1000);
+		} else {
+			tt = (int) ((now - userCached.getPlayerVO().getLastLoginDate().getTime()) / 1000);
+		}
+		int id = playerTimerVO.getOnlineCount() + 1;
+		BaseOnlineReward onlineReward = OnlineRewardRes.getInstance().getOnlineRewardById(id);
+		int countDown = 0;
+		if (onlineReward != null) {
+			countDown = Math.max(0, onlineReward.getTime() * 60 - playerTimerVO.getOnlineTime() - tt);
+		}
+		resp = RewardOnlineResp.newBuilder().setRewardInfos(VOUtil.packRewardInfos(onlineReward == null ? null : onlineReward.getRewards())).setCountDown(countDown)
+				.setHadRewardAll(onlineReward == null || countDown > (int) (DateUtil.getMorningNextDate(1).getTime() / 1000));
+		nettyMessageVO.setData(resp.build().toByteArray());
+		commandList.add(nettyMessageVO);
+	}
+
+	// 领取反馋馈礼金
+	public void feedbackGiftGold(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		List<DymicGiftVO> DymicGiftVOList = GameRecordConstants.findDymicGiftList(userCached.getPlayerId());
+		int cgiftGold = 0;
+		if (DymicGiftVOList != null && DymicGiftVOList.size() > 0) {
+			for (DymicGiftVO dymicGiftVO : DymicGiftVOList) {
+				int value = dymicGiftVO.getGiftGold();
+				if (value > 0) {
+					welfareService.updateDymicGiftName(dymicGiftVO);
+					cgiftGold += value;
+				}
+
+			}
+		} else {
+			throw new Exception("没有贡献全服礼包");
+		}
+
+		if (cgiftGold > 0) {
+			playerAccountService.addCurrency(PLAYER_PROPERTY.PROPERTY_GIFTGOLD, cgiftGold, userCached.getPlayerAccountVO(), commandList, "领取自定议礼包回馈奖励", GMIOEnum.IN_GIFT_FEEDBACK.usage());
+		}
+		freshFeedbackGiftGold(DymicGiftVOList, commandList);
+	}
+
+	public void freshFeedbackGiftGold(NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		List<DymicGiftVO> DymicGiftVOList = GameRecordConstants.findDymicGiftList(userCached.getPlayerId());
+		freshFeedbackGiftGold(DymicGiftVOList, commandList);
+	}
+
+	public void freshFeedbackGiftGold(List<DymicGiftVO> DymicGiftVOList, List<NettyMessageVO> commandList) {
+		GiftGoldInfo.Builder giftGoldInfo = GiftGoldInfo.newBuilder();
+		int giftGold = 0;
+		int giftNum = 0;
+		if (DymicGiftVOList != null && DymicGiftVOList.size() > 0) {
+			for (DymicGiftVO dymicGiftVO : DymicGiftVOList) {
+				giftGold = giftGold + dymicGiftVO.getCgiftGold() - dymicGiftVO.getLingiftGold();
+				giftNum += dymicGiftVO.getNum();
+			}
+		}
+		giftGoldInfo.setGiftGold(giftGold);
+		giftGoldInfo.setGiftnum(giftNum);
+		CommandUtil.packageNettyMessage(CSCommandConstant.GET_FEEDBACK_INFO, giftGoldInfo.build().toByteArray(), commandList);
+
+	}
+
+	/**
+	 * 单笔充值奖励
+	 * 
+	 * @param request
+	 * @param nettyMessageVO
+	 * @param commandList
+	 */
+	public void getOneRechargeReward(OneRechargeReq request, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+
+		PlayerWelfareVO playerWelfareVO = userCached.getUserActivity().getPlayerWelfareVO();
+		int[] arr = OneRechargeRes.getInstance().getIdarr();
+		if (request.getType() > 0) {
+			System.out.println(request.getType());
+			int index = OneRechargeRes.getInstance().findRewardId(request.getType());
+			List<Reward> rewardList = OneRechargeRes.getInstance().findRewardById(request.getType());
+			if (index < 0 || rewardList == null) {
+				commandList.add(CommandUtil.createGameExceptionCommand(AlertEnum.REWARD_NOT_FOUND));
+				// throw new Exception("不存在的奖励" + request.getType());
+			} else {
+				int times = playerWelfareVO.getRecharge(index);
+				if (times <= 0) {
+					commandList.add(CommandUtil.createGameExceptionCommand(AlertEnum.REWARD_NOT_FOUND));
+					// throw new Exception("没有奖励可领取");
+				} else {
+					playerWelfareVO.setRecharge(index, times - 1);
+					if (playerWelfareVO.getRecharge(index) < 0) {
+						playerWelfareVO.setRecharge(index, 0);
+					}
+					welfareService.updatePlayerWelfareVO(playerWelfareVO);
+					rewardService.rewardAndMail(userCached, rewardList, commandList, "单笔充值奖励");
+				}
+			}
+		}
+
+		OneRechargeRep.Builder oneRechargeRep = OneRechargeRep.newBuilder();
+		for (int i = 0; i < 5; i++) {
+			oneRechargeRep.addId(arr[i]);
+			oneRechargeRep.addValue(playerWelfareVO.getRecharge(i));
+		}
+		CommandUtil.packageNettyMessage(CSCommandConstant.GET_ONE_RECHARGE_DETAIL, oneRechargeRep.build().toByteArray(), commandList);
+	}
+
+	/**
+	 * 开服活动用的
+	 * 
+	 * @param value
+	 * @param stage
+	 * @param offset
+	 * @return
+	 */
+	public static int getWeiZi(int value, int stage, int offset) {
+		if (stage < 1) {
+			stage = 1;
+		}
+		return (value >> (offset + (stage - 1) * 2)) & 1;
+	}
+
+	public static int getWeiZiReward(int value, int stage, int offset) {
+		if (stage < 1) {
+			stage = 1;
+		}
+		return (value >> (offset + 1 + (stage - 1) * 2)) & 1;
+	}
+
+	public static int setWeiZi(int value, int stage, int offset) {
+		return (1 << ((stage - 1) * 2 + offset)) | value;
+	}
+
+	public static int setWeiZiReward(int value, int stage, int offset) {
+		if (stage < 1) {
+			stage = 1;
+		}
+		return (1 << ((stage - 1) * 2 + 1 + offset)) | value;
+	}
+
+	public static int getWeiZiStatus(int value, int stage, int offset) {
+		if (stage < 1) {
+			stage = 1;
+		}
+		int state = getWeiZi(value, stage, offset);
+		int reward = getWeiZiReward(value, stage, offset);
+
+		if (state == 0) {
+			return -1;
+		}
+
+		if (reward > 0) {
+			return 1;
+		}
+
+		return 0;
+	}
+
+	public static void main(String[] args) throws Exception {
+		int value = 0;
+		int x = 0;
+		// value = setWeiZi(value, 3, 0);
+		value = setWeiZiReward(value, 0, 0);
+		System.out.println(Integer.toBinaryString(value));
+		System.out.println(getWeiZiReward(value, 0, 0));
+	}
+
+	/**
+	 * 开服活动
+	 * 
+	 * @param request
+	 * @param nettyMessageVO
+	 * @param commandList
+	 * @throws Exception
+	 */
+	public void getOpenActivyDetail(OpenActiveLinQuReq request, NettyMessageVO nettyMessageVO, List<NettyMessageVO> commandList) throws Exception {
+		int playerId = ServerHandler.get(nettyMessageVO.getChannel());
+		UserCached userCached = ServerHandler.getUserCached(playerId);
+		GameRecordVO gameRecordVO = GameRecordConstants.getGameRecordVO(GameRecordConstants.OPENSERVERTIME); // 开服时间
+
+		if (request.getId() != 0) {
+			if (request.getId() == 1 || request.getId() == 2) {
+				PlayerOpenActVO playerOpenActVO = OpenActConstants.getPlayerOpenActVO(playerId, request.getId(), request.getStage(), request.getLower());
+				if (playerOpenActVO == null || playerOpenActVO.getReward() > 0) {
+					throw new Exception("无此奖励组");
+				}
+				List<Reward> rewardList = OpenActRes.getInstance().findReward(request.getId(), request.getStage(), request.getLower());
+				rewardService.rewardAndMail(userCached, rewardList, commandList, "开服活动竞技场和冲级达人");
+
+				playerOpenActVO.setReward(1);
+				welfareService.updatePlayerOpenActVO(playerOpenActVO);
+			} else if (request.getId() == 3) {
+				PlayerWelfareVO playerWelfareVO = userCached.getUserActivity().getPlayerWelfareVO();
+				int ddhszlzw = playerWelfareVO.getDdhszlzw();
+				if (request.getLower() == 1 || request.getLower() == 2) {
+					// 1放是否有奖励 第2个位置放是否领取
+					int state = getWeiZi(ddhszlzw, request.getLower(), 0);
+					int reward = getWeiZiReward(ddhszlzw, request.getLower(), 0);
+
+					if (state == 0 || reward > 0) {
+						throw new Exception("无此奖励组");
+					}
+
+					List<Reward> rewardList = OpenActRes.getInstance().findReward(request.getId(), request.getStage(), request.getLower());
+					rewardService.rewardAndMail(userCached, rewardList, commandList, "开服活动竞技场和冲级达人");
+
+					ddhszlzw = setWeiZiReward(ddhszlzw, request.getLower(), 0);
+					playerWelfareVO.setDdhszlzw(ddhszlzw);
+					welfareService.updatePlayerWelfareVO(playerWelfareVO);
+
+				} else {
+					throw new Exception("无此奖励组");
+				}
+
+			} else if (request.getId() == 4) {
+				PlayerWelfareVO playerWelfareVO = userCached.getUserActivity().getPlayerWelfareVO();
+				int ddhszlzw = playerWelfareVO.getDdhszlzw();
+				int offset = 4;
+				// 1放是否有奖励 第2个位置放是否领取
+				int index = OpenActRes.getInstance().getCombatIndex(request.getLower());
+				if (index < 0) {
+					throw new Exception("无此奖励组");
+				}
+				index ++;
+				int state = getWeiZi(ddhszlzw, index, offset);
+				int reward = getWeiZiReward(ddhszlzw, index, offset);
+
+				if (state == 0 || reward == 1) {
+					throw new Exception("无此奖励组");
+				}
+
+				List<Reward> rewardList = OpenActRes.getInstance().findReward(request.getId(), request.getStage(), request.getLower());
+				rewardService.rewardAndMail(userCached, rewardList, commandList, "开服活动竞技场和冲级达人");
+
+				ddhszlzw = setWeiZiReward(ddhszlzw, index, offset);
+				playerWelfareVO.setDdhszlzw(ddhszlzw);
+				welfareService.updatePlayerWelfareVO(playerWelfareVO);
+
+			}
+
+		}
+
+		// 扫一下战斗力数据
+		{
+			PlayerWelfareVO playerWelfareVO = userCached.getUserActivity().getPlayerWelfareVO();
+			int ddhszlzw = playerWelfareVO.getDdhszlzw();
+			boolean isChange = false;
+			int n = 1;
+			for (int combat : OpenActRes.combatSet) {
+				int offset = 4;
+				if (userCached.getPlayerVO().getCombat() >= combat) {
+					int state = getWeiZi(ddhszlzw, n, offset);
+					if (state == 0) {
+						ddhszlzw = setWeiZiReward(ddhszlzw, n, offset);
+						playerWelfareVO.setDdhszlzw(ddhszlzw);
+						isChange = true;
+					}
+				} else {
+					break;
+				}
+				n++;
+			}
+			if (isChange) {
+				welfareService.updatePlayerWelfareVO(playerWelfareVO);
+			}
+
+		}
+
+		OpenActiveResponse.Builder openActiveResponse = OpenActiveResponse.newBuilder();
+		openActiveResponse.setOpenservertime(gameRecordVO.getStrv1());
+		PlayerWelfareVO playerWelfareVO = userCached.getUserActivity().getPlayerWelfareVO();
+		// 竞技之
+		OpenActiveInfo.Builder openActiveInfo = OpenActiveInfo.newBuilder();
+		int id = 1;
+		int stage = 0;
+		openActiveInfo.setId(id);
+		openActiveInfo.setStage(stage);
+		openActiveInfo.setNick("");
+		openActiveInfo.setHeadicon(0);
+		OpenActConstants.getRankPlayer(id, stage, 1, openActiveInfo);
+		for (int i = 1; i <= 4; i++) {
+			LinQuState.Builder linQuState = LinQuState.newBuilder();
+			linQuState.setLower(i);
+			linQuState.setValue(OpenActConstants.getState(playerId, id, stage, i));
+			openActiveInfo.addLinQuState(linQuState);
+		}
+		openActiveResponse.addActiveInfo(openActiveInfo);
+
+		// 冲级1
+		id = 2;
+		stage = 1;
+		openActiveInfo = OpenActiveInfo.newBuilder();
+		openActiveInfo.setId(id);
+		openActiveInfo.setStage(stage);
+		openActiveInfo.setNick("");
+		openActiveInfo.setHeadicon(0);
+		OpenActConstants.getRankPlayer(id, stage, 1, openActiveInfo);
+		for (int i = 1; i <= 4; i++) {
+			LinQuState.Builder linQuState = LinQuState.newBuilder();
+			linQuState.setLower(i);
+			linQuState.setValue(OpenActConstants.getState(playerId, id, stage, i));
+			openActiveInfo.addLinQuState(linQuState);
+		}
+
+		openActiveResponse.addActiveInfo(openActiveInfo);
+		// 冲级3
+		id = 2;
+		stage = 3;
+		openActiveInfo = OpenActiveInfo.newBuilder();
+		openActiveInfo.setId(id);
+		openActiveInfo.setStage(stage);
+		openActiveInfo.setNick("");
+		openActiveInfo.setHeadicon(0);
+		OpenActConstants.getRankPlayer(id, stage, 1, openActiveInfo);
+		for (int i = 1; i <= 4; i++) {
+			LinQuState.Builder linQuState = LinQuState.newBuilder();
+			linQuState.setLower(i);
+			linQuState.setValue(OpenActConstants.getState(playerId, id, stage, i));
+			openActiveInfo.addLinQuState(linQuState);
+		}
+
+		openActiveResponse.addActiveInfo(openActiveInfo);
+
+		// 冲级7
+		id = 2;
+		stage = 7;
+		openActiveInfo = OpenActiveInfo.newBuilder();
+		openActiveInfo.setId(id);
+		openActiveInfo.setStage(stage);
+		openActiveInfo.setNick("");
+		openActiveInfo.setHeadicon(0);
+		OpenActConstants.getRankPlayer(id, stage, 1, openActiveInfo);
+		for (int i = 1; i <= 4; i++) {
+			LinQuState.Builder linQuState = LinQuState.newBuilder();
+			linQuState.setLower(i);
+			linQuState.setValue(OpenActConstants.getState(playerId, id, stage, i));
+			openActiveInfo.addLinQuState(linQuState);
+		}
+
+		openActiveResponse.addActiveInfo(openActiveInfo);
+
+		// 华山论剑
+		id = 3;
+		stage = 0;
+		openActiveInfo = OpenActiveInfo.newBuilder();
+		openActiveInfo.setId(id);
+		openActiveInfo.setStage(stage);
+		for (int i = 1; i <= 2; i++) {
+			LinQuState.Builder linQuState = LinQuState.newBuilder();
+			linQuState.setLower(i);
+			linQuState.setValue(getWeiZiStatus(playerWelfareVO.getDdhszlzw(), i, 0));
+			openActiveInfo.addLinQuState(linQuState);
+		}
+
+		openActiveResponse.addActiveInfo(openActiveInfo);
+
+		// 战力之王
+		id = 4;
+		stage = 0;
+		openActiveInfo = OpenActiveInfo.newBuilder();
+		openActiveInfo.setId(id);
+		openActiveInfo.setStage(stage);
+		for (int i = 1; i <= 6; i++) {
+			LinQuState.Builder linQuState = LinQuState.newBuilder();
+			linQuState.setLower(i);
+			int statevalue = getWeiZiStatus(playerWelfareVO.getDdhszlzw(), i, 4);
+			linQuState.setValue(statevalue);
+			openActiveInfo.addLinQuState(linQuState);
+		}
+
+		openActiveResponse.addActiveInfo(openActiveInfo);
+
+		CommandUtil.packageNettyMessage(CSCommandConstant.GET_OPENACTIVY_DETAIL, openActiveResponse.build().toByteArray(), commandList);
+	}
+}

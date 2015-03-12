@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+ <mapper namespace="com.dh.dao.PlayerRaidMapper">
+  
+
+<insert id="addRaid" parameterType="com.dh.game.vo.user.PlayerRaidVO">
+INSERT INTO `t_player_raid`
+            (`playerid`,
+             `raidid`,
+             score,
+             scorereward1,
+			 scorereward2,
+             fivereward)
+VALUES (#{playerId},
+        #{raidid},
+        #{score},
+        #{scorereward1},
+		#{scorereward2},
+        #{fivereward})
+</insert>
+
+<select id="getRaidList" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.PlayerRaidVO">
+	SELECT
+	  `playerid`,
+	  `raidid`,
+	  `score`,
+	  `scorereward1`,
+	  `scorereward2`,
+	  `fivereward`
+	FROM `t_player_raid`
+	WHERE playerid = #{playerId}
+</select>
+
+<update id="updateRaid" parameterType="com.dh.game.vo.user.PlayerRaidVO">
+	UPDATE `t_player_raid`
+	SET `score` = #{score},
+	    `scorereward1` = #{scorereward1},
+	    `scorereward2` = #{scorereward2},
+		`fivereward` = #{fivereward}
+	WHERE `playerid` = #{playerId}
+	    AND `raidid` = #{raidid}
+</update>
+
+
+<select id="getEliteRaidList" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.PlayerEliteRaidVO">
+	SELECT `playerid`, `raidid`, `score`, `times`, `passdate`,`fivereward` FROM `t_elite_raid` WHERE playerid = #{playerId}
+</select>
+
+<insert id="addEliteRaid" parameterType="com.dh.game.vo.user.PlayerEliteRaidVO">
+	INSERT INTO `t_elite_raid`
+            (`playerid`,
+             `raidid`,
+             score,
+             times,
+             passdate)
+	VALUES (#{playerId},
+	        #{raidid},
+	        #{score},
+	        #{times},
+	        #{passdate})
+</insert>
+
+<update id="updateEliteRaid" parameterType="com.dh.game.vo.user.PlayerEliteRaidVO">
+	UPDATE `t_elite_raid`
+	SET `score` = #{score},
+	    `times` = #{times},
+		`passdate` = #{passdate},
+		`fivereward` = #{fivereward}
+	WHERE `playerid` = #{playerId}
+	    AND `raidid` = #{raidid} 
+</update>
+
+ </mapper>

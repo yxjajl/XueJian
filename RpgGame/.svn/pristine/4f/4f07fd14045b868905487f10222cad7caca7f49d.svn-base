@@ -1,0 +1,106 @@
+package com.dh.constants;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import com.dh.game.vo.base.BaseActivityVO;
+import com.dh.game.vo.base.DymicGiftVO;
+import com.dh.game.vo.base.GameRecordVO;
+
+public class GameRecordConstants {
+	public static List<GameRecordVO> GAMERECORDLIST = null;
+	public final static int ARENAEVERYDAYBLANCE = 1; // 竞技场每日结算
+	// public final static int ARENA3DAYBLANCE = 2; // 竞技场3日结算
+	public final static int CC3INGAMERECORD = 3;// 上期最高３日连胜记得
+
+	// 活动
+	public final static int TENZAOMU = 101;// 求贤若渴 全服十连抽达到500次
+	public final static int JJCTZ = 102;// 身经百战 全服竞技场挑战达到1000次
+	public final static int ENHANCE = 103;// 千锤百炼 全服装备强化达到1000次
+	public final static int HEROUPLEVEL = 104;// 突飞猛进 全服英雄升级达到1000次
+	public final static int VIP1NUM = 120;// 人杰地灵 vip1数量达到200个
+	public final static int VIP4NUM = 124;// 钟灵毓秀 vip4数量达到50个
+	public final static int VIP7NUM = 127;// 卧虎藏龙 vip7数量达到30个
+	public final static int VIP8NUM = 128;// 群英荟萃 vip8数量达到20个
+	public final static int VIP9NUM = 129;// 鸾翔凤集 vip9数量达到20个
+	public final static int VIP10NUM = 130;// 国士无双 vip10数量达到20个
+	public final static int OPENSERVERTIME = 900; // 开服时间
+	public final static int OPENSERVERTIME1 = 901; // 开服活动
+	public final static int OPENSERVERTIME3 = 903; // 开服活动
+	public final static int OPENSERVERTIME7 = 907; // 开服活动
+	public final static int OPENSERVERTIME9 = 909; // 开服活动
+	// ME
+	public final static int MERAID_EXPC = 11;// 活动类型_经验
+	public final static int MERAID_MONEY = 12;// 活动类型_银两
+
+	//
+	public static AtomicInteger TENZAOMU_VALUE = new AtomicInteger(0);// 求贤若渴
+																		// 全服十连抽达到500次
+	public static AtomicInteger JJCTZ_VALUE = new AtomicInteger(0);// 身经百战
+																	// 全服竞技场挑战达到1000次
+	public static AtomicInteger ENHANCE_VALUE = new AtomicInteger(0);// 千锤百炼
+																		// 全服装备强化达到1000次
+	public static AtomicInteger HEROUPLEVEL_VALUE = new AtomicInteger(0);// 突飞猛进
+																			// 全服英雄升级达到1000次
+	public static AtomicInteger VIP1NUM_VALUE = new AtomicInteger(0);// 人杰地灵
+																		// vip1数量达到200个
+	public static AtomicInteger VIP4NUM_VALUE = new AtomicInteger(0);// 钟灵毓秀
+																		// vip4数量达到50个
+	public static AtomicInteger VIP7NUM_VALUE = new AtomicInteger(0);// 卧虎藏龙
+																		// vip7数量达到30个
+	public static AtomicInteger VIP8NUM_VALUE = new AtomicInteger(0);// 群英荟萃
+																		// vip8数量达到20个
+	public static AtomicInteger VIP9NUM_VALUE = new AtomicInteger(0);// 鸾翔凤集
+																		// vip9数量达到20个
+	public static AtomicInteger VIP10NUM_VALUE = new AtomicInteger(0);// 国士无双
+																		// vip10数量达到20个
+
+	public static long LOPENSERVERTIME = 0;
+
+	public static List<GameRecordVO> WALFARELIST = new ArrayList<GameRecordVO>();// 累积
+
+	public static List<BaseActivityVO> ACTIVITYLIST = new ArrayList<BaseActivityVO>();// 活动配置
+
+	public static List<DymicGiftVO> DYMICGIFTLIST = new ArrayList<DymicGiftVO>(); // 动态礼包种类弄表
+
+	public static GameRecordVO getGameRecordVO(int id) {
+		if (GAMERECORDLIST != null) {
+			for (GameRecordVO gameRecordVO : GAMERECORDLIST) {
+				if (gameRecordVO.getId() == id) {
+					return gameRecordVO;
+				}
+			}
+		}
+		return null;
+	}
+
+	public static DymicGiftVO findDymicGiftVO(int vip, int index) {
+		for (DymicGiftVO dymicGiftVO : DYMICGIFTLIST) {
+			if (dymicGiftVO.getPlayerId() == index && dymicGiftVO.getVip() == vip) {
+				return dymicGiftVO;
+			}
+		}
+		return null;
+	}
+
+	public static List<DymicGiftVO> findDymicGiftList(int playerId) {
+		List<DymicGiftVO> result = new ArrayList<DymicGiftVO>();
+		for (DymicGiftVO dymicGiftVO : DYMICGIFTLIST) {
+			if (dymicGiftVO.getPlayerId() == playerId) {
+				result.add(dymicGiftVO);
+			}
+		}
+		return result;
+	}
+
+	public static BaseActivityVO getMERaid(int METype) {
+		for (BaseActivityVO baseActivityVO : ACTIVITYLIST) {
+			if (baseActivityVO.getType() == METype && baseActivityVO.getState() == 1) {// 活动结果类型&火丁已开启
+				return baseActivityVO;
+			}
+		}
+		return null;
+	}
+
+}

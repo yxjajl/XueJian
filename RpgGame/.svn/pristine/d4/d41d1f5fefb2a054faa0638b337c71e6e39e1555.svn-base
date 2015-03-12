@@ -1,0 +1,467 @@
+package com.dh.service;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.apache.log4j.Logger;
+import org.springframework.stereotype.Component;
+
+import com.dh.Cache.RedisMap;
+import com.dh.Cache.ServerHandler;
+import com.dh.constants.CommonConstants;
+import com.dh.dao.PlayerAccountMapper;
+import com.dh.dao.PlayerTimerMapper;
+import com.dh.enums.GMIOEnum;
+import com.dh.exception.GameException;
+import com.dh.game.constant.AlertEnum;
+import com.dh.game.vo.login.PlayerLoginProto.PLAYER_PROPERTY;
+import com.dh.game.vo.login.PlayerLoginProto.PLAYER_UNIT_TYPE;
+import com.dh.game.vo.user.PlayerAccountVO;
+import com.dh.game.vo.user.PlayerTimerVO;
+import com.dh.game.vo.user.PlayerVO;
+import com.dh.game.vo.user.log.PlayerAccountLog;
+import com.dh.netty.NettyMessageVO;
+import com.dh.sqlexe.SqlSaveThread;
+import com.dh.sync.LockConstant;
+import com.dh.sync.SyncLock;
+import com.dh.sync.SyncUtil;
+import com.dh.util.CommandUtil;
+import com.dh.util.ProtoertyAndValue;
+import com.dh.util.SqlBuild;
+import com.dh.vo.user.UserCached;
+
+/**
+ * 帐户业务类
+ * 
+ * @author Administrator
+ * 
+ */
+@Component
+public class PlayerAccountService {
+	private static final Logger LOGGER = Logger.getLogger(PlayerAccountService.class);
+	@Resource
+	private PlayerAccountMapper playerAccountMapper;
+	@Resource
+	private PlayerTimerMapper playerTimerMapper;
+	@Resource
+	private SqlBuild sqlBuild;
+	@Resource
+	private SqlSaveThread sqlSaveThread;
+	@Resource
+	private GMService gmService;
+
+	/**
+	 * 加载玩家所有account数据
+	 * 
+	 * @param playerVOList
+	 */
+	public void loadAllAccount(List<PlayerVO> playerVOList) {
+		PlayerAccountVO playerAccountVO = null;
+		for (PlayerVO playerVO : playerVOList) {
+			if (null == RedisMap.getPlayerAccount(playerVO.getPlayerId())) {
+				playerAccountVO = playerAccountMapper.getPlayerAccount(playerVO.getPlayerId());
+				if (playerAccountVO != null) {
+					RedisMap.updatePlayerAccount(playerAccountVO);
+				}
+			}
+		}
+	}
+
+	public void loadPlayerAccount(UserCached userCached) throws Exception {
+		int playerId = userCached.getPlayerId();
+		SyncLock syncLock = SyncUtil.getInstance().getLock(LockConstant.LOCK_PLAYERVO + playerId);
+		PlayerAccountVO playerAccountVO = null;
+		synchronized (syncLock) {
+			playerAccountVO = playerAccountMapper.getPlayerAccount(userCached.getPlayerId());
+			RedisMap.updatePlayerAccount(playerAccountVO);
+		}
+		userCached.setPlayerAccountVO(playerAccountVO); // 钱袋帐户
+	}
+
+	public void hasEnoughPower(UserCached userCached, int value) throws Exception {
+		freshPlayerPower(userCached);
+		if (userCached.getPlayerAccountVO().getPower() < value) {
+			throw new GameException(AlertEnum.POWER_NOT_ENG);
+		}
+	}
+
+	public void hasEnoughMoney(UserCached userCached, int value) throws GameException {
+		if (userCached.getPlayerAccountVO().getGmMoney() < value) {
+			throw new GameException(AlertEnum.MONEY_NOT_ENG);
+		}
+	}
+
+	public void hasEnoughOnlyRMB(UserCached userCached, int value) throws GameException {
+		if (userCached.getPlayerAccountVO().getGmRmb() < value) {
+			throw new GameException(AlertEnum.RMB_NOT_ENG);
+		}
+	}
+
+	public void hasEnoughRMBAndGift(UserCached userCached, int value) throws GameException {
+		if ((userCached.getPlayerAccountVO().getGmRmb() + userCached.getPlayerAccountVO().getGiftgod()) < value) {
+			throw new GameException(AlertEnum.RMB_NOT_ENG);
+		}
+	}
+
+	public void hasEnoughScore(UserCached userCached, int value) throws GameException {
+		if (userCached.getPlayerAccountVO().getScore() < value) {
+			throw new GameException(AlertEnum.SCORE_NOT_ENG);
+		}
+	}
+
+	public void hasEnoughExploit(UserCached userCached, int value) throws GameException {
+		if (userCached.getPlayerAccountVO().getExploit() < value) {
+			throw new GameException(AlertEnum.EXPLOIT_NOT_ENG);
+		}
+	}
+
+	public void hasEnoughPvP(UserCached userCached, int value) throws GameException {
+		if (userCached.getPlayerAccountVO().getPvp() < value) {
+			throw new GameException(AlertEnum.PVP_NOT_ENG);
+		}
+	}
+
+	//
+	// private void hasEnoughGiftgold(UserCached userCached, int value) throws
+	// GameException {
+	// if (userCached.getPlayerAccountVO().getGiftgod() < value) {
+	// throw new GameException(AlertEnum.GIFTGOLD_NOT_ENG);
+	// }
+	// }
+
+	/**
+	 * 刷新玩家体力,使用前调用
+	 */
+	public void freshPlayerPower(UserCached userCached) throws Exception {
+		PlayerAccountVO playerAccountVO = userCached.getPlayerAccountVO();
+		int maxPower = CommonConstants.POWER_UP_LIMIT;// userCached.getPlayerVO().getMaxPower(userCached.getPlayerVO().getLevel());
+		if (playerAccountVO.getPower() >= maxPower) {// 当前行动力已经超过上限
+			return;
+		}
+
+		Date beginTime = userCached.getUserTimer().getPlayerTimerVO().getPowerD();
+		long now = System.currentTimeMillis();
+		int dis = (int) ((now - beginTime.getTime()) / 1000);
+		if (dis < 0)
+			dis = 0;
+
+		if (dis >= CommonConstants.POWER_ADD_PER_PERIOD) {
+			int div = dis / CommonConstants.POWER_ADD_PER_PERIOD;
+			int remainder = dis % CommonConstants.POWER_ADD_PER_PERIOD;
+			beginTime = new Date(now - div * 1000);
+			SyncLock syncLock = SyncUtil.getInstance().getLock(LockConstant.LOCK_PLAYERVO + userCached.getPlayerId());
+			synchronized (syncLock) {
+				playerAccountVO.setLifeTime(CommonConstants.POWER_ADD_PER_PERIOD - remainder);
+				playerAccountVO.setPower(Math.min(maxPower, (playerAccountVO.getPower() + div)));// 自然增长不能超过上限
+			}
+
+			userCached.getUserTimer().getPlayerTimerVO().setPowerD(beginTime);
+			updatePlayerPower(playerAccountVO);
+			updatePowerTimer(userCached.getUserTimer().getPlayerTimerVO());
+		} else {
+			playerAccountVO.setLifeTime(CommonConstants.POWER_ADD_PER_PERIOD - dis);
+		}
+
+	}
+
+	public void clearPvp(UserCached userCached) throws Exception {
+		SyncLock syncLock = SyncUtil.getInstance().getLock(LockConstant.LOCK_PLAYERVO + userCached.getPlayerId());
+		synchronized (syncLock) {
+			userCached.getPlayerAccountVO().setPvp(100);
+			updatePlayerAccountPvp(userCached.getPlayerAccountVO());
+		}
+	}
+
+	private void changeCurrency(PLAYER_PROPERTY type, int value, boolean isRecharge, PlayerAccountVO playerAccountVO, List<NettyMessageVO> commandList, String reason, int... gmio) throws Exception {
+		List<ProtoertyAndValue> propertyList = new ArrayList<ProtoertyAndValue>();
+		String sql = null;
+		int result = 0;
+		int oldPower = 0;
+
+		switch (type) {
+		case PROPERTY_MONEY:
+			sql = "com.dh.dao.PlayerAccountMapper.updatePlayerAccountMoney";
+			playerAccountVO.setGmMoney(Integer.MAX_VALUE - playerAccountVO.getGmMoney() <= value ? Integer.MAX_VALUE : (playerAccountVO.getGmMoney() + value));
+			result = playerAccountVO.getGmMoney();
+			if (result < 0) {
+				playerAccountVO.setGmMoney(0);
+			}
+			break;
+		case PROPERTY_RMB:
+			sql = "com.dh.dao.PlayerAccountMapper.updatePlayerAccountRMB";
+			int[] ioArray = getGMIODetails(gmio, reason, value > 0);
+			if (value > 0) {
+				gmService.addGMInputLog(playerAccountVO.getPlayerId(), ioArray[0], value, PLAYER_PROPERTY.PROPERTY_RMB.getNumber(), ioArray[1], ioArray[2]);
+			} else {
+				gmService.addGMOutputLog(playerAccountVO.getPlayerId(), ioArray[0], Math.abs(value), PLAYER_PROPERTY.PROPERTY_RMB.getNumber(), ioArray[1], ioArray[2]);
+			}
+			playerAccountVO.setGmRmb(playerAccountVO.getGmRmb() + value);
+			if (isRecharge) {
+				playerAccountVO.setHisrecharge(playerAccountVO.getHisrecharge() + value);
+			}
+			result = playerAccountVO.getGmRmb();
+			if (result < 0) {
+				playerAccountVO.setGmRmb(0);
+			}
+			break;
+		case PROPERTY_GIFTGOLD:
+			ioArray = getGMIODetails(gmio, reason, value > 0);
+			if (value > 0) {
+				gmService.addGMInputLog(playerAccountVO.getPlayerId(), ioArray[0], value, PLAYER_PROPERTY.PROPERTY_GIFTGOLD.getNumber(), ioArray[1], ioArray[2]);
+			} else {
+				gmService.addGMOutputLog(playerAccountVO.getPlayerId(), ioArray[0], Math.abs(value), PLAYER_PROPERTY.PROPERTY_GIFTGOLD.getNumber(), ioArray[1], ioArray[2]);
+			}
+			sql = "com.dh.dao.PlayerAccountMapper.updatePlayerAccountRMB";
+			playerAccountVO.setGiftgod(playerAccountVO.getGiftgod() + value);
+			result = playerAccountVO.getGiftgod();
+			if (result < 0) {
+				playerAccountVO.setGiftgod(0);
+			}
+			break;
+		case PROPERTY_EXPLOIT:
+			sql = "com.dh.dao.PlayerAccountMapper.updatePlayerAccountExploit";
+			playerAccountVO.setExploit(playerAccountVO.getExploit() + value);
+			result = playerAccountVO.getExploit();
+
+			if (result < 0) {
+				playerAccountVO.setExploit(0);
+			}
+			break;
+		case PROPERTY_POWER:
+			oldPower = playerAccountVO.getPower();
+			sql = "com.dh.dao.PlayerAccountMapper.updatePlayerAccountPower";
+			playerAccountVO.setPower(playerAccountVO.getPower() + value);
+			result = playerAccountVO.getPower();
+
+			if (value < 0) { // 消耗体力增加竞技值
+
+				if (result < 0) {
+					playerAccountVO.setPower(0);
+				}
+
+				playerAccountVO.setPvp(playerAccountVO.getPvp() + Math.abs(value));
+
+				sqlSaveThread.putSql(sqlBuild.getSql("com.dh.dao.PlayerAccountMapper.updatePlayerAccountPVP", playerAccountVO));
+				propertyList.add(new ProtoertyAndValue(PLAYER_PROPERTY.PROPERTY_PVP, playerAccountVO.getPvp()));
+				insertPlayerAccountLog(playerAccountVO, type.getNumber(), playerAccountVO.getPvp(), value, "消耗体力增加竞技值");
+			}
+
+			break;
+		case PROPERTY_PVP:
+			sql = "com.dh.dao.PlayerAccountMapper.updatePlayerAccountPVP";
+			playerAccountVO.setPvp(playerAccountVO.getPvp() + value);
+			result = playerAccountVO.getPvp();
+
+			if (result < 0) {
+				playerAccountVO.setPvp(0);
+			}
+			break;
+		case PROPERTY_EXPC:
+			sql = "com.dh.dao.PlayerAccountMapper.updatePlayerAccountExpc";
+			playerAccountVO.setExpc(playerAccountVO.getExpc() + value);
+
+			// if (value > 0) { //不允许超过上限
+			// UserCached userCached =
+			// ServerHandler.getUserCached(playerAccountVO.getPlayerId());
+			// if (userCached != null && playerAccountVO.getExpc() >
+			// userCached.getPlayerVO().getBaseLevelVO().getMaxExpc()) {
+			// playerAccountVO.setExpc(userCached.getPlayerVO().getBaseLevelVO().getMaxExpc());
+			// }
+			// }
+
+			result = playerAccountVO.getExpc();
+
+			if (result < 0) {
+				playerAccountVO.setExpc(0);
+			}
+
+			break;
+		case PROPERTY_SCORE: // 积分，英雄招募时用
+			sql = "com.dh.dao.PlayerAccountMapper.updatePlayerAccountScore";
+			playerAccountVO.setScore(playerAccountVO.getScore() + value);
+			result = playerAccountVO.getScore();
+
+			if (result < 0) {
+				playerAccountVO.setScore(0);
+			}
+			break;
+		default:
+			break;
+		}
+		if (sql != null) {
+			sqlSaveThread.putSql(sqlBuild.getSql(sql, playerAccountVO));
+			RedisMap.updatePlayerAccount(playerAccountVO);
+		} else {
+			return;
+		}
+
+		// if (type == PLAYER_PROPERTY.PROPERTY_SCORE) {// 积分暂不传
+		// return;
+		// }
+
+		if (type == PLAYER_PROPERTY.PROPERTY_POWER) {
+			UserCached userCached = ServerHandler.getUserCached2(playerAccountVO.getPlayerId());
+			if (value < 0 && oldPower >= CommonConstants.POWER_UP_LIMIT) {
+				userCached.getUserTimer().getPlayerTimerVO().setPowerD(new Date());
+				updatePowerTimer(userCached.getUserTimer().getPlayerTimerVO());
+			}
+			freshPlayerPower(userCached);
+			propertyList.add(new ProtoertyAndValue(PLAYER_PROPERTY.PROPERTY_POWERLIFETIME, userCached.getPlayerAccountVO().getLifeTime()));
+		}
+
+		propertyList.add(new ProtoertyAndValue(type, result));
+
+		CommandUtil.packageSomeProperties(PLAYER_UNIT_TYPE.UNIT_PLAYER, playerAccountVO.getPlayerId(), propertyList, commandList);
+		propertyList.clear();
+		propertyList = null;
+		// if (type == PLAYER_PROPERTY.PROPERTY_SCORE) {
+		// // 积分暂不传
+		// } else if (type == PLAYER_PROPERTY.PROPERTY_POWER && value < 0) {
+		// //
+		// commandList.add(CommandUtil.packageAnyProperties(PLAYER_UNIT_TYPE.UNIT_PLAYER,
+		// playerAccountVO.getPlayerId(), type, result));
+		// CommandUtil.packageSomeProperties(PLAYER_UNIT_TYPE.UNIT_PLAYER,
+		// playerAccountVO.getPlayerId(),
+		// // new PLAYER_PROPERTY[] { PLAYER_UNIT_TYPE.PROPERTY_POWER,
+		// PLAYER_UNIT_TYPE.PROPERTY_PVP }, new int[] {
+		// playerAccountVO.getPower(), playerAccountVO.getPvp() });
+		// } else {
+		// commandList.add(CommandUtil.packageAnyProperties(PLAYER_UNIT_TYPE.UNIT_PLAYER,
+		// playerAccountVO.getPlayerId(), type, result));
+		// }
+		// }
+		insertPlayerAccountLog(playerAccountVO, type.getNumber(), result, value, reason);
+
+	}
+
+	/**
+	 * @param gmio
+	 *            :gm统计使用,usage(用途{@link GMIOEnum}),content(购买物品填写,参看mail
+	 *            reward),itemNum
+	 */
+	public void deductCurrency(PLAYER_PROPERTY type, int value, PlayerAccountVO playerAccountVO, List<NettyMessageVO> commandList, String reason, int... gmio) throws Exception {
+		SyncLock syncLock = SyncUtil.getInstance().getLock(LockConstant.LOCK_PLAYERVO + playerAccountVO.getPlayerId());
+		synchronized (syncLock) {
+
+			if (value < 0) {
+				throw new Exception("扣错钱了");
+			}
+
+			if (type == PLAYER_PROPERTY.PROPERTY_RMB) {
+				int giftGod = playerAccountVO.getGiftgod();
+				if (giftGod >= value) { // 如果礼金足够，就优先扣礼金，不够再扣元宝
+					changeCurrency(PLAYER_PROPERTY.PROPERTY_GIFTGOLD, -value, false, playerAccountVO, commandList, reason, gmio);
+				} else {
+					if (giftGod > 0) {
+						changeCurrency(PLAYER_PROPERTY.PROPERTY_GIFTGOLD, -giftGod, false, playerAccountVO, commandList, reason, gmio);
+					}
+					changeCurrency(PLAYER_PROPERTY.PROPERTY_RMB, -(value - giftGod), false, playerAccountVO, commandList, reason, gmio);
+				}
+			} else {
+				changeCurrency(type, -value, false, playerAccountVO, commandList, reason, gmio);
+			}
+		}
+
+	}
+
+	public void deductCurrencyOnlyRMB(int value, PlayerAccountVO playerAccountVO, List<NettyMessageVO> commandList, String reason, int... gmio) throws Exception {
+		SyncLock syncLock = SyncUtil.getInstance().getLock(LockConstant.LOCK_PLAYERVO + playerAccountVO.getPlayerId());
+		synchronized (syncLock) {
+
+			if (value < 0) {
+				throw new Exception("扣错钱了");
+			}
+			changeCurrency(PLAYER_PROPERTY.PROPERTY_RMB, -value, false, playerAccountVO, commandList, reason, gmio);
+		}
+	}
+
+	private int[] getGMIODetails(int[] gmio, String reason, boolean isIn) throws Exception {
+		int[] gmioArray = new int[3];
+		if (gmio.length == 1) {
+			gmioArray[0] = gmio[0];
+		} else if (gmio.length == 2) {
+			gmioArray[0] = gmio[0];
+			gmioArray[2] = gmio[1];
+		} else if (gmio.length == 3) {
+			gmioArray[0] = gmio[0];
+			gmioArray[1] = gmio[1];
+			gmioArray[2] = gmio[2];
+		} else {
+			if (isIn) {
+				gmioArray[0] = GMIOEnum.INT_OTHER.usage();
+				LOGGER.error("由于'" + reason + "'产出了礼金或者元宝,但是暂时还未列入记录");
+			} else {
+				gmioArray[0] = GMIOEnum.OUT_OTHER.usage();
+				LOGGER.error("由于'" + reason + "'使用了礼金或者元宝,但是暂时还未列入记录");
+			}
+		}
+		return gmioArray;
+	}
+
+	public void addCurrency(PLAYER_PROPERTY type, int value, PlayerAccountVO playerAccountVO, List<NettyMessageVO> commandList, String reason, int... gmio) throws Exception {
+		SyncLock syncLock = SyncUtil.getInstance().getLock(LockConstant.LOCK_PLAYERVO + playerAccountVO.getPlayerId());
+		synchronized (syncLock) {
+			if (value < 0) {
+				throw new Exception("加错钱了");
+			}
+			changeCurrency(type, value, false, playerAccountVO, commandList, reason, gmio);
+			// if (type == PLAYER_PROPERTY.PROPERTY_RMB || type ==
+			// PLAYER_PROPERTY.PROPERTY_GIFTGOLD) {
+			// int[] ioArray = getGMIODetails(gmio, reason, true);
+			// gmService.addGMInputLog(playerAccountVO.getPlayerId(),
+			// ioArray[0], value, type.getNumber(), ioArray[1], ioArray[2]);
+			// }
+		}
+	}
+
+	//
+	public void recharge(PLAYER_PROPERTY type, int value, boolean isRecharge, PlayerAccountVO playerAccountVO, List<NettyMessageVO> commandList, String reason) throws Exception {
+		SyncLock syncLock = SyncUtil.getInstance().getLock(LockConstant.LOCK_PLAYERVO + playerAccountVO.getPlayerId());
+		synchronized (syncLock) {
+			if (value < 0) {
+				throw new Exception("加错钱了");
+			}
+			changeCurrency(type, value, isRecharge, playerAccountVO, commandList, reason, GMIOEnum.IN_CHARGE.usage());
+
+			// gmService.addGMInputLog(playerAccountVO.getPlayerId(),
+			// GMIOEnum.IN_CHARGE.usage(), value, type.getNumber(), 0, value);
+		}
+	}
+
+	public void updatePowerTimer(PlayerTimerVO playerTimerVO) throws Exception {
+		sqlSaveThread.putSql(sqlBuild.getSql("com.dh.dao.PlayerTimerMapper.updatePowerTimer", playerTimerVO));
+	}
+
+	public void updatePlayerPower(PlayerAccountVO playerAccountVO) throws Exception {
+		sqlSaveThread.putSql(sqlBuild.getSql("com.dh.dao.PlayerAccountMapper.updatePlayerAccountPower", playerAccountVO));
+	}
+
+	public void updatePlayerAccountKnapsack(PlayerAccountVO playerAccountVO) throws Exception {
+		sqlSaveThread.putSql(sqlBuild.getSql("com.dh.dao.PlayerAccountMapper.updatePlayerAccountKnapsack", playerAccountVO));
+	}
+
+	private void updatePlayerAccountPvp(PlayerAccountVO playerAccountVO) throws Exception {
+		sqlSaveThread.putSql(sqlBuild.getSql("com.dh.dao.PlayerAccountMapper.updatePlayerAccountPVP", playerAccountVO));
+	}
+
+	public void updatePlayerAccountRMB(PlayerAccountVO playerAccountVO) throws Exception {
+		sqlSaveThread.putSql(sqlBuild.getSql("com.dh.dao.PlayerAccountMapper.updatePlayerAccountRMB", playerAccountVO));
+	}
+
+	public void insertPlayerAccountLog(PlayerAccountVO playerAccountVO, int currency, int value, int beValue, String reason) throws Exception {
+		PlayerAccountLog playerAccountLog = new PlayerAccountLog();
+		playerAccountLog.setPlayerId(playerAccountVO.getPlayerId());
+		playerAccountLog.setCurrency(currency);
+		playerAccountLog.setAmount(value);
+		playerAccountLog.setBeAmount(beValue);
+		playerAccountLog.setOperateType(1);
+		playerAccountLog.setOperateTime(new Date());
+		playerAccountLog.setReason(reason);
+
+		sqlSaveThread.putSql(sqlBuild.getSql("com.dh.dao.PlayerAccountMapper.insertPlayerAccountLog", playerAccountLog));
+	}
+
+}

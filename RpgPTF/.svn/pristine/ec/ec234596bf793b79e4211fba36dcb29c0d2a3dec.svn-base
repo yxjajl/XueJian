@@ -1,0 +1,5 @@
+package com.dh.game.vo.login;
+
+message GetRoleNameResponse {
+	required string name = 1;
+}

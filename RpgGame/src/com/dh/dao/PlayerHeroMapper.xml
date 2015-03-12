@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dh.dao.PlayerHeroMapper">
+
+	<select id="getPlayerHeroList" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.PlayerHeroVO">
+		<include refid="queryGetPlayerHero"></include>
+		where playerid=#{playerId}
+	</select>
+	
+	
+	
+	<sql id="queryByKeyPlayerHero">
+		WHERE `playerid` = #{playerId}
+		AND `id` = #{id}
+	</sql>
+	<select id="getTop5Heros" parameterType="com.dh.game.vo.user.PlayerHeroVO" resultType="com.dh.game.vo.user.PlayerHeroVO">
+		<include refid="queryGetPlayerHero"></include>
+		where playerid=#{playerId} order by combat desc limit 5
+	</select>
+	<sql id="queryGetPlayerHero">
+		SELECT `id`, `playerid`, `cfgid`, `level`, `exp`, `hungre`,hp,def,mdef,atk,matk,hit,dodge,cir_rate,passivesSkill,skillLevel,`line_status` as lineStatus,
+		  `combat`,
+		  `final_hp`,
+		  `final_def`,
+		  `final_mdef`,
+		  `final_atk`,
+		  `final_matk`,
+		  `final_hit`,
+		  `final_dodge`,
+		  `final_cir_rate`,
+		  `prefix`,
+		  `name`,`yzhp`,`yzanger`
+		 FROM `t_player_hero` 
+	</sql>
+	
+	<update id="updatePlayerHero" parameterType="com.dh.game.vo.user.PlayerHeroVO">
+		UPDATE t_player_hero
+		SET `level` = #{level},
+		`cfgid` = #{cfgId},
+		`exp` = #{exp},
+		`hungre` = #{hungre},
+		hp= #{hp},
+		def= #{def},
+		mdef= #{mdef},
+		atk= #{atk},
+		matk= #{matk},
+		hit= #{hit},
+		dodge= #{dodge},
+		cir_rate= #{cir_rate},
+		passivesSkill = #{passivesSkill},
+		skillLevel = #{skillLevel},
+		line_status=#{lineStatus},
+		combat = #{combat},
+		final_hp = #{final_hp},
+		final_def = #{final_def},
+		final_mdef = #{final_mdef},
+		final_atk = #{final_atk},
+		final_matk = #{final_matk},
+		final_hit = #{final_hit},
+		final_dodge = #{final_dodge},
+		final_cir_rate = #{final_cir_rate},
+		 `prefix` = #{prefix},
+		`name`=#{name},
+		`yzhp`  = #{yzhp},
+		`yzanger` = #{yzanger}
+		<include refid="queryByKeyPlayerHero"/>
+	</update>
+
+	<delete id="deletePlayerHero" parameterType="com.dh.game.vo.user.PlayerHeroVO">
+		DELETE FROM t_player_hero <include refid="queryByKeyPlayerHero"/>
+	</delete>
+
+	<insert id="addPlayerHero" parameterType="com.dh.game.vo.user.PlayerHeroVO">
+		INSERT INTO `t_player_hero`
+		            (`id`,
+		             `playerid`,
+		             `cfgid`,
+		             `level`,
+		             `exp`,
+		             `hungre`,hp,def,mdef,atk,matk,hit,dodge,cir_rate,passivesSkill,skillLevel,`line_status`,
+				  `combat`,
+				  `final_hp`,
+				  `final_def`,
+				  `final_mdef`,
+				  `final_atk`,
+				  `final_matk`,
+				  `final_hit`,
+				  `final_dodge`,
+				  `final_cir_rate`, `prefix`,
+		  `name`,`yzhp`,`yzanger`
+		)
+		VALUES (#{id},
+		        #{playerId},
+		        #{cfgId},
+		        #{level},
+		        #{exp},
+		        #{hungre},
+				#{hp},
+				#{def},
+				#{mdef},
+				#{atk},
+				#{matk},
+				#{hit},
+				#{dodge},
+				#{cir_rate},
+				#{passivesSkill},
+				1,
+		#{lineStatus},
+		  #{combat},
+		  #{final_hp},
+		  #{final_def},
+		  #{final_mdef},
+		  #{final_atk},
+		  #{final_matk},
+		  #{final_hit},
+		  #{final_dodge},
+		  #{final_cir_rate},#{prefix},
+		  #{name},#{yzhp},#{yzanger}
+		
+		)
+	</insert>
+</mapper>

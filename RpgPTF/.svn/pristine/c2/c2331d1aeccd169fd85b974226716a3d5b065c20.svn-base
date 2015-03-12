@@ -1,0 +1,35 @@
+package com.dh.game.vo.base;
+
+public class NameVO {
+	/** 姓 */
+	public String familyName;
+	/** 名 */
+	public String firstName;
+	/** 符号 */
+	public String sign;
+
+	public String getFamilyName() {
+		return familyName;
+	}
+
+	public void setFamilyName(String familyName) {
+		this.familyName = familyName;
+	}
+
+	public String getFirstName() {
+		return firstName;
+	}
+
+	public void setFirstName(String firstName) {
+		this.firstName = firstName;
+	}
+
+	public String getSign() {
+		return sign;
+	}
+
+	public void setSign(String sign) {
+		this.sign = sign;
+	}
+
+}

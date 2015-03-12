@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="com.dh.dao.PlayerMapper">
+	<select id="getAllPlayerVO" resultType="com.dh.game.vo.user.PlayerVO">
+		SELECT `playerId`, `userName`, `name`, `headIcon`, `sex`, `country`, `legionId`, `password`,`bchannel`,
+		`level`, `exp`, `renown`, `honor`, `hp`, `vip`, `registerdate` ,`lastLoginDate`,
+		`loginRecord`, `isLogin`, `scores`, `isReward`, `is_online`, `vip_isReward`, new_guide
+		as newGuide, function_guide as functionGuide ,`combat`,`gmGroup` FROM `t_player`
+	</select>
+	<select id="getPlayerIdByAccount" parameterType="java.lang.String" resultType="java.lang.Integer">SELECT `playerId` from `t_player` where `username`=#{username}</select>
+	<update id="initAllPlayerOnline">update `t_player` set is_online=0</update>
+	
+	<select id="getPlayerVOById" parameterType="java.lang.Integer" resultType="com.dh.game.vo.user.PlayerVO">
+		SELECT `playerId`, `userName`, `password`, `name`, `headIcon`, `sex`, `country`, `legionId`,
+		`level`, `exp`, `renown`, `honor`, `hp`, `vip`, `registerdate`, `lastLoginDate`,
+		`loginRecord`,`bchannel`, `isLogin`, `scores`, `isReward`, `is_online`, `vip_isReward`,
+		new_guide as newGuide, function_guide as functionGuide ,`combat`,`gmGroup` FROM
+		t_player where playerid = #{playerid}
+	</select>
+	
+	
+	<update id="updatePlayer" parameterType="com.dh.game.vo.user.PlayerVO">
+		UPDATE `t_player` SET `country` = #{country}, `level`= #{level}, `exp` = #{exp}, `renown`
+		= #{renown}, `honor` = #{honor}, `hp` = #{hp}, `vip` = #{vip}, `lastLoginDate` =
+		#{lastLoginDate}, `loginRecord` = #{loginRecord}, `isLogin` = #{isLogin}, `scores`
+		= #{scores}, `isReward` = #{isReward}, `is_online`= #{is_online}, `vip_isReward`
+		= #{vip_isReward} ,`combat` =#{combat},`gmGroup`=#{gmGroup} WHERE `playerid` = #{playerId}
+	</update>
+	<update id="updatePlayerVOForLegion" parameterType="com.dh.game.vo.user.PlayerVO">UPDATE `t_player` SET  `legionId` = #{legionId}  WHERE `playerid` = #{playerId}</update>
+	<update id="updatePlayerNick" parameterType="com.dh.game.vo.user.PlayerVO">UPDATE `t_player` set `name` = #{name} WHERE `playerid` = #{playerId}</update>
+	<update id="updatePlayerOnline" parameterType="com.dh.game.vo.user.PlayerVO">UPDATE `t_player` set `is_online` = #{is_online} WHERE `playerid` = #{playerId}</update>
+	<update id="updatePlayerGM" parameterType="com.dh.game.vo.user.PlayerVO">UPDATE `t_player` set `gmGroup` = #{gmGroup} WHERE `playerid` = #{playerId}</update>
+	
+	<insert id="registerPlayer" parameterType="com.dh.game.vo.user.PlayerVO">
+		INSERT INTO `T_PLAYER` ( `playerid`,`username`,`password`,`name`,`headicon`, `sex`,`country`,`legionId`,
+		`level`, `exp`,`renown`,`honor`,`hp`,`vip`,`registerdate`,`lastlogindate` ,`loginrecord`,`islogin`,`scores`,`isreward`,
+		`is_online`,`vip_isreward`,`resolution`,`bchannel`,`new_guide`,`function_guide`,`combat`)
+		VALUES(#{playerId},#{userName},#{password},#{name},#{headIcon},#{sex},#{country},#{legionId},
+		#{level},#{exp},#{renown},#{honor},#{hp},#{vip},#{registerdate},#{lastLoginDate},#{loginRecord},#{isLogin},#{scores},
+		#{isReward},#{is_online},#{vip_isReward},#{resolution},#{bchannel},#{newGuide},#{functionGuide},#{combat})
+	</insert>
+	<select id="getOnlineNum" resultType="java.lang.Integer">select count(*) from t_player  where `is_online`=1</select>
+	
+</mapper>

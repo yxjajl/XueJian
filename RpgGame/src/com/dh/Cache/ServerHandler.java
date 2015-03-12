@@ -1,0 +1,258 @@
+package com.dh.Cache;
+
+import gnu.trove.impl.sync.TSynchronizedIntObjectMap;
+import gnu.trove.impl.sync.TSynchronizedObjectIntMap;
+import gnu.trove.map.TIntObjectMap;
+import gnu.trove.map.TObjectIntMap;
+import gnu.trove.map.hash.TIntObjectHashMap;
+import gnu.trove.map.hash.TObjectIntHashMap;
+import io.netty.channel.Channel;
+import io.netty.channel.group.ChannelGroup;
+import io.netty.channel.group.DefaultChannelGroup;
+import io.netty.util.concurrent.DefaultEventExecutor;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.log4j.Logger;
+
+import com.dh.game.vo.user.UserPartCache;
+import com.dh.netty.NettyMessageVO;
+import com.dh.queue.LocalCommandRunnable;
+import com.dh.vo.user.UserCached;
+
+public final class ServerHandler {
+	public final static ArrayList<LocalCommandRunnable> businessThreadList = new ArrayList<LocalCommandRunnable>();
+	// // ** channel与已登录的玩家玩家映射 channel -------->id*//*
+	public final static TObjectIntMap<Channel> CHANNEL_PLAYER = new TSynchronizedObjectIntMap<Channel>(new TObjectIntHashMap<Channel>());
+	// 用户缓存
+	public final static TIntObjectMap<UserCached> USERCACHEDMAP = new TSynchronizedIntObjectMap<UserCached>(new TIntObjectHashMap<UserCached>());
+
+	public final static TIntObjectMap<UserPartCache> USER_PART_CACHE = new TSynchronizedIntObjectMap<UserPartCache>(new TIntObjectHashMap<UserPartCache>());
+
+	public final static ChannelGroup BOSS_CHANNEL = new DefaultChannelGroup(new DefaultEventExecutor());
+
+	public final static TIntObjectMap<ChannelGroup> LEGIONS_CHANNEL = new TSynchronizedIntObjectMap<ChannelGroup>(new TIntObjectHashMap<ChannelGroup>());
+
+	private static Object LockBossCG = new Object();
+	private static Object LockLegionCG = new Object();
+
+	private final static Logger LOGGER = Logger.getLogger(ServerHandler.class);
+
+	public static void addLegionChannel(int id, ChannelGroup ch) {
+		synchronized (LockLegionCG) {
+			LEGIONS_CHANNEL.put(id, ch);
+		}
+	}
+
+	public static int getOnlineCount() {
+		Object[] values = ServerHandler.USERCACHEDMAP.values();
+		int size = 0;
+		UserCached userCached = null;
+		for (Object object : values) {
+			try {
+				userCached = (UserCached) object;
+				if (userCached.getPlayerVO().getIs_online() == 1) {
+					size++;
+				}
+			} catch (Exception e) {
+				LOGGER.error("统计数量", e);
+			}
+		}
+		return size;
+	}
+
+	public static void addPlayerToLegionChannel(int legionId, Channel channel) {
+		if (legionId == 0) {
+			return;
+		}
+		synchronized (LockLegionCG) {
+			ChannelGroup cg = null;
+			if ((cg = LEGIONS_CHANNEL.get(legionId)) == null) {
+				cg = new DefaultChannelGroup(new DefaultEventExecutor());
+				cg.add(channel);
+				LEGIONS_CHANNEL.put(legionId, cg);
+			} else {
+				cg.add(channel);
+			}
+		}
+
+	}
+
+	public static void removeLegionChannel(int id) {
+		synchronized (LockLegionCG) {
+			LEGIONS_CHANNEL.remove(id);
+		}
+	}
+
+	public static void removeFromLegionChannel(int legionId, Channel ch) {
+		if (legionId == 0) {
+			return;
+		}
+		synchronized (LockLegionCG) {
+			ChannelGroup cg = LEGIONS_CHANNEL.get(legionId);
+			if (cg != null) {
+				System.out.println(cg.remove(ch));
+			}
+		}
+	}
+
+	public static void broadcastLegion(int id, NettyMessageVO nettyMessageVO) {
+		synchronized (LockLegionCG) {
+			ChannelGroup cg = LEGIONS_CHANNEL.get(id);
+			if (cg != null) {
+				cg.writeAndFlush(nettyMessageVO);
+			}
+		}
+	}
+
+	public static void addBossChannel(Channel ch) {
+		synchronized (LockBossCG) {
+			BOSS_CHANNEL.add(ch);
+		}
+	}
+
+	public static void removeBossChannel(Channel ch) {
+		synchronized (LockBossCG) {
+			BOSS_CHANNEL.remove(ch);
+		}
+	}
+
+	public static void broadcastBossPlayer(NettyMessageVO nettyMessageVO) {
+		synchronized (LockBossCG) {
+			BOSS_CHANNEL.writeAndFlush(nettyMessageVO);
+		}
+	}
+
+	public static void clearBossChannels() {
+		synchronized (LockBossCG) {
+			BOSS_CHANNEL.clear();
+		}
+	}
+
+	/**
+	 * 遍历usercacheMap发送
+	 */
+	public static void sendToAllOnlinePlayer(NettyMessageVO nettyMessageVO) {
+		TIntObjectMap<UserCached> map = USERCACHEDMAP;
+		Channel ch = null;
+
+		Object[] objs = map.values();
+		UserCached userCached = null;
+		for (Object object : objs) {
+			try {
+				userCached = (UserCached) object;
+				ch = userCached.getChannel();
+				if (ch != null && ch.isActive()) {
+					ch.writeAndFlush(nettyMessageVO);
+				}
+			} catch (Exception e) {
+				LOGGER.error("消息发送错误" + e.getCause(), e);
+			}
+		}
+		LOGGER.info("发送全局通知消息,commoncode:" + nettyMessageVO.getCommandCode());
+	}
+
+	/**
+	 * 遍历usercacheMap发送
+	 */
+	public static void sendToAllOnlinePlayerWithBlack(NettyMessageVO nettyMessageVO, int sendId) {
+		Channel ch = null;
+		UserCached[] arrUserCached = ServerHandler.USERCACHEDMAP.values(new UserCached[0]);
+		for (UserCached userCached : arrUserCached) {
+			ch = userCached.getChannel();
+			if (ch != null && ch.isActive()) {
+				if (!userCached.getUserFriend().isInFriend(true, sendId)) {
+					LOGGER.info("发送数据指令:" + nettyMessageVO.getCommandCode());
+					userCached.getChannel().writeAndFlush(nettyMessageVO);
+				}
+			}
+		}
+
+	}
+
+	public static boolean isOnline(int playerId) {
+		UserCached userCached = USERCACHEDMAP.get(playerId);
+		if (userCached != null) {
+			return userCached.getChannel() != null && userCached.getChannel().isActive();
+		}
+		return false;
+	}
+
+	public static UserPartCache getPlayerPartCache(int playerId) {
+		return USER_PART_CACHE.get(playerId);
+	}
+
+	public static void addPlayerPartCache(UserPartCache userPartCache) {
+		USER_PART_CACHE.put(userPartCache.getPlayerId(), userPartCache);
+	}
+
+	public static void addPlayerChannel(int playerid, Channel channelid) {
+		CHANNEL_PLAYER.put(channelid, playerid);
+	}
+
+	public static void removePlayerChannelByChannel(Channel channelid) {
+		CHANNEL_PLAYER.remove(channelid);
+	}
+
+	public static int get(Channel channelid) {
+		return CHANNEL_PLAYER.get(channelid);
+	}
+
+	public static void putUserCached(int playerid, UserCached userCached) {
+		USERCACHEDMAP.put(playerid, userCached);
+	}
+
+	public static void removeUserCached(int playerid) {
+		USERCACHEDMAP.remove(playerid);
+	}
+
+	public static UserCached getUserCached(int playerid) throws Exception {
+		UserCached uc = USERCACHEDMAP.get(playerid);
+		if (uc == null) {
+			throw new Exception("内存中无此用户[" + playerid);
+		}
+		return uc;
+	}
+
+	public static UserCached getUserCached2(int playerid) {
+		return USERCACHEDMAP.get(playerid);
+	}
+
+	public static void sendMessageToPlayer(NettyMessageVO nettyMessageVO, int recvId) {
+		UserCached userCached = USERCACHEDMAP.get(recvId);
+		if (userCached != null && userCached.getChannel() != null && userCached.getChannel().isActive()) {
+			LOGGER.info("push数据指令:" + nettyMessageVO.getCommandCode());
+			userCached.getChannel().writeAndFlush(nettyMessageVO);
+		}
+	}
+
+	public static void sendMessageToPlayer(NettyMessageVO nettyMessageVO, int sendId, int recvId) {
+		UserCached userCached = USERCACHEDMAP.get(recvId);
+		if (userCached != null && userCached.getChannel() != null && userCached.getChannel().isActive()) {
+			if (!userCached.getUserFriend().isInFriend(true, sendId)) {
+				userCached.getChannel().writeAndFlush(nettyMessageVO);
+			}
+		}
+	}
+
+	public static void sendMessageToPlayer(NettyMessageVO nettyMessageVO, Channel channel) {
+		if (channel != null && channel.isActive()) {
+			channel.writeAndFlush(nettyMessageVO);
+		}
+	}
+
+	public static void sendMessageToPlayer(List<NettyMessageVO> nettyMessageVOList, int playerId) {
+		UserCached userCached = USERCACHEDMAP.get(playerId);
+		if (userCached != null && userCached.getChannel() != null && userCached.getChannel().isActive()) {
+			for (NettyMessageVO nettyMessageVO : nettyMessageVOList) {
+				System.out.println("serverHandler commandCode: " + nettyMessageVO.getCommandCode());
+				userCached.getChannel().writeAndFlush(nettyMessageVO);
+			}
+		}
+	}
+
+	public static void main(String[] args) {
+	}
+
+}
